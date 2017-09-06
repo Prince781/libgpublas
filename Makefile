@@ -1,3 +1,4 @@
+# put /opt/cuda/bin/ into $PATH
 NVCC=nvcc
 SOURCES=$(wildcard *.c)
 OBJDIR=obj
@@ -17,5 +18,5 @@ libmkl2cuda.so: $(SOURCES:%.c=$(OBJDIR)/%.o)
 	$(NVCC) -shared -Xlinker $(LDFLAGS) $^ -o $@
 
 clean: $(OBJECTS)
-	rm $(OBJECTS)
 	rmdir $(OBJDIR)
+	rm $(OBJECTS)
