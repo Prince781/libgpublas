@@ -3,6 +3,8 @@
 
 #include "../blas2cuda.h"
 
+extern "C" {
+
 /* BLAS Level 1 routines */
 
 /* cblas_?asum - sum of vector magnitudes (functions) */
@@ -18,5 +20,6 @@ void cblas_scopy (const int n,
 
 /* ... TODO ... */
 
+};
 
 #endif
