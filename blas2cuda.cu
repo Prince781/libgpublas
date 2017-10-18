@@ -56,10 +56,10 @@ void blas2cuda_init(void)
             /* do nothing */
             break;
         case CUBLAS_STATUS_ALLOC_FAILED:
-            fprintf(stderr, "cuBLAS: failed to allocate resources\n");
+            fprintf(stderr, "blas2cuda: failed to allocate resources\n");
         case CUBLAS_STATUS_NOT_INITIALIZED:
         default:
-            fprintf(stderr, "cuBLAS: failed to initialize cuBLAS\n");
+            fprintf(stderr, "blas2cuda: failed to initialize cuBLAS\n");
             exit(EXIT_FAILURE);
             break;
     }
@@ -71,5 +71,5 @@ __attribute__((destructor))
 void blas2cuda_fini(void)
 {
     if (cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
-        fprintf(stderr, "cuBLAS: failed to destroy. Not initialized\n");
+        fprintf(stderr, "blas2cuda: failed to destroy. Not initialized\n");
 }
