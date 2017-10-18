@@ -13,16 +13,31 @@ static void set_options(void) {
     char *options = getenv("BLAS2CUDA_OPTIONS");
     char *saveptr = NULL;
     char *option = NULL;
+    bool help = false;
 
     if (!options)
         return;
 
     option = strtok_r(options, ",", &saveptr);
     while (option != NULL) {
-        if (strcmp(option, "debug_execfail") == 0)
+        if (strcmp(option, "help") == 0) {
+            if (!help) {
+                fprintf(stderr, 
+                        "blas2cuda options:\n"
+                        "You can chain these options with a comma (,)\n"
+                        "help           -- print help\n"
+                        "debug_execfail -- debug kernel failures\n"
+                        "trace_copy     -- trace copies between CPU and GPU\n"
+                       );
+                help = true;
+            }
+        } else if (strcmp(option, "debug_execfail") == 0)
             b2c_options.debug_execfail = true;
         else if (strcmp(option, "trace_copy") == 0)
             b2c_options.trace_copy = true;
+        else {
+            fprintf(stderr, "blas2cuda: unknown option '%s'. Set BLAS2CUDA_OPTIONS=help.\n", option);
+        }
         option = strtok_r(NULL, ",", &saveptr);
     }
 }
