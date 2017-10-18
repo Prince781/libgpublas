@@ -18,3 +18,4 @@ $(OBJDIR)/%.o: %.cu
 clean: $(OBJECTS)
 	@rm -rf $(OBJDIR)
 	@rm -f $(OBJECTS)
+	@rm -f libmkl2cuda.so
