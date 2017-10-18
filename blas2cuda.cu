@@ -20,6 +20,34 @@ static void set_options(void) {
     }
 }
 
+void *b2c_copy_to_gpu(const void *devbuf, size_t size)
+{
+    void *gpubuf = NULL;
+
+    cudaMalloc(&gpubuf, size);
+
+    if (gpubuf == NULL)
+        return gpubuf;
+
+    cudaMemcpy(gpubuf, devbuf, size, cudaMemcpyHostToDevice);
+
+    return gpubuf;
+}
+
+void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
+{
+    void *devbuf = NULL;
+
+    devbuf = malloc(size);
+
+    if (devbuf == NULL)
+        return devbuf;
+
+    cudaMemcpy(devbuf, gpubuf, size, cudaMemcpyDeviceToHost);
+
+    return devbuf;
+}
+
 __attribute__((constructor))
 void blas2cuda_init(void)
 {

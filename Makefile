@@ -4,14 +4,14 @@ SOURCES=$(wildcard *.cu) $(wildcard */*.cu)
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall,-Werror,-fPIC
-LDFLAGS=-fPIC,-init,blas2cuda_init,-fini,blas2cuda_fini
+LDFLAGS=-fPIC,-init,blas2cuda_init,-fini,blas2cuda_fini,-L,/opt/cuda/lib64/,-l,cublas
 
 libmkl2cuda.so: $(SOURCES:%.cu=$(OBJDIR)/%.o)
 	$(NVCC) -shared -Xlinker $(LDFLAGS) $^ -o $@
 
 $(OBJDIR)/%.o: %.cu
 	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
-	$(NVCC) -Xcompiler $(CFLAGS) -c $^ -o $@
+	$(NVCC) -Xcompiler $(CFLAGS) -shared -c $^ -o $@
 
 .PHONY: clean
 
