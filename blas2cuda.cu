@@ -1,7 +1,24 @@
 #include "blas2cuda.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 cublasHandle_t b2c_handle;
+
+struct options b2c_options = { false };
+
+static void set_options(void) {
+    /* TODO: use secure_getenv() ? */
+    char *options = getenv("BLAS2CUDA_OPTIONS");
+    char *saveptr = NULL;
+    char *option = NULL;
+
+    option = strtok_r(options, ",", &saveptr);
+    while (option != NULL) {
+        if (strcmp(option, "debug") == 0)
+            b2c_options.debug = true;
+        option = strtok_r(NULL, ",", &saveptr);
+    }
+}
 
 __attribute__((constructor))
 void blas2cuda_init(void)
@@ -18,6 +35,8 @@ void blas2cuda_init(void)
             exit(EXIT_FAILURE);
             break;
     }
+
+    set_options();
 }
 
 __attribute__((destructor))

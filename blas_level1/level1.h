@@ -1,6 +1,8 @@
 #ifndef BLAS2CUDA_LEVEL1_H
 #define BLAS2CUDA_LEVEL1_H
 
+#include "../blas2cuda.h"
+
 /* BLAS Level 1 routines */
 
 /* cblas_?asum - sum of vector magnitudes (functions) */
