@@ -19,8 +19,10 @@ static void set_options(void) {
 
     option = strtok_r(options, ",", &saveptr);
     while (option != NULL) {
-        if (strcmp(option, "debug") == 0)
-            b2c_options.debug = true;
+        if (strcmp(option, "debug_execfail") == 0)
+            b2c_options.debug_execfail = true;
+        else if (strcmp(option, "trace_copy") == 0)
+            b2c_options.trace_copy = true;
         option = strtok_r(NULL, ",", &saveptr);
     }
 }
@@ -51,10 +53,13 @@ void *b2c_copy_to_gpu(const void *devbuf, size_t size)
 
     cudaMalloc(&gpubuf, size);
 
-    if (gpubuf == NULL)
-        return gpubuf;
+    if (!gpubuf)
+        return NULL;
 
     cudaMemcpy(gpubuf, devbuf, size, cudaMemcpyHostToDevice);
+
+    if (b2c_options.trace_copy)
+        printf("%s: %zu B : CPU ---> GPU\n", __func__, size);
 
     return gpubuf;
 }
@@ -71,6 +76,9 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
         return devbuf;
 
     cudaMemcpy(devbuf, gpubuf, size, cudaMemcpyDeviceToHost);
+
+    if (b2c_options.trace_copy)
+        printf("%s: %zu B : GPU ---> CPU\n", __func__, size);
 
     return devbuf;
 }

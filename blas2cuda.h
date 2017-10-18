@@ -11,14 +11,15 @@
 #define B2C_ERRORCHECK(name, status) \
 do {\
     if (status == CUBLAS_STATUS_EXECUTION_FAILED) {\
-        if (b2c_options.debug) {\
+        if (b2c_options.debug_execfail) {\
             fprintf(stderr, "blas2cuda: failed to execute " #name "\n");\
         }\
     }\
 } while (0)
 
 struct options {
-    bool debug;
+    bool debug_execfail;
+    bool trace_copy;
 };
 
 extern struct options b2c_options;
