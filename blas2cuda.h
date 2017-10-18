@@ -10,20 +10,35 @@
 
 #define B2C_ERRORCHECK(name, status) \
 do {\
-    if (status == CUBLAS_STATUS_EXECUTION_FAILED) {\
-        if (b2c_options.debug_execfail) {\
-            fprintf(stderr, "blas2cuda: failed to execute " #name "\n");\
+    if (b2c_options.debug_execfail) {\
+        switch (status) {\
+            case CUBLAS_STATUS_EXECUTION_FAILED:\
+                fprintf(stderr, "blas2cuda: failed to execute " #name "\n");\
+                break;\
+            case CUBLAS_STATUS_NOT_INITIALIZED:\
+                fprintf(stderr, "blas2cuda: not initialized\n");\
+                break;\
+            case CUBLAS_STATUS_ARCH_MISMATCH:\
+                fprintf(stderr, "blas2cuda:" #name " not supported\n");\
+                break;\
+            default:\
+                break;\
         }\
     }\
+    if (status == CUBLAS_STATUS_SUCCESS && b2c_options.debug_exec)\
+        fprintf(stderr, "blas2cuda: calling %s()\n", #name);\
 } while (0)
 
 struct options {
     bool debug_execfail;
+    bool debug_exec;
     bool trace_copy;
 };
 
 extern struct options b2c_options;
 extern cublasHandle_t b2c_handle;
+
+void init_cublas(void);
 
 /**
  * Copy host (CPU) buffer to GPU. Returns a pointer to GPU buffer.

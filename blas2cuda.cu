@@ -6,7 +6,7 @@ static bool init = false;
 
 cublasHandle_t b2c_handle;
 
-struct options b2c_options = { false };
+struct options b2c_options = { false, false, false };
 
 static void set_options(void) {
     /* TODO: use secure_getenv() ? */
@@ -18,21 +18,25 @@ static void set_options(void) {
     if (!options)
         return;
 
-    option = strtok_r(options, ",", &saveptr);
+    option = strtok_r(options, ";", &saveptr);
     while (option != NULL) {
         if (strcmp(option, "help") == 0) {
             if (!help) {
                 fprintf(stderr, 
                         "blas2cuda options:\n"
-                        "You can chain these options with a comma (,)\n"
+                        "You can chain these options with a semicolon (;)\n"
                         "help           -- print help\n"
                         "debug_execfail -- debug kernel failures\n"
+                        "debug_exec     -- debug kernel invocations\n"
                         "trace_copy     -- trace copies between CPU and GPU\n"
                        );
                 help = true;
             }
-        } else if (strcmp(option, "debug_execfail") == 0)
+        } 
+        else if (strcmp(option, "debug_execfail") == 0)
             b2c_options.debug_execfail = true;
+        else if (strcmp(option, "debug_exec") == 0)
+            b2c_options.debug_exec = true;
         else if (strcmp(option, "trace_copy") == 0)
             b2c_options.trace_copy = true;
         else {
@@ -42,7 +46,7 @@ static void set_options(void) {
     }
 }
 
-static void init_cublas(void) {
+void init_cublas(void) {
     if (!init) {
         switch (cublasCreate(&b2c_handle)) {
             case CUBLAS_STATUS_SUCCESS:
