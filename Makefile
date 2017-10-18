@@ -1,10 +1,11 @@
 # put /opt/cuda/bin/ into $PATH
 NVCC=nvcc
+CUDA=/opt/lib64/cuda
 SOURCES=$(wildcard *.cu) $(wildcard */*.cu)
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall,-Werror,-fPIC
-LDFLAGS=-fPIC,-init,blas2cuda_init,-fini,blas2cuda_fini,-L,/opt/cuda/lib64/,-l,cublas
+LDFLAGS=-fPIC,-init,blas2cuda_init,-fini,blas2cuda_fini,-L,$(CUDA),-l,cublas
 
 libmkl2cuda.so: $(SOURCES:%.cu=$(OBJDIR)/%.o)
 	$(NVCC) -shared -Xlinker $(LDFLAGS) $^ -o $@
