@@ -1,22 +1,20 @@
 # put /opt/cuda/bin/ into $PATH
 NVCC=nvcc
-SOURCES=$(wildcard *.c)
+SOURCES=$(wildcard *.cu) $(wildcard */*.cu)
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
-CFLAGS=-Wall,-Werror
-LDFLAGS=-fPIC
+CFLAGS=-Wall,-Werror,-fPIC
+LDFLAGS=-fPIC,-init,blas2cuda_init,-fini,blas2cuda_fini
 
-$(OBJDIR):
-	mkdir $@
+libmkl2cuda.so: $(SOURCES:%.cu=$(OBJDIR)/%.o)
+	$(NVCC) -shared -Xlinker $(LDFLAGS) $^ -o $@
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.cu
+	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
 	$(NVCC) -Xcompiler $(CFLAGS) -c $^ -o $@
 
 .PHONY: clean
 
-libmkl2cuda.so: $(SOURCES:%.c=$(OBJDIR)/%.o)
-	$(NVCC) -shared -Xlinker $(LDFLAGS) $^ -o $@
-
 clean: $(OBJECTS)
-	rmdir $(OBJDIR)
-	rm $(OBJECTS)
+	@rm -rf $(OBJDIR)
+	@rm -f $(OBJECTS)
