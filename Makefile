@@ -7,7 +7,7 @@ OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall,-Werror,-fPIC
 LDFLAGS=-init,blas2cuda_init,-fini,blas2cuda_fini,-L,$(CUDA),-l,cublas
 
-libmkl2cuda.so: $(SOURCES:%.cu=$(OBJDIR)/%.o)
+libblas2cuda.so: $(SOURCES:%.cu=$(OBJDIR)/%.o)
 	$(NVCC) -shared -Xlinker $(LDFLAGS) $^ -o $@
 
 $(OBJDIR)/%.o: %.cu
@@ -19,4 +19,4 @@ $(OBJDIR)/%.o: %.cu
 clean:
 	@rm -rf $(OBJDIR)
 	@rm -f $(OBJECTS)
-	@rm -f libmkl2cuda.so
+	@rm -f libblas2cuda.so
