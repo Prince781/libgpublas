@@ -54,4 +54,6 @@ void *b2c_copy_to_gpu(const void *devbuf, size_t size);
  */
 void *b2c_copy_to_cpu(const void *gpubuf, size_t size);
 
+void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size);
+
 #endif

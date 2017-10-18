@@ -35,7 +35,7 @@ void cblas_scopy (const int n,
 
     B2C_ERRORCHECK(cblas_scopy, status);
 
-    cudaMemcpy(y, gpu_y, size_y, cudaMemcpyDeviceToHost);
+    b2c_copy_from_gpu(y, gpu_y, size_y);
 
     cudaFree(gpu_x);
     cudaFree(gpu_y);

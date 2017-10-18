@@ -102,6 +102,14 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
     return devbuf;
 }
 
+void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size)
+{
+    cudaMemcpy(cpubuf, gpubuf, size, cudaMemcpyDeviceToHost);
+
+    if (b2c_options.trace_copy)
+        printf("%s: %zu B : GPU ---> CPU\n", __func__, size);
+}
+
 __attribute__((constructor))
 void blas2cuda_init(void)
 {
