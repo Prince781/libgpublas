@@ -15,7 +15,7 @@ $(OBJDIR)/%.o: %.cu
 
 .PHONY: clean
 
-clean: $(OBJECTS)
+clean:
 	@rm -rf $(OBJDIR)
 	@rm -f $(OBJECTS)
 	@rm -f libmkl2cuda.so
