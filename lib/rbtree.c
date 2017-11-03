@@ -5,8 +5,8 @@
  * See http://www.geeksforgeeks.org/red-black-tree-set-3-delete-2/
  */
 #include "rbtree.h"
+#include "obj_tracker.h"
 #include <stdio.h>
-#include <stdlib.h>
 
 // (2) and (3)
 static void rbtree_recolor(struct rbtree *node)
@@ -130,7 +130,7 @@ rbtree_insert(struct rbtree **root, const void *item, compare_t comparator)
     struct rbtree *node = NULL;
 
     if (*root == NULL) {
-        *root = malloc(sizeof(**root));
+        *root = real_malloc(sizeof(**root));
         (*root)->red = false;
         (*root)->item = item;
         (*root)->lchild = NULL;
@@ -246,6 +246,10 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
         while (dblack || node != *root) {
             /* (3.1) successor node is double-black */
             parent = node->parent;
+
+            if (!parent)    /* this is a root node */
+                break;
+
             /* (3.2) get sibling; do while current node is double-black */
             if (node == parent->lchild)
                 sibling = parent->rchild;
@@ -357,12 +361,12 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
         }
     }
 
-    if (node == *root && node)
+    if ((node == *root || !node->parent) && node)
         node->red = false;  /* set root to be black */
 
     old_parent = old_node->parent;
 
-    free(old_node);
+    real_free(old_node);
 
     return old_parent;
 }
@@ -378,7 +382,7 @@ rbtree_destroy(struct rbtree **root, dtor_t destructor, void *user_data)
 
     if (destructor)
         destructor((void *) (*root)->item, user_data);
-    free(*root);
+    real_free(*root);
     *root = NULL;
 }
 
