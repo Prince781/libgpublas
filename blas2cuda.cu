@@ -1,4 +1,5 @@
 #include "blas2cuda.h"
+#include "lib/obj_tracker.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -60,6 +61,7 @@ void init_cublas(void) {
                 exit(EXIT_FAILURE);
                 break;
         }
+        obj_tracker_init();
         init = true;
     }
 }
@@ -114,6 +116,7 @@ __attribute__((constructor))
 void blas2cuda_init(void)
 {
     set_options();
+    printf("initialized blas2cuda\n");
 }
 
 __attribute__((destructor))
@@ -121,4 +124,6 @@ void blas2cuda_fini(void)
 {
     if (init && cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
         fprintf(stderr, "blas2cuda: failed to destroy. Not initialized\n");
+    printf("decommissioned blas2cuda\n");
+    obj_tracker_fini();
 }

@@ -6,13 +6,11 @@ extern "C" {
 
 #include <stddef.h>
 
-/*
 extern void *(*real_malloc)(size_t);
 extern void *(*real_free)(void *);
-*/
 
 /* Initialize the object tracker. */
-// void __attribute__((constructor)) obj_tracker_init(void);
+void __attribute__((constructor)) obj_tracker_init(void);
 
 /**
  * Loads a definition from a file.
@@ -44,7 +42,7 @@ int obj_tracker_load(const char *filename);
 /**
  * Decommission the object tracker.
  */
-// void __attribute__((constructor)) obj_tracker_fini(void);
+void __attribute__((constructor)) obj_tracker_fini(void);
 
 #ifdef __cplusplus
 };
