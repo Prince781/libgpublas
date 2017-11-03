@@ -2,7 +2,7 @@ SOURCES=$(wildcard *.c)
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall -Werror -fPIC -ggdb3
-LDFLAGS=-ldl -Wl,-wrap,malloc,-wrap,free,-u,malloc,-u,free
+LDFLAGS=-ldl
 
 libobjtracker.so: $(SOURCES:%.c=$(OBJDIR)/%.o)
 	$(CC) -shared $(CFLAGS) $(LDFLAGS) $^ -o $@
