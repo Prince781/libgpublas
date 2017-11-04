@@ -116,6 +116,26 @@ get_callinfo(enum alloc_sym sym, long ip, size_t reqsize)
     return NULL;
 }
 
+const struct alloc_callinfo *
+get_callinfo_and(enum alloc_sym sym, long ip, size_t reqsize)
+{
+    struct syminfo *info;
+    ENTRY *entp = NULL;
+
+    if (!(info = get_syminfo(sym)))
+        return NULL;
+
+    if (!lookup(info, ip, entp))
+        return NULL;
+
+    if (!lookup(info, reqsize, entp))
+        return NULL;
+
+    return entp ? entp->data : NULL;
+
+}
+
+
 enum alloc_sym
 get_alloc(const char *symbol)
 {

@@ -448,7 +448,7 @@ void *malloc(size_t request) {
         /* Only track the object if we are supposed
          * to be tracking it.
          */
-        if (watchpoints && get_callinfo(ALLOC_MALLOC, ip, request))
+        if (!watchpoints || get_callinfo_and(ALLOC_MALLOC, ip, request))
             track_object(ptr, request, 
                     malloc_usable_size(ptr) - sizeof(struct objinfo), 
                     ip);

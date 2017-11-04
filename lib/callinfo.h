@@ -28,13 +28,23 @@ add_callinfo(enum alloc_sym sym,
              size_t reqsize);
 
 /**
+ * Queries by either IP or reqsize.
+ * returns NULL if not found
+ */
+const struct alloc_callinfo *
+get_callinfo_or(enum alloc_sym sym, 
+                long ip, 
+                size_t reqsize);
+
+/**
  * Queries by both IP and reqsize.
  * returns NULL if not found
  */
 const struct alloc_callinfo *
-get_callinfo(enum alloc_sym sym, 
-             long ip, 
-             size_t reqsize);
+get_callinfo_and(enum alloc_sym sym, 
+                 long ip,
+                 size_t reqsize);
+
 
 /**
  * returns ALLOC_UNKNWN if symbol doesn't match
