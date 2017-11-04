@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdbool.h>
 
 enum alloc_sym {
     ALLOC_MALLOC,
@@ -18,7 +19,10 @@ struct alloc_callinfo {
     size_t reqsize;
 };
 
-void 
+void
+init_callinfo(enum alloc_sym sym);
+
+bool
 add_callinfo(enum alloc_sym sym, 
              long ip, 
              size_t reqsize);

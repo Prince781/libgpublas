@@ -1,9 +1,11 @@
 #include "callinfo.h"
+#include "obj_tracker.h"
 #define _GNU_SOURCE
 #include <search.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 /**
  * Information for knowing when to record objects
@@ -38,11 +40,13 @@ def_tostr(size_t, "%zu")
                     size_t: tostr_size_t \
 )(val)
 
+static ENTRY *insert_retval;
+
 /**
  * keyv will be evaluated twice
  */
 #define insert(sym,keyv,val)\
-    !sym->keyv ? 0 : hsearch_r((ENTRY){ .key = tostr(keyv), .data = (void *)(val) }, ENTER, NULL, sym->keyv )
+    !sym->keyv ? 0 : hsearch_r((ENTRY){ .key = tostr(keyv), .data = (void *)(val) }, ENTER, &insert_retval, sym->keyv )
 
 /**
  * val will be evaluated three times
@@ -50,8 +54,11 @@ def_tostr(size_t, "%zu")
 #define lookup(sym,val,result)\
     !sym->val ? 0 : hsearch_r((ENTRY){ .key = tostr(val), .data = (void *)(val) }, FIND, &result, sym->val)
 
-#define mktabl(sym,member,nel)\
-    (!sym->member ? hcreate_r(nel,sym->member) : 0)
+#define mktabl(sym,member,nel) \
+    if (!sym->member) {\
+        sym->member = real_malloc(sizeof(*sym->member));\
+        hcreate_r(nel, sym->member);\
+    }
 
 static inline struct syminfo *get_syminfo(enum alloc_sym sym) {
     return sym == ALLOC_MALLOC ? &symbols[sym] : NULL;
@@ -78,7 +85,7 @@ init_callinfo(enum alloc_sym sym)
     }
 }
 
-void 
+bool
 add_callinfo(enum alloc_sym sym, long ip, size_t reqsize)
 {
     struct syminfo *info;
@@ -86,8 +93,10 @@ add_callinfo(enum alloc_sym sym, long ip, size_t reqsize)
 
     if ((info = get_syminfo(sym))) {
         ci = make_callinfo(ip, reqsize);
-        insert(info, ip, ci);
+        return insert(info, ip, ci);
     }
+
+    return false;
 }
 
 const struct alloc_callinfo *

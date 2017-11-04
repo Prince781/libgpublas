@@ -25,7 +25,7 @@
 #include "callinfo.h"
 
 #if DEBUG_TRACKING
-#define TRACE_OUTPUT
+#define TRACE_OUTPUT    1
 #endif
 
 /*
@@ -191,17 +191,18 @@ int obj_tracker_load(const char *filename)
     }
 
     do {
-        if (fscanf(fp, "%ms", &buf) < 1) {
-            perror("fscanf");
-            break;
-        }
-
-        if ((sym = get_alloc(buf)) == ALLOC_UNKNWN)
-            fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
-        else {
-            while ((res = fscanf(fp, "0x%lx %zu", &ip, &reqsize)) == 2) {
-                add_callinfo(sym, ip, reqsize);
-                watchpoints = true;
+        if ((res = fscanf(fp, "%ms\n", &buf)) == 1) {
+            if ((sym = get_alloc(buf)) == ALLOC_UNKNWN)
+                fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
+            else {
+                init_callinfo(sym);
+                while ((res = fscanf(fp, "0x%lx %zu\n", &ip, &reqsize)) == 2) {
+                    if (add_callinfo(sym, ip, reqsize)) {
+                        watchpoints = true;
+                        printf("watch for %s(%zu) [ip=%lx]\n", buf, reqsize, ip);
+                    } else
+                        printf("failed to add watch\n");
+                }
             }
         }
         
@@ -286,9 +287,10 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
         fprintf(stderr, "[thread %d] Failed to track object @ %p (size=%zu B)\n", 
                 tid, ptr, size);
     }
-#endif
+#else
     if (node)
         ++num_objects;
+#endif
     tracking = true;
 }
 
@@ -322,12 +324,12 @@ static void untrack_object(void *ptr)
         objinfo = *(struct objinfo **) node;
         tdelete(&o, &objects, objects_compare);
 #endif
-        real_free(objinfo);
-        --num_objects;
 #if TRACE_OUTPUT
-        fprintf(stderr, "[thread %d] Untracking object @ %p\n", tid, ptr);
+        fprintf(stderr, "[thread %d] Untracking object @ %p [ip=%lx]\n", tid, ptr, objinfo->ip);
         untrack(ptr);
 #endif
+        real_free(objinfo);
+        --num_objects;
     }
     tracking = true;
 }
