@@ -7,7 +7,7 @@ extern "C" {
 #include <stddef.h>
 
 extern void *(*real_malloc)(size_t);
-extern void *(*real_free)(void *);
+extern void (*real_free)(void *);
 
 /* Initialize the object tracker. */
 void __attribute__((constructor)) obj_tracker_init(void);
@@ -44,10 +44,12 @@ int obj_tracker_load(const char *filename);
  */
 void __attribute__((constructor)) obj_tracker_fini(void);
 
+#if RBTREE
 /**
  * Prints all objects in the tracker into a 
  */
 void obj_tracker_print_rbtree(const char *filename);
+#endif
 
 #ifdef __cplusplus
 };

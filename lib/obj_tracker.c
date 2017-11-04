@@ -11,7 +11,11 @@
 #include <string.h>
 #include <stdbool.h>
 #include <dlfcn.h>
+#if RBTREE
 #include "rbtree.h"
+#else
+#include <search.h>
+#endif
 #include "obj_tracker.h"
 
 /*
@@ -79,7 +83,11 @@ static struct syminfo symbols[N_ALLOC_SYMS] = {
 
 
 static bool initialized = false;
+#if RBTREE
 static struct rbtree *objects = NULL;
+#else
+static void *objects = NULL;
+#endif
 static unsigned long num_objects = 0;
 
 /* allows us to temporarily disable tracking */
@@ -91,7 +99,7 @@ static bool tracking = true;
 static void *handle = NULL;
 
 void *(*real_malloc)(size_t) = NULL;
-void *(*real_free)(void *) = NULL;
+void (*real_free)(void *) = NULL;
 
 static void obj_tracker_get_fptrs(void) {
     static bool success = false;
@@ -108,7 +116,7 @@ static void obj_tracker_get_fptrs(void) {
 
         if (real_free == NULL) {
             dlerror();
-            real_free = (void *(*)(void *)) dlsym(RTLD_NEXT, "free");
+            real_free = (void (*)(void *)) dlsym(RTLD_NEXT, "free");
             if (real_free == NULL) {
                 fprintf(stderr, "dlsym: %s\n", dlerror());
                 abort();
@@ -187,13 +195,28 @@ int obj_tracker_load(const char *filename)
     return fclose(fp);
 }
 
+#if RBTREE
+static void object_destroy(void *o, void *udata) {
+    real_free(o);
+}
+#endif
+
 void __attribute__((destructor)) obj_tracker_fini(void) {
-    if (initialized) {
-        initialized = false;
+    static bool destroying = false;
+    if (initialized && !destroying) {
+        destroying = true;
         if (handle)
             if (dlclose(handle) != 0)
                 fprintf(stderr, "dlclose: %s\n", dlerror());
+#if RBTREE
+        rbtree_destroy(&objects, object_destroy, NULL);
+#else
+        tdestroy(objects, real_free);
+#endif
+        objects = NULL;
         printf("decommissioned object tracker\n");
+        initialized = false;
+        destroying = false;
     }
 }
 
@@ -201,6 +224,7 @@ static int objects_compare(const void *o1, const void *o2) {
     return ((const struct objinfo *)o1)->ptr - ((const struct objinfo *)o2)->ptr;
 }
 
+#if RBTREE
 static void object_print(const void *o, int n, char buf[n]) {
     const struct objinfo *oinfo = o;
 
@@ -209,12 +233,16 @@ static void object_print(const void *o, int n, char buf[n]) {
     else
         snprintf(buf, n, "label=\"(nil)\"");
 }
+#endif
 
 static void track_object(void *ptr, size_t request, size_t size, unsigned long ip)
 {
     struct objinfo *oinfo;
+#if RBTREE
     struct rbtree *node;
-    char buf[64];
+#else
+    void *node;
+#endif
 
     tracking = false;
     oinfo = real_malloc(sizeof(*oinfo));
@@ -222,41 +250,54 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
     oinfo->reqsize = request;
     oinfo->size = size;
     oinfo->ptr = ptr;
+#if RBTREE
     node = rbtree_insert(&objects, oinfo, objects_compare);
+#else
+    node = tsearch(oinfo, &objects, objects_compare);
+#endif
     if (node) {
         ++num_objects;
         printf("Tracking object @ %p (size=%zu B) {record @ %p}\n", ptr, size, node);
     } else {
         fprintf(stderr, "Failed to track object @ %p (size=%zu B)\n", ptr, size);
     }
-    snprintf(buf, sizeof(buf), "tree%ld.dot", num_objects);
-    obj_tracker_print_rbtree(buf);
     tracking = true;
 }
 
 static void untrack_object(void *ptr)
 {
     struct objinfo o = { .ptr = ptr, .ip = 0 };
+#if RBTREE
     struct rbtree *node;
-    void *objinfo;
-    char buf[64];
+#else
+    void *node;
+#endif
+    struct objinfo *objinfo;
 
     tracking = false;
+#if RBTREE
     node = rbtree_find(&objects, &o, objects_compare);
+#else
+    node = tfind(&o, &objects, objects_compare);
+#endif
     if (!node) {
         fprintf(stderr, "could not delete objinfo for %p (not found)\n", ptr);
     } else {
+#if RBTREE
         objinfo = (void *) node->item;
         rbtree_delete(&objects, node);
+#else
+        objinfo = *(struct objinfo **) node;
+        tdelete(&o, &objects, objects_compare);
+#endif
         real_free(objinfo);
         --num_objects;
         fprintf(stderr, "Untracking object @ %p\n", ptr);
     }
-    snprintf(buf, sizeof(buf), "tree%ld.dot", num_objects);
-    obj_tracker_print_rbtree(buf);
     tracking = true;
 }
 
+#if RBTREE
 void obj_tracker_print_rbtree(const char *filename) {
     FILE *stream;
 
@@ -271,6 +312,7 @@ void obj_tracker_print_rbtree(const char *filename) {
 
     fclose(stream);
 }
+#endif
 
 void *malloc(size_t request) {
     void *ptr;

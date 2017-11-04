@@ -17,15 +17,17 @@ void abort(void);
  * [node ]
  *
  * set [node] to be the child of [gparn]
+ * [node] may be NULL
  */
 static inline void reparent(struct rbtree *node, struct rbtree *node2) {
-    node->parent = node2->parent;
-    if (node->parent) {
-        if (node->parent->lchild == node2)
-            node->parent->lchild = node;
-        else if (node->parent->rchild == node2)
-            node->parent->rchild = node;
+    if (node2->parent) {
+        if (node2->parent->lchild == node2)
+            node2->parent->lchild = node;
+        else if (node2->parent->rchild == node2)
+            node2->parent->rchild = node;
     }
+    if (node)
+        node->parent = node2->parent;
 }
 
 // (2) and (3)
@@ -184,201 +186,8 @@ rbtree_find(struct rbtree **root, const void *needle, compare_t comparator)
 struct rbtree *
 rbtree_delete(struct rbtree **root, struct rbtree *node)
 {
-    struct rbtree *successor;
-    const void *data;
-    struct rbtree *old_node, *old_parent;
-
-    if (!node)
-        return NULL;
-
-    old_node = node;
-
-    if (node->lchild && node->rchild) { /* two children */
-        /* find inorder successor (smallest item in right subtree) */
-        successor = node->rchild;
-        while (successor->lchild)
-            successor = successor->lchild;
-
-        /* swap successor <=> node; delete successor */
-        data = node->item;
-        node->item = successor->item;
-        successor->item = data;
-
-        return rbtree_delete(root, successor);
-    } else if (node->lchild || node->rchild) {  /* one child */
-        successor = node->lchild ? node->lchild : node->rchild;
-    } else {    /* no children */
-        successor = NULL;
-    }
-
-    if (node->red || (successor && successor->red)) {
-        /* case (2) */
-        if (successor) {
-            if (node->red && successor->red) {
-                fprintf(stderr, "%s: malformed tree (node and its successor are red)\n", __func__);
-                abort();
-            }
-            successor->red = false; 
-        }
-        /* if NULL, then it is already black */
-
-        if (node == node->parent->lchild)
-            node->parent->lchild = successor;
-        else
-            node->parent->rchild = successor;
-
-        if (node == *root)
-            root = &successor;
-    } else {
-        /* case (3) - both node and successor are black */
-        /* successor is NULL */
-        struct rbtree *sibling;
-        struct rbtree *redchild;    /* child of sibling */
-        struct rbtree *parent;
-        bool dblack = true;     /* is current node double-black? */
-        struct rbtree fakesibling;
-
-        fakesibling.item = NULL;
-        fakesibling.lchild = NULL;
-        fakesibling.rchild = NULL;
-
-        while (dblack || node != *root) {
-            /* (3.1) successor node is double-black */
-            parent = node->parent;
-
-            if (!parent)    /* this is a root node */
-                break;
-
-
-            fakesibling.parent = parent;
-            fakesibling.red = false;
-
-            /* (3.2) get sibling; do while current node is double-black */
-            if (node == parent->lchild)
-                sibling = parent->rchild;
-            else
-                sibling = parent->lchild;
-
-            if (!sibling)
-                sibling = &fakesibling;
-
-            if (sibling->lchild && sibling->lchild->red)
-                redchild = sibling->lchild;
-            else if (sibling->rchild && sibling->rchild->red)
-                redchild = sibling->rchild;
-            else
-                redchild = NULL;
-
-            if (!sibling->red && redchild) {
-                /* case (a) */
-                if (sibling == parent->lchild
-                 && redchild == sibling->lchild) {
-                    /* case (i) - left-left */
-                    parent->lchild = sibling->rchild;
-                    if (sibling->rchild)
-                        sibling->rchild->parent = parent;
-                    reparent(sibling, parent);
-                    parent->parent = sibling;
-                    sibling->rchild = parent;
-                    redchild->red = false;
-                } else if (sibling == parent->lchild
-                        && redchild == sibling->rchild) {
-                    /* case (ii) - left-right */
-                    reparent(redchild, parent);
-                    parent->lchild = NULL;
-                    sibling->rchild = NULL;
-                    redchild->lchild = sibling;
-                    sibling->parent = redchild;
-                    redchild->rchild = parent;
-                    parent->parent = redchild;
-                    redchild->red = false;
-                    /* sibling->red = false; */
-                } else if (sibling == parent->rchild
-                        && redchild == sibling->rchild) {
-                    /* case (iii) - right-right */
-                    parent->rchild = sibling->lchild;
-                    if (sibling->lchild)
-                        sibling->lchild->parent = parent;
-                    reparent(sibling, parent);
-                    parent->parent = sibling;
-                    sibling->lchild = parent;
-                    redchild->red = false;
-                } else if (sibling == parent->rchild
-                        && redchild == sibling->lchild) {
-                    /* case (iv) - right-left */
-                    reparent(redchild, parent);
-                    parent->rchild = NULL;
-                    sibling->lchild = NULL;
-                    redchild->rchild = sibling;
-                    sibling->parent = redchild;
-                    redchild->lchild = parent;
-                    parent->parent = redchild;
-                    redchild->red = false;
-                } else {
-                    fprintf(stderr, "%s: malformed tree\n", __func__);
-                    abort();
-                }
-            } else if (!sibling->red && !redchild) {
-                /* case (b) - sibling is black and both children are black */
-
-                /*
-                if (node == parent->lchild)
-                    parent->lchild = NULL;
-                else
-                    parent->rchild = NULL;
-                */
-
-                if (!parent->red) {
-                    /* parent is now double-black
-                     * set node = parent and redo this algorithm for node */
-                    node = parent;      /* recur for parent node */
-                } else {
-                    /* parent was red, but is now black */
-                    parent->red = false;
-                    /* we have solved the problem; stop */
-                    dblack = false;
-                }
-
-                /* in either case, set sibling to be red */
-                sibling->red = true;
-            } else if (sibling->red) {
-                /* case (c) - sibling is red */
-                if (sibling == parent->lchild) {
-                    /* (i) left case */
-                    parent->lchild = sibling->rchild;
-                    if (parent->lchild)
-                        parent->lchild->parent = parent;
-                    sibling->rchild = parent;
-                    parent->parent = sibling;
-                } else {    /* sibling is parent->rchild */
-                    /* (ii) right case */
-                    parent->rchild = sibling->lchild;
-                    if (parent->rchild)
-                        parent->rchild->parent = parent;
-                    sibling->lchild = parent;
-                    parent->parent = sibling;
-                }
-                sibling->red = false;
-                parent->red = true;
-            } else {
-                fprintf(stderr, "%s: malformed tree (sibling is %s and redchild=%p\n", __func__,
-                        sibling->red ? "red" : "black", redchild);
-                abort();
-            }
-        }
-    }
-
-    if ((node == *root || !node->parent) && node)
-        node->red = false;  /* set root to be black */
-
-    old_parent = old_node->parent;
-
-    if (old_node == *root)
-        *root = old_parent;
-
-    real_free(old_node);
-
-    return old_parent;
+    /* TODO */
+    abort();
 }
 
 void

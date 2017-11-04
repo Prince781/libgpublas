@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#define N 128
+#define N 32
 
 int main() {
     void *ptrs[N];
