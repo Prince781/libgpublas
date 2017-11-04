@@ -23,6 +23,10 @@
 #include <libunwind.h>
 #include "obj_tracker.h"
 
+#if DEBUG_TRACKING
+#define TRACE_OUTPUT
+#endif
+
 /*
 void *calloc(size_t nmemb, size_t size);
 void *realloc(void *ptr, size_t size);
@@ -177,7 +181,7 @@ static void obj_tracker_get_fptrs(void) {
     }
 }
 
-void obj_tracker_init(void)
+void __attribute__((constructor)) obj_tracker_init(void)
 {
     extern char etext, edata, end;
 
@@ -258,7 +262,7 @@ static void object_destroy(void *o, void *udata) {
 }
 #endif
 
-void obj_tracker_fini(void) {
+void __attribute__((destructor)) obj_tracker_fini(void) {
     pid_t tid;
     if (initialized && !destroying) {
         destroying = true;
@@ -298,10 +302,8 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
 #else
     void *node;
 #endif
-    pid_t tid;
 
     tracking = false;
-    tid = syscall(SYS_gettid);
 
     oinfo = real_malloc(sizeof(*oinfo));
     oinfo->ip = ip;
@@ -313,6 +315,11 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
 #else
     node = tsearch(oinfo, &objects, objects_compare);
 #endif
+
+#if TRACE_OUTPUT
+    pid_t tid;
+    tid = syscall(SYS_gettid);
+
     if (node) {
         ++num_objects;
         track(ptr);
@@ -322,6 +329,9 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
         fprintf(stderr, "[thread %d] Failed to track object @ %p (size=%zu B)\n", 
                 tid, ptr, size);
     }
+#endif
+    if (node)
+        ++num_objects;
     tracking = true;
 }
 
@@ -334,7 +344,11 @@ static void untrack_object(void *ptr)
     void *node;
 #endif
     struct objinfo *objinfo;
+#if TRACE_OUTPUT
     pid_t tid;
+
+    tid = syscall(SYS_gettid);
+#endif
 
     tracking = false;
 #if RBTREE
@@ -343,7 +357,6 @@ static void untrack_object(void *ptr)
     node = tfind(&o, &objects, objects_compare);
 #endif
 
-    tid = syscall(SYS_gettid);
     if (node) {
 #if RBTREE
         objinfo = (void *) node->item;
@@ -354,8 +367,10 @@ static void untrack_object(void *ptr)
 #endif
         real_free(objinfo);
         --num_objects;
+#if TRACE_OUTPUT
         fprintf(stderr, "[thread %d] Untracking object @ %p\n", tid, ptr);
         untrack(ptr);
+#endif
     }
     tracking = true;
 }
