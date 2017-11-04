@@ -8,11 +8,29 @@
 #include "obj_tracker.h"
 #include <stdio.h>
 
+void abort(void);
+
+/* [gparn] 
+ *    |
+ * [node2]
+ *    |
+ * [node ]
+ *
+ * set [node] to be the child of [gparn]
+ */
+static inline void reparent(struct rbtree *node, struct rbtree *node2) {
+    node->parent = node2->parent;
+    if (node->parent) {
+        if (node->parent->lchild == node2)
+            node->parent->lchild = node;
+        else if (node->parent->rchild == node2)
+            node->parent->rchild = node;
+    }
+}
+
 // (2) and (3)
 static void rbtree_recolor(struct rbtree *node)
 {
-    extern void abort(void);
-
     while (node) {
         if (!node->parent) { /* (2) */
             node->red = false;
@@ -25,23 +43,23 @@ static void rbtree_recolor(struct rbtree *node)
             parent = node->parent;
             grandparent = parent->parent;
             
-            if (parent == parent->parent->lchild)
-                uncle = parent->parent->rchild;
+            if (parent == grandparent->lchild)
+                uncle = grandparent->rchild;
             else
-                uncle = parent->parent->lchild;
+                uncle = grandparent->lchild;
 
-            if (uncle->red) {   /* (a) */
+            if (uncle && uncle->red) {   /* (a) */
                 parent->red = false;
                 uncle->red = false;
-
-                node = parent->parent;
+                grandparent->red = true;
+                node = grandparent;
             } else {    /* (b) uncle is black */
                 struct rbtree *t2, *t3, *t4;
                 /* left-left */
                 if (grandparent->lchild == parent && parent->lchild == node) {
                     t3 = parent->rchild;
 
-                    parent->parent = NULL;
+                    reparent(parent, grandparent);
                     parent->rchild = grandparent;
                     grandparent->lchild = t3;
                     if (t3)
@@ -54,26 +72,15 @@ static void rbtree_recolor(struct rbtree *node)
                 /* left-right */
                 else if (grandparent->lchild == parent && parent->rchild == node) {
                     t2 = node->lchild;
-                    t3 = node->rchild;
 
-                    grandparent->lchild = node;
+                    node->parent = grandparent;
                     node->lchild = parent;
+                    parent->parent = node;
                     parent->rchild = t2;
-
-                    node->parent = NULL;
-                    node->rchild = grandparent;
-                    grandparent->lchild = t3;
-
                     if (t2)
                         t2->parent = parent;
-                    if (t3)
-                        t3->parent = grandparent;
-                    parent->parent = node;
-                    grandparent->parent = node;
 
-                    parent->red = true;
-                    node->red = false;
-                    grandparent->red = true;
+                    node = parent;
                 }
                 /* right-right */
                 else if (grandparent->rchild == parent && parent->rchild == node) {
@@ -84,42 +91,30 @@ static void rbtree_recolor(struct rbtree *node)
                         t3->parent = grandparent;
                     grandparent->red = true;
 
-                    parent->parent = NULL;
+                    reparent(parent, grandparent);
                     parent->lchild = grandparent;
                     parent->red = false;
-                    
-                    parent->parent = NULL;
                     grandparent->parent = parent;
                 }
                 /* right->left */
                 else if (grandparent->rchild == parent && parent->lchild == node) {
-                    t3 = node->lchild;
                     t4 = node->rchild;
 
-                    grandparent->rchild = node;
+                    node->parent = grandparent;
                     node->rchild = parent;
+                    parent->parent = node;
                     parent->lchild = t4;
                     if (t4)
                         t4->parent = parent;
 
-                    grandparent->rchild = t3;
-                    if (t3)
-                        t3->parent = grandparent;
-                    grandparent->red = true;
-                    node->lchild = grandparent;
-                    node->red = false;
-
-                    grandparent->parent = node;
-                    node->parent = NULL;
-                    parent->parent = node;
+                    node = parent;
                 } else {
                     fprintf(stderr, "%s: corrupted tree\n", __func__);
                     abort();
                 }
-
-                node = NULL;
             }
-        }
+        } else
+            break;
     }
 }
 
@@ -189,7 +184,6 @@ rbtree_find(struct rbtree **root, const void *needle, compare_t comparator)
 struct rbtree *
 rbtree_delete(struct rbtree **root, struct rbtree *node)
 {
-    extern void abort(void);
     struct rbtree *successor;
     const void *data;
     struct rbtree *old_node, *old_parent;
@@ -221,7 +215,7 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
         /* case (2) */
         if (successor) {
             if (node->red && successor->red) {
-                fprintf(stderr, "%s: malformed tree\n", __func__);
+                fprintf(stderr, "%s: malformed tree (node and its successor are red)\n", __func__);
                 abort();
             }
             successor->red = false; 
@@ -242,6 +236,11 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
         struct rbtree *redchild;    /* child of sibling */
         struct rbtree *parent;
         bool dblack = true;     /* is current node double-black? */
+        struct rbtree fakesibling;
+
+        fakesibling.item = NULL;
+        fakesibling.lchild = NULL;
+        fakesibling.rchild = NULL;
 
         while (dblack || node != *root) {
             /* (3.1) successor node is double-black */
@@ -250,11 +249,18 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
             if (!parent)    /* this is a root node */
                 break;
 
+
+            fakesibling.parent = parent;
+            fakesibling.red = false;
+
             /* (3.2) get sibling; do while current node is double-black */
             if (node == parent->lchild)
                 sibling = parent->rchild;
             else
                 sibling = parent->lchild;
+
+            if (!sibling)
+                sibling = &fakesibling;
 
             if (sibling->lchild && sibling->lchild->red)
                 redchild = sibling->lchild;
@@ -271,14 +277,14 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
                     parent->lchild = sibling->rchild;
                     if (sibling->rchild)
                         sibling->rchild->parent = parent;
-                    sibling->parent = parent->parent;
+                    reparent(sibling, parent);
                     parent->parent = sibling;
                     sibling->rchild = parent;
                     redchild->red = false;
                 } else if (sibling == parent->lchild
                         && redchild == sibling->rchild) {
                     /* case (ii) - left-right */
-                    redchild->parent = parent->parent;
+                    reparent(redchild, parent);
                     parent->lchild = NULL;
                     sibling->rchild = NULL;
                     redchild->lchild = sibling;
@@ -293,14 +299,14 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
                     parent->rchild = sibling->lchild;
                     if (sibling->lchild)
                         sibling->lchild->parent = parent;
-                    sibling->parent = parent->parent;
+                    reparent(sibling, parent);
                     parent->parent = sibling;
                     sibling->lchild = parent;
                     redchild->red = false;
                 } else if (sibling == parent->rchild
                         && redchild == sibling->lchild) {
                     /* case (iv) - right-left */
-                    redchild->parent = parent->parent;
+                    reparent(redchild, parent);
                     parent->rchild = NULL;
                     sibling->lchild = NULL;
                     redchild->rchild = sibling;
@@ -355,7 +361,8 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
                 sibling->red = false;
                 parent->red = true;
             } else {
-                fprintf(stderr, "%s: malformed tree\n", __func__);
+                fprintf(stderr, "%s: malformed tree (sibling is %s and redchild=%p\n", __func__,
+                        sibling->red ? "red" : "black", redchild);
                 abort();
             }
         }
@@ -365,6 +372,9 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
         node->red = false;  /* set root to be black */
 
     old_parent = old_node->parent;
+
+    if (old_node == *root)
+        *root = old_parent;
 
     real_free(old_node);
 
@@ -393,7 +403,7 @@ rbtree_print2(FILE *stream, struct rbtree *root, print_t printer)
 
     printer(root->item, sizeof(buf), buf);
     buf[sizeof(buf)-1] = '\0';
-    fprintf(stream, "node%p [%s];\n", root, buf);
+    fprintf(stream, "node%p [%s,color=%s,shape=box];\n", root, buf, root->red ? "red" : "black");
 
     if (root->lchild) {
         fprintf(stream, "node%p -> node%p;\n", root, root->lchild);
@@ -413,14 +423,17 @@ default_printer(const void *item, int n, char buf[n])
 }
 
 void
-rbtree_print(struct rbtree *root, print_t printer)
+rbtree_print(struct rbtree *root, print_t printer, FILE *stream)
 {
-    FILE *stream;
-
-    stream = tmpfile();
+    bool stream_null = stream == NULL;
+    
+    if (stream_null)
+        stream = tmpfile();
     fprintf(stream, "digraph G {\n");
-    rbtree_print2(stream, root, printer ? default_printer : printer);
+    if (root)
+        rbtree_print2(stream, root, printer ? printer : default_printer);
     fprintf(stream, "}\n");
 
-    fclose(stream);
+    if (stream_null)
+        fclose(stream);
 }
