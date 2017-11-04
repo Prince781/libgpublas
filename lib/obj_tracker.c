@@ -176,7 +176,7 @@ static void obj_tracker_get_fptrs(void) {
     }
 }
 
-void __attribute__((constructor)) obj_tracker_init(void)
+void obj_tracker_init(void)
 {
     extern char etext, edata, end;
 
@@ -257,7 +257,7 @@ static void object_destroy(void *o, void *udata) {
 }
 #endif
 
-void __attribute__((destructor)) obj_tracker_fini(void) {
+void obj_tracker_fini(void) {
     pid_t tid;
     if (initialized && !destroying) {
         destroying = true;
@@ -422,10 +422,8 @@ void *malloc(size_t request) {
 
     inside = true;
 
-    /*
     if (!initialized)
         obj_tracker_init();
-        */
     
     if (real_malloc == NULL) {
         fprintf(stderr, "error: real_malloc is NULL! Was constructor called?\n");
@@ -470,10 +468,8 @@ void free(void *ptr) {
 
     inside = true;
 
-    /*
     if (!initialized)
         obj_tracker_init();
-        */
     if (real_free == NULL) {
         fprintf(stderr, "error: real_free is NULL! Was constructor called?\n");
         abort();
