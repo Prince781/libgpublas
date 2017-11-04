@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdio.h>
 
 struct rbtree {
     const void *item;       /* generic item */
@@ -66,7 +67,7 @@ typedef void (*print_t)(const void *item, int n, char buf[n]);
  * Print out to a dotfile.
  */
 void
-rbtree_print(struct rbtree *root, print_t printer);
+rbtree_print(struct rbtree *root, print_t printer, FILE *stream);
 
 #ifdef __cplusplus
 };

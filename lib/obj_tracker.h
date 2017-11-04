@@ -44,6 +44,11 @@ int obj_tracker_load(const char *filename);
  */
 void __attribute__((constructor)) obj_tracker_fini(void);
 
+/**
+ * Prints all objects in the tracker into a 
+ */
+void obj_tracker_print_rbtree(const char *filename);
+
 #ifdef __cplusplus
 };
 #endif

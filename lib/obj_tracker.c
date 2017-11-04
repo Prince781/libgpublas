@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <dlfcn.h>
 #include "rbtree.h"
+#include "obj_tracker.h"
 
 /*
 void *calloc(size_t nmemb, size_t size);
@@ -81,6 +82,9 @@ static bool initialized = false;
 static struct rbtree *objects = NULL;
 static unsigned long num_objects = 0;
 
+/* allows us to temporarily disable tracking */
+static bool tracking = true;
+
 /**
  * Handle to libc.
  */
@@ -89,11 +93,7 @@ static void *handle = NULL;
 void *(*real_malloc)(size_t) = NULL;
 void *(*real_free)(void *) = NULL;
 
-void *__real_malloc(size_t bytes);
-void __real_free(void *ptr);
-
 static void obj_tracker_get_fptrs(void) {
-    extern void exit(int);
     static bool success = false;
 
     if (!success) {
@@ -102,9 +102,8 @@ static void obj_tracker_get_fptrs(void) {
             real_malloc = (void *(*)(size_t)) dlsym(RTLD_NEXT, "malloc");
             if (real_malloc == NULL) {
                 fprintf(stderr, "dlsym: %s\n", dlerror());
-                exit(1);
-            } else 
-                printf("real_malloc = %p\n", real_malloc);
+                abort();
+            }
         }
 
         if (real_free == NULL) {
@@ -112,10 +111,12 @@ static void obj_tracker_get_fptrs(void) {
             real_free = (void *(*)(void *)) dlsym(RTLD_NEXT, "free");
             if (real_free == NULL) {
                 fprintf(stderr, "dlsym: %s\n", dlerror());
-                exit(1);
-            } else
-                printf("real_free = %p\n", real_free);
+                abort();
+            }
         }
+
+        printf("real_malloc = %p, fake malloc() = %p\n", real_malloc, &malloc);
+        printf("real_free = %p, fake free() = %p\n", real_free, &free);
 
         success = true;
     }
@@ -123,28 +124,20 @@ static void obj_tracker_get_fptrs(void) {
 
 void __attribute__((constructor)) obj_tracker_init(void)
 {
-    extern void exit(int status);
-
     if (!initialized) {
+        tracking = false;
         initialized = true;
-        /*
-        if (!(handle = dlopen("libc.so.6", RTLD_LAZY | RTLD_LOCAL))) {
-            fprintf(stderr, "%s: Failed to get handle to libc!\n", __func__);
-            fprintf(stderr, "dlopen: %s\n", dlerror());
-            exit(1);
-        }
-        */
 
         obj_tracker_get_fptrs();
 
         printf("initialized object tracker\n");
+        tracking = true;
     }
 }
 
 int obj_tracker_load(const char *filename)
 {
     extern void perror(const char *);
-    extern void exit(int);
 
     FILE *fp;
     char *buf = NULL;
@@ -154,7 +147,7 @@ int obj_tracker_load(const char *filename)
 
     if ((fp = fopen(filename, "r")) == NULL) {
         perror("fopen");
-        exit(1);
+        abort();
     }
 
     do {
@@ -205,80 +198,134 @@ void __attribute__((destructor)) obj_tracker_fini(void) {
 }
 
 static int objects_compare(const void *o1, const void *o2) {
-    return ((const struct objinfo *)o1)->ip - ((const struct objinfo *)o2)->ip;
+    return ((const struct objinfo *)o1)->ptr - ((const struct objinfo *)o2)->ptr;
+}
+
+static void object_print(const void *o, int n, char buf[n]) {
+    const struct objinfo *oinfo = o;
+
+    if (oinfo)
+        snprintf(buf, n, "label=\"ptr=%p,size=%zu\"", oinfo->ptr, oinfo->size);
+    else
+        snprintf(buf, n, "label=\"(nil)\"");
 }
 
 static void track_object(void *ptr, size_t request, size_t size, unsigned long ip)
 {
     struct objinfo *oinfo;
+    struct rbtree *node;
+    char buf[64];
 
-    oinfo = (struct objinfo *) real_malloc(sizeof(*oinfo));
+    tracking = false;
+    oinfo = real_malloc(sizeof(*oinfo));
     oinfo->ip = ip;
     oinfo->reqsize = request;
     oinfo->size = size;
     oinfo->ptr = ptr;
-    rbtree_insert(&objects, oinfo, objects_compare);
-    ++num_objects;
-    printf("Tracking object @ %p (size=%zu B)\n", ptr, size);
+    node = rbtree_insert(&objects, oinfo, objects_compare);
+    if (node) {
+        ++num_objects;
+        printf("Tracking object @ %p (size=%zu B) {record @ %p}\n", ptr, size, node);
+    } else {
+        fprintf(stderr, "Failed to track object @ %p (size=%zu B)\n", ptr, size);
+    }
+    snprintf(buf, sizeof(buf), "tree%ld.dot", num_objects);
+    obj_tracker_print_rbtree(buf);
+    tracking = true;
 }
 
 static void untrack_object(void *ptr)
 {
-    struct objinfo o = { .ptr = ptr };
+    struct objinfo o = { .ptr = ptr, .ip = 0 };
     struct rbtree *node;
+    void *objinfo;
+    char buf[64];
 
+    tracking = false;
     node = rbtree_find(&objects, &o, objects_compare);
-    if (!rbtree_delete(&objects, node))
+    if (!node) {
         fprintf(stderr, "could not delete objinfo for %p (not found)\n", ptr);
-    else {
+    } else {
+        objinfo = (void *) node->item;
+        rbtree_delete(&objects, node);
+        real_free(objinfo);
         --num_objects;
         fprintf(stderr, "Untracking object @ %p\n", ptr);
     }
+    snprintf(buf, sizeof(buf), "tree%ld.dot", num_objects);
+    obj_tracker_print_rbtree(buf);
+    tracking = true;
 }
 
-void *__wrap_malloc(size_t request) {
-    extern void exit(int);
-    void *ptr;
+void obj_tracker_print_rbtree(const char *filename) {
+    FILE *stream;
 
-    /*
+    stream = filename ? fopen(filename, "a") : tmpfile();
+
+    if (!stream) {
+        perror("fopen");
+        return;
+    }
+
+    rbtree_print(objects, object_print, stream);
+
+    fclose(stream);
+}
+
+void *malloc(size_t request) {
+    void *ptr;
+    static bool inside = false;
+
+    if (inside)
+        return real_malloc(request);
+
+    inside = true;
+
     if (!initialized)
         obj_tracker_init();
     
     if (real_malloc == NULL) {
         fprintf(stderr, "error: real_malloc is NULL! Was constructor called?\n");
-        exit(1);
+        abort();
     }
-    */
 
     /* We have a valid function pointer to malloc().
      * Now we first do some bookkeeping.
      */
-    ptr = __real_malloc(sizeof(struct objinfo) + request);
+    ptr = real_malloc(sizeof(struct objinfo) + request);
 
     /* quit early if there was an error */
-    if (ptr)
+    if (ptr && tracking)
         track_object(ptr, request, 
                 malloc_usable_size(ptr) - sizeof(struct objinfo), 
                 0 /* TODO (use libunwind) */);
 
+    inside = false;
     return ptr;
 }
 
-void __wrap_free(void *ptr) {
-    extern void exit(int);
+void free(void *ptr) {
+    static bool inside = false;
 
-    /*
+    if (inside) {
+        real_free(ptr);
+        return;
+    }
+
+    inside = true;
+
     if (!initialized)
         obj_tracker_init();
     if (real_free == NULL) {
         fprintf(stderr, "error: real_free is NULL! Was constructor called?\n");
-        exit(1);
+        abort();
     }
-    */
 
     /* We have a valid function pointer to free(). */
-    if (ptr)
+    if (ptr && tracking)
         untrack_object(ptr);
 
-    __real_free(ptr);
+    real_free(ptr);
+
+    inside = false;
 }
