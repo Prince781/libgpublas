@@ -2,7 +2,7 @@ SOURCES=$(wildcard *.c)
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall -Werror -fPIC -ggdb3 # -DRBTREE
-LDFLAGS=-ldl
+LDFLAGS=-ldl -lunwind -lunwind-x86_64
 TESTSOURCES=$(wildcard tests/*.c)
 TESTS=$(TESTSOURCES:%.c=%)
 

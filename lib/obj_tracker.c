@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <libunwind.h>
 #include "obj_tracker.h"
 
 /*
@@ -376,6 +377,36 @@ void obj_tracker_print_rbtree(const char *filename) {
 }
 #endif
 
+/* TODO: use noinline ? */
+static long get_ip(void) {
+    unw_cursor_t cursor; unw_context_t uc;
+    unw_word_t ip = 0;
+    /*
+    unw_word_t offp;
+    char name[256];
+    int retval;
+    */
+
+    unw_getcontext(&uc);
+    unw_init_local(&cursor, &uc);
+
+    /**
+     * [function that called malloc()   ]
+     * [malloc()                        ]
+     */
+    for (int i=0; i<2 && unw_step(&cursor) > 0; ++i) {
+        unw_get_reg(&cursor, UNW_REG_IP, &ip);
+        /*
+        retval = unw_get_proc_name(&cursor, name, sizeof(name), &offp);
+        if (retval == -UNW_EUNSPEC || retval == -UNW_ENOINFO)
+            snprintf(name, sizeof(name), "%s", "??");
+        printf("[%10s:0x%0lx] IP = 0x%0lx\n", name, offp, (long) ip);
+        */
+    }
+
+    return ip;
+}
+
 static jmp_buf jump_memcheck;
 
 static void segv_handler(int sig) {
@@ -416,6 +447,7 @@ static bool memcheck(const void *ptr) {
 void *malloc(size_t request) {
     void *ptr;
     static bool inside = false;
+    long ip;
 
     if (inside || destroying)
         return real_malloc(request);
@@ -436,10 +468,12 @@ void *malloc(size_t request) {
     ptr = real_malloc(sizeof(struct objinfo) + request);
 
     /* quit early if there was an error */
-    if (ptr && tracking)
+    if (ptr && tracking) {
+        ip = get_ip();
         track_object(ptr, request, 
                 malloc_usable_size(ptr) - sizeof(struct objinfo), 
-                0 /* TODO (use libunwind) */);
+                ip);
+    }
 
     if (ptr && !memcheck(ptr)) {
         fprintf(stderr, "invalid pointer %p\n", ptr);
