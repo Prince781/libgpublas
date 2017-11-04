@@ -16,6 +16,10 @@
 #else
 #include <search.h>
 #endif
+#include <setjmp.h>
+#include <signal.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 #include "obj_tracker.h"
 
 /*
@@ -53,6 +57,51 @@ struct syminfo {
     size_t n_IPs;           /* number of instruction pointers */
 };
 
+#if DEBUG_TRACKING
+static void **pointers;
+static unsigned long num_pointers;
+static unsigned long pnt_len;
+
+/* use from gdb */
+static bool __attribute__((unused)) is_tracked(void *ptr)
+{
+    for (unsigned long i=0; i < num_pointers; ++i)
+        if (pointers[i] == ptr)
+            return true;
+    return false;
+}
+
+static void track(void *ptr)
+{
+    unsigned long newN = num_pointers + 1;
+
+    if (newN > pnt_len) {
+        pnt_len = (pnt_len ? pnt_len : 1) << 1;
+        pointers = reallocarray(pointers, pnt_len, sizeof(*pointers));
+    }
+
+    pointers[num_pointers] = ptr;
+    num_pointers = newN;
+}
+
+static void untrack(void *ptr)
+{
+    unsigned long newN = num_pointers - 1;
+    unsigned long i;
+
+    for (i=0; i<num_pointers && pointers[i] != ptr; ++i)
+        ;
+
+    if (i < num_pointers && pointers[i] == ptr) {
+        pointers[i] = pointers[newN];
+        num_pointers = newN;
+    }
+}
+#else
+static inline void track(void *ptr) { }
+static inline void untrack(void *ptr) { }
+#endif
+
 /**
  * Sorted by symbol name.
  */
@@ -83,20 +132,17 @@ static struct syminfo symbols[N_ALLOC_SYMS] = {
 
 
 static bool initialized = false;
+static bool destroying = false;
+static pid_t creation_thread = 0;
 #if RBTREE
-static struct rbtree *objects = NULL;
+static struct rbtree __thread *objects = NULL;
 #else
-static void *objects = NULL;
+static void __thread *objects = NULL;
 #endif
-static unsigned long num_objects = 0;
+static unsigned long __thread num_objects = 0;
 
 /* allows us to temporarily disable tracking */
 static bool tracking = true;
-
-/**
- * Handle to libc.
- */
-static void *handle = NULL;
 
 void *(*real_malloc)(size_t) = NULL;
 void (*real_free)(void *) = NULL;
@@ -132,13 +178,23 @@ static void obj_tracker_get_fptrs(void) {
 
 void __attribute__((constructor)) obj_tracker_init(void)
 {
+    extern char etext, edata, end;
+
     if (!initialized) {
         tracking = false;
         initialized = true;
 
+        creation_thread = syscall(SYS_gettid);
+
         obj_tracker_get_fptrs();
 
-        printf("initialized object tracker\n");
+        printf("initialized object tracker on thread %d\n", creation_thread);
+        printf("segments: {\n"
+               "    .text = %10p\n"
+               "    .data = %10p\n"
+               "    .bss  = %10p\n"
+               "    .heap = %10p\n"
+               "}\n", &etext, &edata, &end, sbrk(0));
         tracking = true;
     }
 }
@@ -202,19 +258,17 @@ static void object_destroy(void *o, void *udata) {
 #endif
 
 void __attribute__((destructor)) obj_tracker_fini(void) {
-    static bool destroying = false;
+    pid_t tid;
     if (initialized && !destroying) {
         destroying = true;
-        if (handle)
-            if (dlclose(handle) != 0)
-                fprintf(stderr, "dlclose: %s\n", dlerror());
 #if RBTREE
         rbtree_destroy(&objects, object_destroy, NULL);
 #else
         tdestroy(objects, real_free);
 #endif
         objects = NULL;
-        printf("decommissioned object tracker\n");
+        tid = syscall(SYS_gettid);
+        printf("decommissioned object tracker on thread %d\n", tid);
         initialized = false;
         destroying = false;
     }
@@ -243,8 +297,11 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
 #else
     void *node;
 #endif
+    pid_t tid;
 
     tracking = false;
+    tid = syscall(SYS_gettid);
+
     oinfo = real_malloc(sizeof(*oinfo));
     oinfo->ip = ip;
     oinfo->reqsize = request;
@@ -257,9 +314,12 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
 #endif
     if (node) {
         ++num_objects;
-        printf("Tracking object @ %p (size=%zu B) {record @ %p}\n", ptr, size, node);
+        track(ptr);
+        printf("[thread %d] Tracking object @ %p (size=%zu B) {record @ %p}\n", 
+                tid, ptr, size, node);
     } else {
-        fprintf(stderr, "Failed to track object @ %p (size=%zu B)\n", ptr, size);
+        fprintf(stderr, "[thread %d] Failed to track object @ %p (size=%zu B)\n", 
+                tid, ptr, size);
     }
     tracking = true;
 }
@@ -273,6 +333,7 @@ static void untrack_object(void *ptr)
     void *node;
 #endif
     struct objinfo *objinfo;
+    pid_t tid;
 
     tracking = false;
 #if RBTREE
@@ -280,9 +341,9 @@ static void untrack_object(void *ptr)
 #else
     node = tfind(&o, &objects, objects_compare);
 #endif
-    if (!node) {
-        fprintf(stderr, "could not delete objinfo for %p (not found)\n", ptr);
-    } else {
+
+    tid = syscall(SYS_gettid);
+    if (node) {
 #if RBTREE
         objinfo = (void *) node->item;
         rbtree_delete(&objects, node);
@@ -292,7 +353,8 @@ static void untrack_object(void *ptr)
 #endif
         real_free(objinfo);
         --num_objects;
-        fprintf(stderr, "Untracking object @ %p\n", ptr);
+        fprintf(stderr, "[thread %d] Untracking object @ %p\n", tid, ptr);
+        untrack(ptr);
     }
     tracking = true;
 }
@@ -314,17 +376,56 @@ void obj_tracker_print_rbtree(const char *filename) {
 }
 #endif
 
+static jmp_buf jump_memcheck;
+
+static void segv_handler(int sig) {
+    longjmp(jump_memcheck, 1);
+}
+
+/* conditionally access a pointer
+ * If we get a segfault, return false
+ * Otherwise, return true
+ */
+static bool memcheck(const void *ptr) {
+    bool valid = true;
+    __attribute__((unused)) char c;
+    struct sigaction action, old_action;
+
+    action.sa_handler = segv_handler;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = SA_RESTART;
+
+    sigaction(SIGSEGV, &action, &old_action);
+
+    /* setjmp will initially return 0
+     * when we dereference ptr, if
+     * we get a segfault, our segfault handler
+     * will jump back to setjmp and return 1,
+     * and control will go to the other statement
+     * in this conditional */
+    if (!setjmp(jump_memcheck))
+        c = *(const char *)ptr;
+    else
+        valid = false;
+
+    sigaction(SIGSEGV, &old_action, NULL);
+
+    return valid;
+}
+
 void *malloc(size_t request) {
     void *ptr;
     static bool inside = false;
 
-    if (inside)
+    if (inside || destroying)
         return real_malloc(request);
 
     inside = true;
 
+    /*
     if (!initialized)
         obj_tracker_init();
+        */
     
     if (real_malloc == NULL) {
         fprintf(stderr, "error: real_malloc is NULL! Was constructor called?\n");
@@ -342,22 +443,37 @@ void *malloc(size_t request) {
                 malloc_usable_size(ptr) - sizeof(struct objinfo), 
                 0 /* TODO (use libunwind) */);
 
+    if (ptr && !memcheck(ptr)) {
+        fprintf(stderr, "invalid pointer %p\n", ptr);
+        abort();
+    }
+
+
     inside = false;
     return ptr;
 }
 
 void free(void *ptr) {
     static bool inside = false;
+    static bool reporting = false;
 
-    if (inside) {
+    if (ptr && !memcheck(ptr) && !reporting) {
+        reporting = true;
+        fprintf(stderr, "invalid pointer %p\n", ptr);
+        abort();
+    }
+
+    if (inside || destroying) {
         real_free(ptr);
         return;
     }
 
     inside = true;
 
+    /*
     if (!initialized)
         obj_tracker_init();
+        */
     if (real_free == NULL) {
         fprintf(stderr, "error: real_free is NULL! Was constructor called?\n");
         abort();
