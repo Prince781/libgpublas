@@ -22,6 +22,7 @@
 #include <sys/syscall.h>
 #include <libunwind.h>
 #include "obj_tracker.h"
+#include "callinfo.h"
 
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT
@@ -41,25 +42,6 @@ struct objinfo {
     size_t reqsize;     /* size of the memory object requested */
     size_t size;        /* size of the actual memory object */
     void *ptr;          /* location of object (= freeable block + sizeof(struct objinfo)) */
-};
-
-enum alloc_sym {
-    ALLOC_MALLOC,
-/*
-    ALLOC_CALLOC,
-    ALLOC_REALLOC,
-    ALLOC_REALLOCARRAY,
-*/
-    N_ALLOC_SYMS
-};
-
-/**
- * Information for knowing when to record objects
- */
-struct syminfo {
-    const char *symbol;     /* symbol of the allocator */
-    unsigned long *IPs;     /* instruction pointers (sorted) */
-    size_t n_IPs;           /* number of instruction pointers */
 };
 
 #if DEBUG_TRACKING
@@ -107,35 +89,6 @@ static inline void track(void *ptr) { }
 static inline void untrack(void *ptr) { }
 #endif
 
-/**
- * Sorted by symbol name.
- */
-static struct syminfo symbols[N_ALLOC_SYMS] = {
-    {
-        .symbol = "malloc",
-        .IPs = NULL,
-        .n_IPs = 0
-    },
-/*
-    {
-        .symbol = "calloc",
-        .IPs = NULL,
-        .n_IPs = 0
-    },
-    {
-        .symbol = "realloc",
-        .IPs = NULL,
-        .n_IPs = 0
-    },
-    {
-        .symbol = "reallocarray",
-        .IPs = NULL,
-        .n_IPs = 0
-    }
-*/
-};
-
-
 static bool initialized = false;
 static bool destroying = false;
 static pid_t creation_thread = 0;
@@ -148,6 +101,8 @@ static unsigned long __thread num_objects = 0;
 
 /* allows us to temporarily disable tracking */
 static bool tracking = true;
+/* whether the user has specified any watchpoints */
+static bool watchpoints = false;
 
 void *(*real_malloc)(size_t) = NULL;
 void (*real_free)(void *) = NULL;
@@ -184,6 +139,8 @@ static void obj_tracker_get_fptrs(void) {
 void __attribute__((constructor)) obj_tracker_init(void)
 {
     extern char etext, edata, end;
+    char *opt;
+    char *option, *saveptr;
 
     if (!initialized) {
         tracking = false;
@@ -192,6 +149,21 @@ void __attribute__((constructor)) obj_tracker_init(void)
         creation_thread = syscall(SYS_gettid);
 
         obj_tracker_get_fptrs();
+
+        if ((opt = getenv("OBJTRACKER_HELP"))) {
+            printf("Object Tracker Options\n"
+                   "HELP                ->  shows this message\n"
+                   "WATCHPOINTS         ->  a comma-separated list of files\n");
+        }
+
+        if ((opt = getenv("OBJTRACKER_WATCHPOINTS"))) {
+            option = strtok_r(opt, ",", &saveptr);
+
+            while (option) {
+                obj_tracker_load(option);
+                option = strtok_r(NULL, ",", &saveptr);
+            }
+        }
 
         printf("initialized object tracker on thread %d\n", creation_thread);
         printf("segments: {\n"
@@ -206,12 +178,11 @@ void __attribute__((constructor)) obj_tracker_init(void)
 
 int obj_tracker_load(const char *filename)
 {
-    extern void perror(const char *);
-
     FILE *fp;
     char *buf = NULL;
     enum alloc_sym sym;
-    unsigned long ip;
+    long ip;
+    size_t reqsize;
     int res;
 
     if ((fp = fopen(filename, "r")) == NULL) {
@@ -225,27 +196,13 @@ int obj_tracker_load(const char *filename)
             break;
         }
 
-        if (strcmp(symbols[ALLOC_MALLOC].symbol, buf) == 0)
-            sym = ALLOC_MALLOC;
-        /*
-        else if (strcmp(symbols[ALLOC_CALLOC].symbol, buf) == 0)
-            sym = ALLOC_CALLOC;
-        else if (strcmp(symbols[ALLOC_REALLOC].symbol, buf) == 0)
-            sym = ALLOC_REALLOC;
-        else if (strcmp(symbols[ALLOC_REALLOCARRAY].symbol, buf) == 0)
-            sym = ALLOC_REALLOCARRAY;
-        */
-        else {
+        if ((sym = get_alloc(buf)) == ALLOC_UNKNWN)
             fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
-            continue;
-        }
-
-        while ((res = fscanf(fp, "%lx", &ip)) == 1) {
-            symbols[sym].n_IPs++;
-            symbols[sym].IPs = (unsigned long *) reallocarray(symbols[sym].IPs, 
-                    symbols[sym].n_IPs, sizeof(symbols[sym].IPs[0]));
-
-            symbols[sym].IPs[symbols[sym].n_IPs - 1] = ip;
+        else {
+            while ((res = fscanf(fp, "0x%lx %zu", &ip, &reqsize)) == 2) {
+                add_callinfo(sym, ip, reqsize);
+                watchpoints = true;
+            }
         }
         
         free(buf);
@@ -485,9 +442,14 @@ void *malloc(size_t request) {
     /* quit early if there was an error */
     if (ptr && tracking) {
         ip = get_ip();
-        track_object(ptr, request, 
-                malloc_usable_size(ptr) - sizeof(struct objinfo), 
-                ip);
+
+        /* Only track the object if we are supposed
+         * to be tracking it.
+         */
+        if (watchpoints && get_callinfo(ALLOC_MALLOC, ip, request))
+            track_object(ptr, request, 
+                    malloc_usable_size(ptr) - sizeof(struct objinfo), 
+                    ip);
     }
 
     if (ptr && !memcheck(ptr)) {
