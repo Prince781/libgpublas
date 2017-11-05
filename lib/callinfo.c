@@ -53,13 +53,13 @@ static ENTRY *insert_retval;
  * keyv will be evaluated twice
  */
 #define insert(sym,keyv,val)\
-    !sym->keyv ? 0 : hsearch_r((ENTRY){ .key = tostr(keyv), .data = (void *)(val) }, ENTER, &insert_retval, sym->keyv )
+    (!sym->keyv ? 0 : hsearch_r((ENTRY){ .key = strdup(tostr(keyv)), .data = (void *)(val) }, ENTER, &insert_retval, sym->keyv ))
 
 /**
  * val will be evaluated three times
  */
 #define lookup(sym,val,result)\
-    !sym->val ? 0 : hsearch_r((ENTRY){ .key = tostr(val), .data = (void *)(val) }, FIND, &result, sym->val)
+    (!sym->val ? 0 : hsearch_r((ENTRY){ .key = tostr(val), .data = (void *)(val) }, FIND, &result, sym->val))
 
 #define mktabl(sym,member,nel) \
     if (!sym->member) {\
