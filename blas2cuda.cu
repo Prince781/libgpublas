@@ -1,9 +1,22 @@
 #include "blas2cuda.h"
+#include "lib/callinfo.h"
 #include "lib/obj_tracker.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 static bool init = false;
+
+extern "C" {
+static void *alloc_managed(size_t request);
+static void free_managed(void *managed_ptr);
+static size_t get_size_managed(void *managed_ptr);
+};
+
+struct objmngr blas2cuda_manager = {
+    .ctor = alloc_managed,
+    .dtor = free_managed,
+    .get_size = get_size_managed
+};
 
 cublasHandle_t b2c_handle;
 
@@ -30,6 +43,7 @@ static void set_options(void) {
                         "debug_execfail -- debug kernel failures\n"
                         "debug_exec     -- debug kernel invocations\n"
                         "trace_copy     -- trace copies between CPU and GPU\n"
+                        "track=<file>   -- use an object tracking definition\n"
                        );
                 help = true;
             }
@@ -40,10 +54,17 @@ static void set_options(void) {
             b2c_options.debug_exec = true;
         else if (strcmp(option, "trace_copy") == 0)
             b2c_options.trace_copy = true;
-        else {
+        else if (strncmp(option, "track=", 6) == 0) {
+            char *fname = strchr(option, '=');
+            if (fname) {
+                fname++;
+                obj_tracker_load(fname, &blas2cuda_manager);
+            } else
+                fprintf(stderr, "blas2cuda: you must provide a filename. Set BLAS2CUDA_OPTIONS=help.\n");
+        } else {
             fprintf(stderr, "blas2cuda: unknown option '%s'. Set BLAS2CUDA_OPTIONS=help.\n", option);
         }
-        option = strtok_r(NULL, ",", &saveptr);
+        option = strtok_r(NULL, ";", &saveptr);
     }
 }
 
@@ -111,6 +132,23 @@ void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size)
     if (b2c_options.trace_copy)
         printf("%s: %zu B : GPU ---> CPU\n", __func__, size);
 }
+
+/* memory management */
+static void *alloc_managed(size_t request)
+{
+    void *ptr;
+    cudaMallocManaged(&ptr, request);
+    return ptr;
+}
+
+static void free_managed(void *managed_ptr) {
+    cudaFree(managed_ptr);
+}
+
+static size_t get_size_managed(void *managed_ptr) {
+    return 0;   /* TODO */
+}
+/* memory management */
 
 __attribute__((constructor))
 void blas2cuda_init(void)
