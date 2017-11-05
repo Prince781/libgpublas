@@ -190,6 +190,7 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     long ip;
     size_t reqsize;
     int res;
+    void *ptr;
 
     if ((fp = fopen(filename, "r")) == NULL) {
         perror("fopen");
@@ -202,8 +203,8 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
                 fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
             else {
                 init_callinfo(sym);
-                while ((res = fscanf(fp, "reqsize=[%zu] ip=[0x%lx]\n", &reqsize, &ip)) == 2) {
-                    if (add_callinfo(sym, mngr, ip, reqsize)) {
+                while ((res = fscanf(fp, "reqsize=[%zu] ip=[0x%lx] ptr=[%p]\n", &reqsize, &ip, &ptr)) == 2) {
+                    if (add_callinfo(sym, mngr, ip, reqsize, ptr)) {
                         watchpoints = true;
                         printf("W [%s] reqsize=[%zu] ip=[0x%lx]\n", 
                                 buf, reqsize, ip);
@@ -296,9 +297,9 @@ static void track_object(void *ptr,
     if (node) {
         ++num_objects;
         track(ptr);
-        printf("T [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
+        printf("T [%p] reqsize=[%zu] ip=[0x%lx] ptr=[%10p] tid=[%d]\n", ptr, request, ip, ptr, tid);
     } else {
-        fprintf(stderr, "F [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
+        fprintf(stderr, "F [%p] reqsize=[%zu] ip=[0x%lx] ptr=[%10p] tid=[%d]\n", ptr, request, ip, ptr, tid);
     }
 #else
     if (node)
@@ -335,8 +336,8 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     tid = syscall(SYS_gettid);
 
-    printf("U [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", 
-            objinfo->ptr, objinfo->ci.reqsize, objinfo->ci.ip, tid);
+    printf("U [%p] reqsize=[%zu] ip=[0x%lx] ptr=[%10p] tid=[%d]\n", 
+            objinfo->ptr, objinfo->ci.reqsize, objinfo->ci.ip, objinfo->ptr, tid);
     untrack(objinfo->ptr);
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
@@ -447,6 +448,7 @@ static bool memcheck(const void *ptr) {
 void *malloc(size_t request) {
     static bool inside = false;
     void *ptr;
+    void *fake_ptr;
     size_t actual_size;
     long ip;
     struct objmngr mngr;
@@ -465,11 +467,17 @@ void *malloc(size_t request) {
         abort();
     }
 
+    /*
+     * We call malloc(request) to see what malloc
+     * would have returned.
+     */
+    fake_ptr = real_malloc(request);
+
     /* Only track the object if we are supposed
      * to be tracking it.
      */
     ip = get_ip(2);
-    if (tracking && (!watchpoints || (ci = get_callinfo_and(ALLOC_MALLOC, ip, request)))) {
+    if (tracking && (!watchpoints || (ci = get_callinfo_and(ALLOC_MALLOC, ip, request, fake_ptr)))) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
             mngr.dtor = real_free;
@@ -477,11 +485,22 @@ void *malloc(size_t request) {
         } else /* ci is non-NULL */ {
             memcpy(&mngr, &ci->mngr, sizeof(mngr));
         }
-        ptr = mngr.ctor(request);
+
+        /*
+         * If our memory manager constructor is
+         * not libc's malloc(), then we free this
+         * memory and use the manager's constructor.
+         */
+        if (mngr.ctor != real_malloc) {
+            real_free(fake_ptr);
+            fake_ptr = NULL;
+            ptr = mngr.ctor(request);
+        } else
+            ptr = fake_ptr;
         actual_size = mngr.get_size(ptr);
         track_object(ptr, &mngr, request, actual_size, ip);
     } else
-        ptr = real_malloc(request);
+        ptr = fake_ptr;
 
     if (ptr && !memcheck(ptr)) {
         fprintf(stderr, "invalid pointer %p\n", ptr);
@@ -520,9 +539,16 @@ void free(void *ptr) {
 
     /* We have a valid function pointer to free(). */
     if (ptr && tracking) {
+        /*
+         * Set our defaults in case we
+         * fail to set mngr.
+         */
         mngr.ctor = real_malloc;
         mngr.dtor = real_free;
         untrack_object(ptr, &mngr);
+        /*
+         * mngr may be something else now
+         */
         mngr.dtor(ptr);
     } else
         real_free(ptr);

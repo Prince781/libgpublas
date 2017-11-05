@@ -28,6 +28,7 @@ struct alloc_callinfo {
     struct objmngr mngr;
     long ip;
     size_t reqsize;
+    void *ptr;
 };
 
 void
@@ -41,12 +42,14 @@ init_callinfo(enum alloc_sym sym);
  *                and free() will be used.
  * {ip}         - Instruction pointer at time of call.
  * {reqsize}    - Requested size.
+ * {ptr}        - Location of the memory.
  */
 bool
 add_callinfo(enum alloc_sym sym, 
              const struct objmngr *mngr,
              long ip, 
-             size_t reqsize);
+             size_t reqsize,
+             void *ptr);
 
 /**
  * Queries by either IP or reqsize.
@@ -55,7 +58,8 @@ add_callinfo(enum alloc_sym sym,
 struct alloc_callinfo *
 get_callinfo_or(enum alloc_sym sym, 
                 long ip, 
-                size_t reqsize);
+                size_t reqsize,
+                void *ptr);
 
 /**
  * Queries by both IP and reqsize.
@@ -64,7 +68,8 @@ get_callinfo_or(enum alloc_sym sym,
 struct alloc_callinfo *
 get_callinfo_and(enum alloc_sym sym, 
                  long ip,
-                 size_t reqsize);
+                 size_t reqsize,
+                 void *ptr);
 
 
 /**
