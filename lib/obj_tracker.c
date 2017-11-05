@@ -202,12 +202,13 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
                 fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
             else {
                 init_callinfo(sym);
-                while ((res = fscanf(fp, "0x%lx %zu\n", &ip, &reqsize)) == 2) {
+                while ((res = fscanf(fp, "reqsize=[%zu] ip=[0x%lx]\n", &reqsize, &ip)) == 2) {
                     if (add_callinfo(sym, mngr, ip, reqsize)) {
                         watchpoints = true;
-                        printf("watch for %s(%zu) [ip=%lx]\n", buf, reqsize, ip);
+                        printf("W [%s] reqsize=[%zu] ip=[0x%lx]\n", 
+                                buf, reqsize, ip);
                     } else
-                        printf("failed to add watch\n");
+                        fprintf(stderr, "failed to add watch\n");
                 }
             }
         }
@@ -295,11 +296,9 @@ static void track_object(void *ptr,
     if (node) {
         ++num_objects;
         track(ptr);
-        printf("[thread %d] Tracking object @ %p (size=%zu B) [ip=0x%lx]\n", 
-                tid, ptr, request, ip);
+        printf("T [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
     } else {
-        fprintf(stderr, "[thread %d] Failed to track object @ %p (request=%zu B) [ip=0x%lx]\n", 
-                tid, ptr, request, ip);
+        fprintf(stderr, "F [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
     }
 #else
     if (node)
@@ -336,8 +335,8 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     tid = syscall(SYS_gettid);
 
-    printf("[thread %d] Untracking object @ %p (request=%zu B) [ip=0x%lx]\n", 
-            tid, objinfo->ptr, objinfo->ci.reqsize, objinfo->ci.ip);
+    printf("U [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", 
+            objinfo->ptr, objinfo->ci.reqsize, objinfo->ci.ip, tid);
     untrack(objinfo->ptr);
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));

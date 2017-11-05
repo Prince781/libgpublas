@@ -25,22 +25,13 @@ struct objmngr;
  * Loads a definition from a file.
  * The file format must be of the following:
  * <name of function 1>
- * [ PC 1 ]
- * [ PC 2 ]
- * ...
- * [ PC N ]
+ * reqsize=[%zu] ip=[0x%lx] } N_1 instances of these
  * <name of function 2>
- * [ PC 1 (2) ]
- * [ PC 2 (2) ]
+ * reqsize=[%zu] ip=[0x%lx] } N_2 instances of these
  * ...
- * [ PC N (2) ]
+ * <name of function m>
+ * reqsize=[%zu] ip=[0x%lx] } N_m instances of these
  * ...
- * <name of function M>
- * [ PC 1 (M) ]
- * [ PC 2 (M) ]
- * ...
- * [ PC N (M) ]
- *
  * @return 0 on success, < 0 on failure
  */
 int obj_tracker_load(const char *filename, struct objmngr *mngr);
