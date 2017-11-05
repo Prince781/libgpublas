@@ -295,11 +295,11 @@ static void track_object(void *ptr,
     if (node) {
         ++num_objects;
         track(ptr);
-        printf("[thread %d] Tracking object @ %p (size=%zu B) {record @ %p}\n", 
-                tid, ptr, size, node);
+        printf("[thread %d] Tracking object @ %p (size=%zu B) [ip=0x%lx]\n", 
+                tid, ptr, request, ip);
     } else {
-        fprintf(stderr, "[thread %d] Failed to track object @ %p (size=%zu B)\n", 
-                tid, ptr, size);
+        fprintf(stderr, "[thread %d] Failed to track object @ %p (request=%zu B) [ip=0x%lx]\n", 
+                tid, ptr, request, ip);
     }
 #else
     if (node)
@@ -336,8 +336,8 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     tid = syscall(SYS_gettid);
 
-    printf("[thread %d] Untracking object @ %p [ip=%lx]\n", 
-            tid, objinfo->ptr, objinfo->ci.ip);
+    printf("[thread %d] Untracking object @ %p (request=%zu B) [ip=0x%lx]\n", 
+            tid, objinfo->ptr, objinfo->ci.reqsize, objinfo->ci.ip);
     untrack(objinfo->ptr);
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
@@ -379,8 +379,7 @@ void obj_tracker_print_rbtree(const char *filename) {
 }
 #endif
 
-/* TODO: use noinline ? */
-static long get_ip(void) {
+static __attribute__((noinline)) long get_ip(int num_steps) {
     unw_cursor_t cursor; unw_context_t uc;
     unw_word_t ip = 0;
     /*
@@ -396,7 +395,7 @@ static long get_ip(void) {
      * [function that called malloc()   ]
      * [malloc()                        ]
      */
-    for (int i=0; i<2 && unw_step(&cursor) > 0; ++i) {
+    for (int i=0; i<num_steps && unw_step(&cursor) > 0; ++i) {
         unw_get_reg(&cursor, UNW_REG_IP, &ip);
         /*
         retval = unw_get_proc_name(&cursor, name, sizeof(name), &offp);
@@ -470,7 +469,7 @@ void *malloc(size_t request) {
     /* Only track the object if we are supposed
      * to be tracking it.
      */
-    ip = get_ip();
+    ip = get_ip(2);
     if (tracking && (!watchpoints || (ci = get_callinfo_and(ALLOC_MALLOC, ip, request)))) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
