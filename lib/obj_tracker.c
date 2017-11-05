@@ -461,7 +461,9 @@ static bool memcheck(const void *ptr) {
 void *malloc(size_t request) {
     static bool inside = false;
     void *ptr;
+    /*
     void *fake_ptr;
+    */
     size_t actual_size;
     long ip;
     struct objmngr mngr;
@@ -483,14 +485,15 @@ void *malloc(size_t request) {
     /*
      * We call malloc(request) to see what malloc
      * would have returned.
-     */
     fake_ptr = real_malloc(request);
+     */
 
     /* Only track the object if we are supposed
      * to be tracking it.
      */
     ip = get_ip(2);
-    if (tracking && (!watchpoints || (ci = get_callinfo_and(ALLOC_MALLOC, ip, request, fake_ptr)))) {
+    if (tracking && (!watchpoints || (ci = get_callinfo_and(ALLOC_MALLOC, ip, request, 
+                        NULL /* TODO: see callinfo.c */)))) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
             mngr.dtor = real_free;
@@ -505,15 +508,23 @@ void *malloc(size_t request) {
          * memory and use the manager's constructor.
          */
         if (mngr.ctor != real_malloc) {
+            /*
             real_free(fake_ptr);
             fake_ptr = NULL;
+            */
             ptr = mngr.ctor(request);
         } else
+            ptr = real_malloc(request);
+            /*
             ptr = fake_ptr;
+            */
         actual_size = mngr.get_size(ptr);
         track_object(ptr, &mngr, request, actual_size, ip);
     } else
+        ptr = real_malloc(request);
+        /*
         ptr = fake_ptr;
+        */
 
     if (ptr && !memcheck(ptr)) {
         fprintf(stderr, "invalid pointer %p\n", ptr);

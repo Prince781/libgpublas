@@ -183,8 +183,10 @@ get_callinfo_and(enum alloc_sym sym, long ip, size_t reqsize, void *ptr)
     if (!lookup(info, reqsize, entp))
         return NULL;
 
+    /* TODO: is tracking ptr reliable?
     if (!lookup(info, ptr, entp))
         return NULL;
+        */
 
     return entp ? entp->data : NULL;
 
