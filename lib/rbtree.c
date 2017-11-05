@@ -5,7 +5,6 @@
  * See http://www.geeksforgeeks.org/red-black-tree-set-3-delete-2/
  */
 #include "rbtree.h"
-#include "obj_tracker.h"
 #include <stdio.h>
 
 void abort(void);
@@ -123,6 +122,7 @@ static void rbtree_recolor(struct rbtree *node)
 struct rbtree *
 rbtree_insert(struct rbtree **root, void *item, compare_t comparator)
 {
+    extern void *(*real_malloc)(size_t);
     struct rbtree **old_root = root;
     struct rbtree *node = NULL;
 
@@ -193,6 +193,7 @@ rbtree_delete(struct rbtree **root, struct rbtree *node)
 void
 rbtree_destroy(struct rbtree **root, dtor_t destructor, void *user_data)
 {
+    extern void (*real_free)(void *);
     if (!*root)
         return;
 

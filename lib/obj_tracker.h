@@ -13,6 +13,19 @@ extern void (*real_free)(void *);
 void *fake_malloc(size_t req);
 void fake_free(void *ptr);
 
+/* include callinfo.h */
+struct alloc_callinfo;
+
+/**
+ * Information about objects.
+ */
+struct objinfo {
+    struct alloc_callinfo ci;
+    size_t size;        /* size of the actual memory object */
+    void *ptr;          /* location of object (= freeable block + sizeof(struct objinfo)) */
+};
+
+
 /* Initialize the object tracker. */
 void obj_tracker_init(bool tracking_enabled);
 
@@ -35,6 +48,13 @@ struct objmngr;
  * @return 0 on success, < 0 on failure
  */
 int obj_tracker_load(const char *filename, struct objmngr *mngr);
+
+/**
+ * If this pointer is managed by the object tracking system,
+ * return the information about it. Otherwise, return NULL.
+ */
+const struct objinfo *
+obj_tracker_objinfo(void *ptr);
 
 /**
  * Decommission the object tracker.

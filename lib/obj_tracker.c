@@ -29,14 +29,8 @@
 #define TRACE_OUTPUT    1
 #endif
 
-/**
- * Information about objects.
- */
-struct objinfo {
-    struct alloc_callinfo ci;
-    size_t size;        /* size of the actual memory object */
-    void *ptr;          /* location of object (= freeable block + sizeof(struct objinfo)) */
-};
+static void *find_objinfo(struct objinfo *o);
+
 
 #if DEBUG_TRACKING
 static void **pointers;
@@ -222,6 +216,22 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
 
     free(buf);
     return fclose(fp);
+}
+
+const struct objinfo *
+obj_tracker_objinfo(void *ptr)
+{
+    struct objinfo fake_objinfo = { .ptr = ptr };
+    void *node = find_objinfo(&fake_objinfo);
+
+    if (!node)
+        return NULL;
+
+#if RBTREE
+    return ((struct rbtree *)node)->item;
+#else
+    return *(struct objinfo **)node;
+#endif
 }
 
 #if RBTREE
