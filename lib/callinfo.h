@@ -43,8 +43,10 @@ init_callinfo(enum alloc_sym sym);
  * {ip}         - Instruction pointer at time of call.
  * {reqsize}    - Requested size.
  * {ptr}        - Location of the memory.
+ * Returns: negative on error, 0 on success, and positive if 
+ *          callinfo wasn't added because it already exists.
  */
-bool
+int
 add_callinfo(enum alloc_sym sym, 
              const struct objmngr *mngr,
              long ip, 

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include <malloc.h>
+#include <stdint.h> /* intptr_t */
 
 #define CAPACITY    (1 << 25)
 
@@ -54,8 +55,8 @@ static ENTRY *insert_retval;
 /**
  * keyv will be evaluated twice
  */
-#define insert(sym,keyv,val)\
-    (!sym->keyv ? 0 : hsearch_r((ENTRY){ .key = strdup(tostr(keyv)), .data = (void *)(val) }, ENTER, &insert_retval, sym->keyv ))
+#define insert(sym,keyv,val,valstr)\
+    (!sym->keyv ? (intptr_t)(valstr=0) : hsearch_r((ENTRY){ .key = (valstr = strdup(tostr(keyv))), .data = (void *)(val) }, ENTER, &insert_retval, sym->keyv ))
 
 /**
  * val will be evaluated three times
@@ -106,7 +107,7 @@ init_callinfo(enum alloc_sym sym)
     }
 }
 
-bool
+int
 add_callinfo(enum alloc_sym sym, 
              const struct objmngr *mngr,
              long ip,
@@ -115,19 +116,37 @@ add_callinfo(enum alloc_sym sym,
 {
     struct syminfo *info;
     struct alloc_callinfo *ci;
+    ENTRY *entp;
+    char *valstr = NULL;
+    int retval = -1;
 
     if ((info = get_syminfo(sym))) {
         ci = make_callinfo(mngr, ip, reqsize, ptr);
-        if (!insert(info, ip, ci))
-            return false;
-        if (!insert(info, reqsize, ci))
-            return false;
-        if (!insert(info, ptr, ci))
-            return false;
-        return true;
+        retval = 1;
+        if (!lookup(info, ip, entp)) {
+            if (!insert(info, ip, ci, valstr)) {
+                real_free(valstr);
+                return -1;
+            } else
+                retval = 0;
+        }
+        if (!lookup(info, reqsize, entp)) {
+            if (!insert(info, reqsize, ci, valstr)) {
+                real_free(valstr);
+                return -1;
+            } else
+                retval = 0;
+        }
+        if (!lookup(info, ptr, entp)) {
+            if (!insert(info, ptr, ci, valstr)) {
+                real_free(valstr);
+                return -1;
+            } else
+                retval = 0;
+        }
     }
 
-    return false;
+    return retval;
 }
 
 struct alloc_callinfo *

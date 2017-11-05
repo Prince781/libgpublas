@@ -188,6 +188,7 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     char *buf = NULL;
     size_t bufsize = 0;
     char *nl = NULL;
+    int ci_res;
 
     if ((fp = fopen(filename, "r")) == NULL) {
         perror("fopen");
@@ -203,11 +204,11 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
             else {
                 init_callinfo(sym);
                 while ((res = fscanf(fp, "ptr=[%p] reqsize=[%zu] ip=[0x%lx]\n", &ptr, &reqsize, &ip)) == 3) {
-                    if (add_callinfo(sym, mngr, ip, reqsize, ptr)) {
+                    if ((ci_res = add_callinfo(sym, mngr, ip, reqsize, ptr)) == 0) {
                         watchpoints = true;
                         printf("W [%s] reqsize=[%zu] ip=[0x%lx] ptr=[%10p]\n", 
                                 buf, reqsize, ip, ptr);
-                    } else
+                    } else if (ci_res < 0)
                         fprintf(stderr, "failed to add watch: %s\n", strerror(errno));
                 }
             }
