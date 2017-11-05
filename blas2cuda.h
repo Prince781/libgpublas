@@ -38,6 +38,10 @@ struct options {
 extern struct options b2c_options;
 extern cublasHandle_t b2c_handle;
 
+#if __cplusplus
+extern "C" {
+#endif
+
 void init_cublas(void);
 
 /**
@@ -55,5 +59,9 @@ void *b2c_copy_to_gpu(const void *devbuf, size_t size);
 void *b2c_copy_to_cpu(const void *gpubuf, size_t size);
 
 void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size);
+
+#if __cplusplus
+};
+#endif
 
 #endif
