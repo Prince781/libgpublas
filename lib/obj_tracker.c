@@ -21,25 +21,18 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <libunwind.h>
-#include "obj_tracker.h"
 #include "callinfo.h"
+#include "obj_tracker.h"
 
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT    1
 #endif
 
-/*
-void *calloc(size_t nmemb, size_t size);
-void *realloc(void *ptr, size_t size);
-void *reallocarray(void *ptr, size_t nmemb, size_t size);
-*/
-
 /**
  * Information about objects.
  */
 struct objinfo {
-    unsigned long ip;   /* instruction pointer at request. */
-    size_t reqsize;     /* size of the memory object requested */
+    struct alloc_callinfo ci;
     size_t size;        /* size of the actual memory object */
     void *ptr;          /* location of object (= freeable block + sizeof(struct objinfo)) */
 };
@@ -141,6 +134,7 @@ void __attribute__((constructor)) obj_tracker_init(void)
     extern char etext, edata, end;
     char *opt;
     char *option, *saveptr;
+    struct objmngr libc_mngr;
 
     if (!initialized) {
         tracking = false;
@@ -158,9 +152,10 @@ void __attribute__((constructor)) obj_tracker_init(void)
 
         if ((opt = getenv("OBJTRACKER_WATCHPOINTS"))) {
             option = strtok_r(opt, ",", &saveptr);
-
+            libc_mngr.ctor = real_malloc;
+            libc_mngr.dtor = real_free;
             while (option) {
-                obj_tracker_load(option);
+                obj_tracker_load(option, &libc_mngr);
                 option = strtok_r(NULL, ",", &saveptr);
             }
         }
@@ -176,7 +171,7 @@ void __attribute__((constructor)) obj_tracker_init(void)
     }
 }
 
-int obj_tracker_load(const char *filename)
+int obj_tracker_load(const char *filename, struct objmngr *mngr)
 {
     FILE *fp;
     char *buf = NULL;
@@ -197,7 +192,7 @@ int obj_tracker_load(const char *filename)
             else {
                 init_callinfo(sym);
                 while ((res = fscanf(fp, "0x%lx %zu\n", &ip, &reqsize)) == 2) {
-                    if (add_callinfo(sym, ip, reqsize)) {
+                    if (add_callinfo(sym, mngr, ip, reqsize)) {
                         watchpoints = true;
                         printf("watch for %s(%zu) [ip=%lx]\n", buf, reqsize, ip);
                     } else
@@ -252,27 +247,35 @@ static void object_print(const void *o, int n, char buf[n]) {
 }
 #endif
 
-static void track_object(void *ptr, size_t request, size_t size, unsigned long ip)
+static void *insert_objinfo(struct objinfo *oinfo)
 {
-    struct objinfo *oinfo;
 #if RBTREE
     struct rbtree *node;
+    node = rbtree_insert(&objects, oinfo, objects_compare);
 #else
     void *node;
+    node = tsearch(oinfo, &objects, objects_compare);
 #endif
+
+    return node;
+}
+
+static void track_object(void *ptr, 
+        struct objmngr *mngr, size_t request, size_t size, unsigned long ip)
+{
+    struct objinfo *oinfo;
+    void *node;
 
     tracking = false;
 
     oinfo = real_malloc(sizeof(*oinfo));
-    oinfo->ip = ip;
-    oinfo->reqsize = request;
+    memcpy(&oinfo->ci.mngr, mngr, sizeof(*mngr));
+    oinfo->ci.ip = ip;
+    oinfo->ci.reqsize = request;
     oinfo->size = size;
     oinfo->ptr = ptr;
-#if RBTREE
-    node = rbtree_insert(&objects, oinfo, objects_compare);
-#else
-    node = tsearch(oinfo, &objects, objects_compare);
-#endif
+
+    node = insert_objinfo(oinfo);
 
 #if TRACE_OUTPUT
     pid_t tid;
@@ -294,41 +297,55 @@ static void track_object(void *ptr, size_t request, size_t size, unsigned long i
     tracking = true;
 }
 
-static void untrack_object(void *ptr)
+static void *find_objinfo(struct objinfo *o)
 {
-    struct objinfo o = { .ptr = ptr, .ip = 0 };
 #if RBTREE
     struct rbtree *node;
+    node = rbtree_find(&objects, &o, objects_compare);
 #else
     void *node;
+    node = tfind(o, &objects, objects_compare);
 #endif
+    return node;
+}
+
+static void *delete_objinfo(void *node, struct objmngr *mngr)
+{
     struct objinfo *objinfo;
+    void *result;
+#if RBTREE
+    objinfo = ((struct rbtree *)node)->item;
+    result = rbtree_delete(&objects, node);
+#else
+    objinfo = *(struct objinfo **) node;
+    result = tdelete(objinfo, &objects, objects_compare);
+#endif
 #if TRACE_OUTPUT
     pid_t tid;
 
     tid = syscall(SYS_gettid);
-#endif
 
-    tracking = false;
-#if RBTREE
-    node = rbtree_find(&objects, &o, objects_compare);
-#else
-    node = tfind(&o, &objects, objects_compare);
+    fprintf(stderr, "[thread %d] Untracking object @ %p [ip=%lx]\n", 
+            tid, objinfo->ptr, objinfo->ci.ip);
+    untrack(objinfo->ptr);
 #endif
+    memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
+    real_free(objinfo);
+    return result;
+}
+
+static void untrack_object(void *ptr, struct objmngr *mngr)
+{
+    /* change this if objects_compare changes */
+    struct objinfo searchobj = { .ptr = ptr };
+    void *node;
+    
+    tracking = false;
+
+    node = find_objinfo(&searchobj);
 
     if (node) {
-#if RBTREE
-        objinfo = (void *) node->item;
-        rbtree_delete(&objects, node);
-#else
-        objinfo = *(struct objinfo **) node;
-        tdelete(&o, &objects, objects_compare);
-#endif
-#if TRACE_OUTPUT
-        fprintf(stderr, "[thread %d] Untracking object @ %p [ip=%lx]\n", tid, ptr, objinfo->ip);
-        untrack(ptr);
-#endif
-        real_free(objinfo);
+        delete_objinfo(node, mngr);
         --num_objects;
     }
     tracking = true;
@@ -422,6 +439,8 @@ void *malloc(size_t request) {
     void *ptr;
     static bool inside = false;
     long ip;
+    struct objmngr mngr;
+    struct alloc_callinfo *ci;
 
     if (inside || destroying)
         return real_malloc(request);
@@ -436,23 +455,23 @@ void *malloc(size_t request) {
         abort();
     }
 
-    /* We have a valid function pointer to malloc().
-     * Now we first do some bookkeeping.
+    /* Only track the object if we are supposed
+     * to be tracking it.
      */
-    ptr = real_malloc(sizeof(struct objinfo) + request);
-
-    /* quit early if there was an error */
-    if (ptr && tracking) {
-        ip = get_ip();
-
-        /* Only track the object if we are supposed
-         * to be tracking it.
-         */
-        if (!watchpoints || get_callinfo_and(ALLOC_MALLOC, ip, request))
-            track_object(ptr, request, 
-                    malloc_usable_size(ptr) - sizeof(struct objinfo), 
-                    ip);
-    }
+    ip = get_ip();
+    if (tracking && (!watchpoints || (ci = get_callinfo_and(ALLOC_MALLOC, ip, request)))) {
+        if (!watchpoints) {
+            mngr.ctor = real_malloc;
+            mngr.dtor = real_free;
+        } else /* ci is non-NULL */ {
+            memcpy(&mngr, &ci->mngr, sizeof(mngr));
+        }
+        ptr = mngr.ctor(request);
+        track_object(ptr, &mngr, request, 
+                malloc_usable_size(ptr), 
+                ip);
+    } else
+        ptr = real_malloc(request);
 
     if (ptr && !memcheck(ptr)) {
         fprintf(stderr, "invalid pointer %p\n", ptr);
@@ -467,6 +486,7 @@ void *malloc(size_t request) {
 void free(void *ptr) {
     static bool inside = false;
     static bool reporting = false;
+    struct objmngr mngr;
 
     if (ptr && !memcheck(ptr) && !reporting) {
         reporting = true;
@@ -489,10 +509,13 @@ void free(void *ptr) {
     }
 
     /* We have a valid function pointer to free(). */
-    if (ptr && tracking)
-        untrack_object(ptr);
-
-    real_free(ptr);
+    if (ptr && tracking) {
+        mngr.ctor = real_malloc;
+        mngr.dtor = real_free;
+        untrack_object(ptr, &mngr);
+        mngr.dtor(ptr);
+    } else
+        real_free(ptr);
 
     inside = false;
 }

@@ -12,6 +12,9 @@ extern void (*real_free)(void *);
 /* Initialize the object tracker. */
 void __attribute__((constructor)) obj_tracker_init(void);
 
+/* users of this library must include callinfo.h */
+struct objmngr;
+
 /**
  * Loads a definition from a file.
  * The file format must be of the following:
@@ -34,7 +37,7 @@ void __attribute__((constructor)) obj_tracker_init(void);
  *
  * @return 0 on success, < 0 on failure
  */
-int obj_tracker_load(const char *filename);
+int obj_tracker_load(const char *filename, struct objmngr *mngr);
 
 /**
  * Decommission the object tracker.

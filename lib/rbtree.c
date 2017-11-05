@@ -121,7 +121,7 @@ static void rbtree_recolor(struct rbtree *node)
 }
 
 struct rbtree *
-rbtree_insert(struct rbtree **root, const void *item, compare_t comparator)
+rbtree_insert(struct rbtree **root, void *item, compare_t comparator)
 {
     struct rbtree **old_root = root;
     struct rbtree *node = NULL;

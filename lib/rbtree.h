@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 struct rbtree {
-    const void *item;       /* generic item */
+    void *item;             /* generic item */
     bool red;               /* if false, then it is black */
     struct rbtree *parent;  /* parent of this node */
     struct rbtree *lchild;  /* left child */
@@ -31,7 +31,7 @@ extern "C" {
  * Returns: a pointer to the newly-allocated node.
  */
 struct rbtree *
-rbtree_insert(struct rbtree **root, const void *item, compare_t comparator);
+rbtree_insert(struct rbtree **root, void *item, compare_t comparator);
 
 /**
  * Given a pointer to a root pointer (the root pointer may be NULL), a needle, and a comparator,
