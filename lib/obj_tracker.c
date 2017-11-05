@@ -336,7 +336,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     tid = syscall(SYS_gettid);
 
-    fprintf(stderr, "[thread %d] Untracking object @ %p [ip=%lx]\n", 
+    printf("[thread %d] Untracking object @ %p [ip=%lx]\n", 
             tid, objinfo->ptr, objinfo->ci.ip);
     untrack(objinfo->ptr);
 #endif
