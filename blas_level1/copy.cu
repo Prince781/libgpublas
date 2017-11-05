@@ -1,4 +1,6 @@
 #include "level1.h"
+#include "../lib/callinfo.h"
+#include "../lib/obj_tracker.h"
 
 #define IDX2F(i,j,ld) ((((j)-1)*(ld))+((i)-1))
 
@@ -10,23 +12,31 @@ void cblas_scopy (const int n,
         float *y, 
         const int incy)
 {
-    float *gpu_x;
+    const float *gpu_x;
     float *gpu_y;
     cublasStatus_t status;
     const int size_x = size(n,incx,sizeof(*x));
     const int size_y = size(n,incy,sizeof(*y));
+    const struct objinfo *x_info, *y_info;
 
-    gpu_x = (float *) b2c_copy_to_gpu(x, size_x);
+    if ((x_info = obj_tracker_objinfo((void *) x))) {
+        gpu_x = x;
+    } else
+        gpu_x = (const float *) b2c_copy_to_gpu(x, size_x);
 
     if (gpu_x == NULL || cudaPeekAtLastError() != cudaSuccess) {
         fprintf(stderr, "%s: failed to copy to GPU\n", __func__);
         return;
     }
 
-    cudaMalloc(&gpu_y, size_y);
+    if ((y_info = obj_tracker_objinfo((void *) y)))
+        gpu_y = y;
+    else
+        cudaMalloc(&gpu_y, size_y);
 
     if (gpu_y == NULL || cudaPeekAtLastError() != cudaSuccess) {
-        cudaFree(gpu_x);
+        if (!x_info)
+            cudaFree((void *) gpu_x);
         fprintf(stderr, "%s: failed to copy to GPU\n", __func__);
         return;
     }
@@ -35,8 +45,11 @@ void cblas_scopy (const int n,
 
     B2C_ERRORCHECK(cblas_scopy, status);
 
-    b2c_copy_from_gpu(y, gpu_y, size_y);
+    if (!y_info)
+        b2c_copy_from_gpu(y, gpu_y, size_y);
 
-    cudaFree(gpu_x);
-    cudaFree(gpu_y);
+    if (!x_info)
+        cudaFree((void *) gpu_x);
+    if (!y_info)
+        cudaFree(gpu_y);
 }
