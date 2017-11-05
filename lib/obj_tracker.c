@@ -185,12 +185,14 @@ void obj_tracker_set_tracking(bool enabled)
 int obj_tracker_load(const char *filename, struct objmngr *mngr)
 {
     FILE *fp;
-    char *buf = NULL;
     enum alloc_sym sym;
     long ip;
     size_t reqsize;
     int res;
     void *ptr;
+    char *buf = NULL;
+    size_t bufsize = 0;
+    char *nl = NULL;
 
     if ((fp = fopen(filename, "r")) == NULL) {
         perror("fopen");
@@ -198,24 +200,23 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     }
 
     do {
-        if ((res = fscanf(fp, "%ms\n", &buf)) == 1) {
+        if ((res = getline(&buf, &bufsize, fp)) != EOF) {
+            if ((nl = strchr(buf, '\n')))
+                *nl = '\0';
             if ((sym = get_alloc(buf)) == ALLOC_UNKNWN)
                 fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
             else {
                 init_callinfo(sym);
-                while ((res = fscanf(fp, "reqsize=[%zu] ip=[0x%lx] ptr=[%p]\n", &reqsize, &ip, &ptr)) == 2) {
+                while ((res = fscanf(fp, "ptr=[%p] reqsize=[%zu] ip=[0x%lx]\n", &ptr, &reqsize, &ip)) == 3) {
                     if (add_callinfo(sym, mngr, ip, reqsize, ptr)) {
                         watchpoints = true;
-                        printf("W [%s] reqsize=[%zu] ip=[0x%lx]\n", 
-                                buf, reqsize, ip);
+                        printf("W [%s] reqsize=[%zu] ip=[0x%lx] ptr=[%10p]\n", 
+                                buf, reqsize, ip, ptr);
                     } else
                         fprintf(stderr, "failed to add watch\n");
                 }
             }
         }
-        
-        free(buf);
-        buf = NULL;
     } while (res != EOF);
 
     free(buf);
