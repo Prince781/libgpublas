@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <libunwind.h>
+#include <errno.h>
 #include "callinfo.h"
 #include "obj_tracker.h"
 
@@ -213,7 +214,7 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
                         printf("W [%s] reqsize=[%zu] ip=[0x%lx] ptr=[%10p]\n", 
                                 buf, reqsize, ip, ptr);
                     } else
-                        fprintf(stderr, "failed to add watch\n");
+                        fprintf(stderr, "failed to add watch: %s\n", strerror(errno));
                 }
             }
         }
