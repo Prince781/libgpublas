@@ -8,6 +8,8 @@
 #include <errno.h>
 #include <malloc.h>
 
+#define CAPACITY    (1 << 25)
+
 /**
  * Information for knowing when to record objects
  */
@@ -98,9 +100,9 @@ init_callinfo(enum alloc_sym sym)
     struct syminfo *si = get_syminfo(sym);
 
     for (int i=0; i<N_ALLOC_SYMS; ++i) {
-        mktabl(si, ip, 1024 << 2);
-        mktabl(si, reqsize, 1024 << 2);
-        mktabl(si, ptr, 1024 << 2);
+        mktabl(si, ip, CAPACITY);
+        mktabl(si, reqsize, CAPACITY);
+        mktabl(si, ptr, CAPACITY);
     }
 }
 
