@@ -1,16 +1,22 @@
 #pragma once
 
-#ifdef __cplusplus
+#include <stddef.h>
+#include <stdbool.h>
+
+#if __cplusplus
 extern "C" {
 #endif
-
-#include <stddef.h>
 
 extern void *(*real_malloc)(size_t);
 extern void (*real_free)(void *);
 
+void *fake_malloc(size_t req);
+void fake_free(void *ptr);
+
 /* Initialize the object tracker. */
-void __attribute__((constructor)) obj_tracker_init(void);
+void obj_tracker_init(bool tracking_enabled);
+
+void obj_tracker_set_tracking(bool enabled);
 
 /* users of this library must include callinfo.h */
 struct objmngr;
@@ -42,7 +48,7 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr);
 /**
  * Decommission the object tracker.
  */
-void __attribute__((destructor)) obj_tracker_fini(void);
+void obj_tracker_fini(void);
 
 #if RBTREE
 /**
@@ -51,7 +57,7 @@ void __attribute__((destructor)) obj_tracker_fini(void);
 void obj_tracker_print_rbtree(const char *filename);
 #endif
 
-#ifdef __cplusplus
+#if __cplusplus
 };
 #endif
 

@@ -93,7 +93,11 @@ static void __thread *objects = NULL;
 static unsigned long __thread num_objects = 0;
 
 /* allows us to temporarily disable tracking */
-static bool tracking = true;
+#if STANDALONE
+static bool tracking = true;    /* initial value */
+#else
+static bool tracking = false;
+#endif
 /* whether the user has specified any watchpoints */
 static bool watchpoints = false;
 
@@ -129,11 +133,13 @@ static void obj_tracker_get_fptrs(void) {
     }
 }
 
-void __attribute__((constructor)) obj_tracker_init(void)
+void obj_tracker_init(bool tracking_enabled)
 {
     extern char etext, edata, end;
+#if STANDALONE
     char *opt;
     char *option, *saveptr;
+#endif
 
     if (!initialized) {
         tracking = false;
@@ -142,6 +148,8 @@ void __attribute__((constructor)) obj_tracker_init(void)
         creation_thread = syscall(SYS_gettid);
 
         obj_tracker_get_fptrs();
+
+#if STANDALONE
 
         if ((opt = getenv("OBJTRACKER_HELP"))) {
             printf("Object Tracker Options\n"
@@ -156,6 +164,7 @@ void __attribute__((constructor)) obj_tracker_init(void)
                 option = strtok_r(NULL, ",", &saveptr);
             }
         }
+#endif
 
         printf("initialized object tracker on thread %d\n", creation_thread);
         printf("segments: {\n"
@@ -164,8 +173,13 @@ void __attribute__((constructor)) obj_tracker_init(void)
                "    .bss  = %10p\n"
                "    .heap = %10p\n"
                "}\n", &etext, &edata, &end, sbrk(0));
-        tracking = true;
+        tracking = tracking_enabled;
     }
+}
+
+void obj_tracker_set_tracking(bool enabled)
+{
+    tracking = enabled;
 }
 
 int obj_tracker_load(const char *filename, struct objmngr *mngr)
@@ -446,7 +460,7 @@ void *malloc(size_t request) {
     inside = true;
 
     if (!initialized)
-        obj_tracker_init();
+        obj_tracker_init(tracking);
     
     if (real_malloc == NULL) {
         fprintf(stderr, "error: real_malloc is NULL! Was constructor called?\n");
@@ -500,7 +514,7 @@ void free(void *ptr) {
     inside = true;
 
     if (!initialized)
-        obj_tracker_init();
+        obj_tracker_init(tracking);
     if (real_free == NULL) {
         fprintf(stderr, "error: real_free is NULL! Was constructor called?\n");
         abort();

@@ -3,14 +3,19 @@
 #include "lib/obj_tracker.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static bool init = false;
 
+#if __cplusplus
 extern "C" {
+#endif
 static void *alloc_managed(size_t request);
 static void free_managed(void *managed_ptr);
 static size_t get_size_managed(void *managed_ptr);
+#if __cplusplus
 };
+#endif
 
 struct objmngr blas2cuda_manager = {
     .ctor = alloc_managed,
@@ -19,6 +24,8 @@ struct objmngr blas2cuda_manager = {
 };
 
 cublasHandle_t b2c_handle;
+
+static bool blas2cuda_tracking = false;
 
 struct options b2c_options = { false, false, false };
 
@@ -59,6 +66,7 @@ static void set_options(void) {
             if (fname) {
                 fname++;
                 obj_tracker_load(fname, &blas2cuda_manager);
+                blas2cuda_tracking = true;
             } else
                 fprintf(stderr, "blas2cuda: you must provide a filename. Set BLAS2CUDA_OPTIONS=help.\n");
         } else {
@@ -82,7 +90,6 @@ void init_cublas(void) {
                 exit(EXIT_FAILURE);
                 break;
         }
-        obj_tracker_init();
         init = true;
     }
 }
@@ -137,24 +144,27 @@ void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size)
 static void *alloc_managed(size_t request)
 {
     void *ptr;
-    cudaMallocManaged(&ptr, request);
-    return ptr;
+    cudaMallocManaged(&ptr, sizeof(size_t) + request, cudaMemAttachGlobal);
+    *((size_t *)ptr) = request;
+    return ptr + sizeof(size_t);
 }
 
 static void free_managed(void *managed_ptr) {
-    cudaFree(managed_ptr);
+    cudaFree(managed_ptr - sizeof(size_t));
 }
 
 static size_t get_size_managed(void *managed_ptr) {
-    return 0;   /* TODO */
+    return *(size_t *)(managed_ptr - sizeof(size_t));
 }
 /* memory management */
 
 __attribute__((constructor))
 void blas2cuda_init(void)
 {
+    obj_tracker_init(false);
     set_options();
     printf("initialized blas2cuda\n");
+    obj_tracker_set_tracking(blas2cuda_tracking);
 }
 
 __attribute__((destructor))
