@@ -1,5 +1,9 @@
 #pragma once
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -70,3 +74,6 @@ get_callinfo_and(enum alloc_sym sym,
 enum alloc_sym
 get_alloc(const char *symbol);
 
+#if __cplusplus
+};
+#endif
