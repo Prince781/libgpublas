@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <malloc.h>
 
 /**
  * Information for knowing when to record objects
@@ -76,6 +77,7 @@ make_callinfo(const struct objmngr *mngr,
     else {
         ci->mngr.ctor = real_malloc;
         ci->mngr.dtor = real_free;
+        ci->mngr.get_size = malloc_usable_size;
     }
     ci->ip = ip;
     ci->reqsize = reqsize;

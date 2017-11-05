@@ -17,6 +17,7 @@ enum alloc_sym {
 struct objmngr {
     void *(*ctor)(size_t);
     void (*dtor)(void *);
+    size_t (*get_size)(void *);
 };
 
 struct alloc_callinfo {

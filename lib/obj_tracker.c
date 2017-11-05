@@ -134,7 +134,6 @@ void __attribute__((constructor)) obj_tracker_init(void)
     extern char etext, edata, end;
     char *opt;
     char *option, *saveptr;
-    struct objmngr libc_mngr;
 
     if (!initialized) {
         tracking = false;
@@ -152,10 +151,8 @@ void __attribute__((constructor)) obj_tracker_init(void)
 
         if ((opt = getenv("OBJTRACKER_WATCHPOINTS"))) {
             option = strtok_r(opt, ",", &saveptr);
-            libc_mngr.ctor = real_malloc;
-            libc_mngr.dtor = real_free;
             while (option) {
-                obj_tracker_load(option, &libc_mngr);
+                obj_tracker_load(option, NULL);
                 option = strtok_r(NULL, ",", &saveptr);
             }
         }
@@ -436,8 +433,9 @@ static bool memcheck(const void *ptr) {
 }
 
 void *malloc(size_t request) {
-    void *ptr;
     static bool inside = false;
+    void *ptr;
+    size_t actual_size;
     long ip;
     struct objmngr mngr;
     struct alloc_callinfo *ci;
@@ -463,13 +461,13 @@ void *malloc(size_t request) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
             mngr.dtor = real_free;
+            mngr.get_size = malloc_usable_size;
         } else /* ci is non-NULL */ {
             memcpy(&mngr, &ci->mngr, sizeof(mngr));
         }
         ptr = mngr.ctor(request);
-        track_object(ptr, &mngr, request, 
-                malloc_usable_size(ptr), 
-                ip);
+        actual_size = mngr.get_size(ptr);
+        track_object(ptr, &mngr, request, actual_size, ip);
     } else
         ptr = real_malloc(request);
 
