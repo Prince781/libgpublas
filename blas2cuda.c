@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 static bool init = false;
 
@@ -161,17 +163,22 @@ static size_t get_size_managed(void *managed_ptr) {
 __attribute__((constructor))
 void blas2cuda_init(void)
 {
+    pid_t tid;
     obj_tracker_init(false);
     set_options();
-    printf("initialized blas2cuda\n");
+    tid = syscall(SYS_gettid);
+    printf("initialized blas2cuda on thread %d\n", tid);
     obj_tracker_set_tracking(blas2cuda_tracking);
 }
 
 __attribute__((destructor))
 void blas2cuda_fini(void)
 {
+    pid_t tid;
     if (init && cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
         fprintf(stderr, "blas2cuda: failed to destroy. Not initialized\n");
-    printf("decommissioned blas2cuda\n");
+
+    tid = syscall(SYS_gettid);
+    printf("decommissioned blas2cuda on thread %d\n", tid);
     obj_tracker_fini();
 }
