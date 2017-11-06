@@ -103,7 +103,7 @@ init_callinfo(enum alloc_sym sym)
     for (int i=0; i<N_ALLOC_SYMS; ++i) {
         mktabl(si, ip, CAPACITY);
         mktabl(si, reqsize, CAPACITY);
-        mktabl(si, ptr, CAPACITY);
+        /* mktabl(si, ptr, CAPACITY); */
     }
 }
 
@@ -137,6 +137,7 @@ add_callinfo(enum alloc_sym sym,
             } else
                 retval = 0;
         }
+        /*
         if (!lookup(info, ptr, entp)) {
             if (!insert(info, ptr, ci, valstr)) {
                 real_free(valstr);
@@ -144,6 +145,7 @@ add_callinfo(enum alloc_sym sym,
             } else
                 retval = 0;
         }
+        */
     }
 
     return retval;
@@ -162,8 +164,10 @@ get_callinfo_or(enum alloc_sym sym, long ip, size_t reqsize, void *ptr)
         return entp->data;
     if (lookup(info, reqsize, entp))
         return entp->data;
+    /*
     if (lookup(info, ptr, entp))
         return entp->data;
+        */
 
     return NULL;
 }

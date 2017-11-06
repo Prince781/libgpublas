@@ -184,7 +184,7 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     long ip;
     size_t reqsize;
     int res;
-    void *ptr;
+    /* void *ptr; */
     char *buf = NULL;
     size_t bufsize = 0;
     char *nl = NULL;
@@ -203,11 +203,11 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
                 fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
             else {
                 init_callinfo(sym);
-                while ((res = fscanf(fp, "ptr=[%p] reqsize=[%zu] ip=[0x%lx]\n", &ptr, &reqsize, &ip)) == 3) {
-                    if ((ci_res = add_callinfo(sym, mngr, ip, reqsize, ptr)) == 0) {
+                while ((res = fscanf(fp, /*"ptr=[%p] */"reqsize=[%zu] ip=[0x%lx]\n", /*&ptr,*/ &reqsize, &ip)) == 3) {
+                    if ((ci_res = add_callinfo(sym, mngr, ip, reqsize, NULL)) == 0) {
                         watchpoints = true;
-                        printf("W [%s] reqsize=[%zu] ip=[0x%lx] ptr=[%10p]\n", 
-                                buf, reqsize, ip, ptr);
+                        printf("W [%s] reqsize=[%zu] ip=[0x%lx] "/*ptr=[%10p]*/"\n", 
+                                buf, reqsize, ip/*, ptr*/);
                     } else if (ci_res < 0)
                         fprintf(stderr, "failed to add watch: %s\n", strerror(errno));
                 }
@@ -310,9 +310,9 @@ static void track_object(void *ptr,
     if (node) {
         ++num_objects;
         track(ptr);
-        printf("T [%p] reqsize=[%zu] ip=[0x%lx] ptr=[%10p] tid=[%d]\n", ptr, request, ip, ptr, tid);
+        printf("T [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
     } else {
-        fprintf(stderr, "F [%p] reqsize=[%zu] ip=[0x%lx] ptr=[%10p] tid=[%d]\n", ptr, request, ip, ptr, tid);
+        fprintf(stderr, "F [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
     }
 #else
     if (node)
@@ -349,8 +349,8 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     tid = syscall(SYS_gettid);
 
-    printf("U [%p] reqsize=[%zu] ip=[0x%lx] ptr=[%10p] tid=[%d]\n", 
-            objinfo->ptr, objinfo->ci.reqsize, objinfo->ci.ip, objinfo->ptr, tid);
+    printf("U [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", 
+            objinfo->ptr, objinfo->ci.reqsize, objinfo->ci.ip, tid);
     untrack(objinfo->ptr);
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
