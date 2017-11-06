@@ -53,7 +53,7 @@ def_tostr_(void *, ptr, "%p")
 static ENTRY *insert_retval;
 
 /**
- * keyv will be evaluated twice
+ * keyv will be evaluated three times
  */
 #define insert(sym,keyv,val,valstr)\
     (!sym->keyv ? (intptr_t)(valstr=0) : hsearch_r((ENTRY){ .key = (valstr = strdup(tostr(keyv))), .data = (void *)(val) }, ENTER, &insert_retval, sym->keyv ))
