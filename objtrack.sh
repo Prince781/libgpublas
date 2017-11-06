@@ -13,6 +13,6 @@ LIBOBJTRACKER=./lib/libobjtracker.so
 
 make -C ./lib/ libobjtracker.so
 
-echo "malloc" | cat - <(env LD_PRELOAD=$LIBOBJTRACKER $1 | awk '/ptr=\[0x[0-9a-f]+\]/{print "ptr="$2,$3,$4}') | tee $fname
+echo "malloc" | cat - <(env LD_PRELOAD=$LIBOBJTRACKER $1 | awk '/reqsize=\[[0-9a-f]+\]/{print $3,$4}' | sort -u) | tee $fname
 
 printf "Saved to $fname\n"
