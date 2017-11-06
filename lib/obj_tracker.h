@@ -22,7 +22,7 @@ struct alloc_callinfo;
 struct objinfo {
     struct alloc_callinfo ci;
     size_t size;        /* size of the actual memory object */
-    void *ptr;          /* location of object (= freeable block + sizeof(struct objinfo)) */
+    void *ptr;          /* location of object */
 };
 
 
