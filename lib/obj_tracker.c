@@ -203,7 +203,7 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
                 fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
             else {
                 init_callinfo(sym);
-                while ((res = fscanf(fp, /*"ptr=[%p] */"reqsize=[%zu] ip=[0x%lx]\n", /*&ptr,*/ &reqsize, &ip)) == 3) {
+                while ((res = fscanf(fp, /*"ptr=[%p] */"reqsize=[%zu] ip=[0x%lx]\n", /*&ptr,*/ &reqsize, &ip)) == 2) {
                     if ((ci_res = add_callinfo(sym, mngr, ip, reqsize, NULL)) == 0) {
                         watchpoints = true;
                         printf("W [%s] reqsize=[%zu] ip=[0x%lx] "/*ptr=[%10p]*/"\n", 
