@@ -8,6 +8,9 @@ extern "C" {
 /* BLAS Level 1 routines */
 
 /* cblas_?asum - sum of vector magnitudes (functions) */
+float cblas_sasum (const int n, const float *x, const int incx);
+
+float cblas_scasum (const int n, const void *x, const int incx);
 
 /* cblas_?axpy - scalar-vector product (routines) */
 

@@ -55,3 +55,4 @@ TODO: expand this section
   being randomized.
 - Needs more testing.
 - Needs implementation of all BLAS kernels.
+- Needs to work with `calloc`, `realloc`, `reallocarray`
