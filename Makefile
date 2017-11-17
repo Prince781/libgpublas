@@ -31,7 +31,7 @@ $(OBJDIR)/%.o: %.cu
 .PHONY: clean
 
 clean:
-	@rm -rf $(OBJDIR)
-	@rm -f $(OBJECTS)
-	@rm -f libblas2cuda.so
-	#@$(MAKE) -C $(LIBDIR) clean
+	rm -rf $(OBJDIR)
+	rm -f $(OBJECTS)
+	rm -f libblas2cuda.so
+	@#@$(MAKE) -C $(LIBDIR) clean
