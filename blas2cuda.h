@@ -3,10 +3,14 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+
+#include "lib/callinfo.h"
+#include "lib/obj_tracker.h"
 
 #define B2C_ERRORCHECK(name, status) \
 do {\
@@ -38,29 +42,67 @@ struct options {
 extern struct options b2c_options;
 extern cublasHandle_t b2c_handle;
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 void init_cublas(void);
 
 /**
- * Copy host (CPU) buffer to GPU. Returns a pointer to GPU buffer.
- * If copy fails, returns NULL.
- * Free with cudaFree().
+ * If status is not "cudaSuccess", prints the error message and exits.
  */
-void *b2c_copy_to_gpu(const void *devbuf, size_t size);
+static inline void b2c_fatal_error(cudaError_t status, const char *domain)
+{
+    if (status != cudaSuccess) {
+        fprintf(stderr, "%s: %s : %s\n", domain, cudaGetErrorName(status), cudaGetErrorString(status));
+        abort();
+    }
+}
 
 /**
- * Copy GPU buffer to CPU.
- * If copy fails, returns NULL.
+ * Creates a new GPU buffer and copies the CPU buffer to it.
+ * Returns the GPU buffer, which may be NULL on failure.
+ * Free with cudaFree().
+ */
+void *b2c_copy_to_gpu(const void *cpubuf, size_t size);
+
+/**
+ * Creates a new CPU buffer and copies the GPU buffer to it.
+ * Returns the CPU buffer, which may be NULL on failure.
  * Free with free().
  */
 void *b2c_copy_to_cpu(const void *gpubuf, size_t size);
 
+/**
+ * Copies an existing GPU buffer to an existing CPU buffer.
+ */
 void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size);
 
-#if __cplusplus
+/**
+ * If the buffer is on the CPU, copies it to the GPU and returns a GPU pointer.
+ * {*info_in} is set to NULL. If the buffer is NULL, returns a new GPU buffer
+ * and {*info_in} is set to NULL.
+ * If the buffer is shared, returns the same pointer. {*info_in} points to the
+ * object tracking information for this buffer.
+ * If there is a fatal error, this function will abort.
+ * The remaining arguments are each a pair (gpubuf, gpubuf_info) to perform cleanup on
+ * in the event of an error. The list is terminated by a NULL pointer for a
+ * gpubuf.
+ */
+void *b2c_place_on_gpu(void *cpubuf, 
+        size_t size,
+        const struct objinfo **info_in,
+        void *gpubuf2,
+        ...);
+
+/**
+ * If {info} is NULL, the GPU buffer will be freed with cudaFree(). Otherwise
+ * nothing will happen.
+ * If there is a fatal error, this function will abort.
+ */
+void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info);
+
+#ifdef __cplusplus
 };
 #endif
 

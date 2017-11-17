@@ -1,0 +1,23 @@
+#ifndef CBLAS_H
+#define CBLAS_H
+
+/* taken from cblas.h */
+
+/*
+ * Enumerated and derived types
+ */
+#ifdef WeirdNEC
+   #define CBLAS_INDEX long
+#else
+    #define CBLAS_INDEX int
+#endif
+
+typedef enum {CblasRowMajor=101, CblasColMajor=102} CBLAS_LAYOUT;
+typedef enum {CblasNoTrans=111, CblasTrans=112, CblasConjTrans=113} CBLAS_TRANSPOSE;
+typedef enum {CblasUpper=121, CblasLower=122} CBLAS_UPLO;
+typedef enum {CblasNonUnit=131, CblasUnit=132} CBLAS_DIAG;
+typedef enum {CblasLeft=141, CblasRight=142} CBLAS_SIDE;
+
+typedef CBLAS_LAYOUT CBLAS_ORDER; /* this for backward compatibility with CBLAS_ORDER */
+
+#endif

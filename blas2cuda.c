@@ -142,6 +142,52 @@ void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size)
         printf("%s: %zu B : GPU ---> CPU\n", __func__, size);
 }
 
+void *b2c_place_on_gpu(void *cpubuf, 
+        size_t size,
+        const struct objinfo **info_in,
+        void *gpubuf2,
+        ...)
+{
+    void *gpubuf;
+    const struct objinfo *gpubuf2_info;
+
+    if (!cpubuf) {
+        cudaMalloc(&gpubuf, size);
+    } else if ((*info_in = obj_tracker_objinfo(cpubuf))) {
+        gpubuf = cpubuf;
+    } else
+        gpubuf = b2c_copy_to_gpu(cpubuf, size);
+
+    if (!gpubuf || cudaPeekAtLastError() != cudaSuccess) {
+        va_list ap;
+        cudaError_t err = cudaGetLastError();
+
+        va_start(ap, gpubuf2);
+
+        if (gpubuf2) {
+            do {
+                if (!(gpubuf2_info = va_arg(ap, const struct objinfo *)))
+                    cudaFree(gpubuf2);
+            } while ((gpubuf2 = va_arg(ap, void *)));
+        }
+
+        va_end(ap);
+
+        fprintf(stderr, "%s: failed to copy to GPU\n", __func__);
+        b2c_fatal_error(err, __func__);
+        return NULL;
+    }
+
+    return gpubuf;
+}
+
+void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
+{
+    if (!info)
+        cudaFree(gpubuf);
+}
+
+
 /* memory management */
 static void *alloc_managed(size_t request)
 {
