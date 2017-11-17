@@ -3,6 +3,11 @@
 This is a library to intercept calls to CPU-bound BLAS kernels and run their
 equivalent on the GPU in a CUDA environment.
 
+## Compiling
+```
+$ make -j`nproc`
+```
+
 ## How it works
 TODO: expand this section
 
