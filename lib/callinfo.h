@@ -1,6 +1,6 @@
 #pragma once
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -81,6 +81,6 @@ get_callinfo_and(enum alloc_sym sym,
 enum alloc_sym
 get_alloc(const char *symbol);
 
-#if __cplusplus
+#ifdef __cplusplus
 };
 #endif

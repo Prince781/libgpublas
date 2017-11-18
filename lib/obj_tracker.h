@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -68,7 +68,7 @@ void obj_tracker_fini(void);
 void obj_tracker_print_rbtree(const char *filename);
 #endif
 
-#if __cplusplus
+#ifdef __cplusplus
 };
 #endif
 
