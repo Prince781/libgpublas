@@ -472,6 +472,9 @@ void *malloc(size_t request) {
     if (inside || destroying)
         return real_malloc(request);
 
+    if (!request)
+        return NULL;
+
     inside = true;
 
     if (!initialized)
@@ -481,12 +484,6 @@ void *malloc(size_t request) {
         fprintf(stderr, "error: real_malloc is NULL! Was constructor called?\n");
         abort();
     }
-
-    /*
-     * We call malloc(request) to see what malloc
-     * would have returned.
-    fake_ptr = real_malloc(request);
-     */
 
     /* Only track the object if we are supposed
      * to be tracking it.
@@ -508,23 +505,13 @@ void *malloc(size_t request) {
          * memory and use the manager's constructor.
          */
         if (mngr.ctor != real_malloc) {
-            /*
-            real_free(fake_ptr);
-            fake_ptr = NULL;
-            */
             ptr = mngr.ctor(request);
         } else
             ptr = real_malloc(request);
-            /*
-            ptr = fake_ptr;
-            */
         actual_size = mngr.get_size(ptr);
         track_object(ptr, &mngr, request, actual_size, ip);
     } else
         ptr = real_malloc(request);
-        /*
-        ptr = fake_ptr;
-        */
 
     if (ptr && !memcheck(ptr)) {
         fprintf(stderr, "invalid pointer %p\n", ptr);
