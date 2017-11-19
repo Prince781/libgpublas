@@ -97,6 +97,7 @@ static bool tracking = false;
 static bool watchpoints = false;
 
 void *(*real_malloc)(size_t) = NULL;
+void *(*real_realloc)(void *, size_t) = NULL;
 void (*real_free)(void *) = NULL;
 
 static void obj_tracker_get_fptrs(void) {
@@ -107,6 +108,15 @@ static void obj_tracker_get_fptrs(void) {
             dlerror();
             real_malloc = (void *(*)(size_t)) dlsym(RTLD_NEXT, "malloc");
             if (real_malloc == NULL) {
+                fprintf(stderr, "dlsym: %s\n", dlerror());
+                abort();
+            }
+        }
+
+        if (real_realloc == NULL) {
+            dlerror();
+            real_realloc = (void *(*)(void *, size_t)) dlsym(RTLD_NEXT, "realloc");
+            if (real_realloc == NULL) {
                 fprintf(stderr, "dlsym: %s\n", dlerror());
                 abort();
             }
@@ -493,6 +503,7 @@ void *malloc(size_t request) {
                         NULL /* TODO: see callinfo.c */)))) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
+            mngr.realloc = real_realloc;
             mngr.dtor = real_free;
             mngr.get_size = malloc_usable_size;
         } else /* ci is non-NULL */ {
@@ -521,6 +532,25 @@ void *malloc(size_t request) {
 
     inside = false;
     return ptr;
+}
+
+void *realloc(void *ptr, size_t size) {
+    static bool inside = false;
+    void *new_ptr;
+    const struct objinfo *ptr_info;
+    if (!size)
+        return NULL;
+
+    if (inside || destroying)
+        return real_realloc(ptr, size);
+
+    if ((ptr_info = obj_tracker_objinfo(ptr))) {
+        new_ptr = ptr_info->ci.mngr.realloc(ptr, size);
+    } else
+        new_ptr = real_realloc(ptr, size);
+
+    inside = false;
+    return new_ptr;
 }
 
 void free(void *ptr) {
@@ -555,6 +585,7 @@ void free(void *ptr) {
          * fail to set mngr.
          */
         mngr.ctor = real_malloc;
+        mngr.realloc = real_realloc;
         mngr.dtor = real_free;
         untrack_object(ptr, &mngr);
         /*

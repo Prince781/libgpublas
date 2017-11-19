@@ -28,7 +28,7 @@ struct syminfo {
 #define symdef(name) { .symbol = #name }
 
 static struct syminfo symbols[N_ALLOC_SYMS] = {
-    symdef(malloc)
+    symdef(malloc),
 };
 
 #define def_tostr_(type,typename,fmt) \
@@ -202,6 +202,7 @@ get_alloc(const char *symbol)
 {
     if (strcmp(symbol, symbols[ALLOC_MALLOC].symbol) == 0)
         return ALLOC_MALLOC;
+
     return ALLOC_UNKNWN;
 }
 

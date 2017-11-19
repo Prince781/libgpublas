@@ -9,17 +9,13 @@ extern "C" {
 
 enum alloc_sym {
     ALLOC_MALLOC,
-/*
-    ALLOC_CALLOC,
-    ALLOC_REALLOC,
-    ALLOC_REALLOCARRAY,
-*/
     N_ALLOC_SYMS,
     ALLOC_UNKNWN
 };
 
 struct objmngr {
     void *(*ctor)(size_t);
+    void *(*realloc)(void *, size_t);
     void (*dtor)(void *);
     size_t (*get_size)(void *);
 };

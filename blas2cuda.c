@@ -13,6 +13,7 @@ static bool init = false;
 extern "C" {
 #endif
 static void *alloc_managed(size_t request);
+static void *realloc_managed(void *managed_ptr, size_t request);
 static void free_managed(void *managed_ptr);
 static size_t get_size_managed(void *managed_ptr);
 #if __cplusplus
@@ -21,6 +22,7 @@ static size_t get_size_managed(void *managed_ptr);
 
 struct objmngr blas2cuda_manager = {
     .ctor = alloc_managed,
+    .realloc = realloc_managed,
     .dtor = free_managed,
     .get_size = get_size_managed
 };
@@ -192,9 +194,29 @@ void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
 static void *alloc_managed(size_t request)
 {
     void *ptr;
+
     cudaMallocManaged(&ptr, sizeof(size_t) + request, cudaMemAttachGlobal);
+    if (cudaPeekAtLastError() != cudaSuccess) {
+        cudaError_t err = cudaGetLastError();
+        fprintf(stderr, "%s @ %s, line %d: failed to allocate memory: %s - %s\n", 
+                __func__, __FILE__, __LINE__, cudaGetErrorName(err), cudaGetErrorString(err));
+        abort();
+    }
+
     *((size_t *)ptr) = request;
     return ptr + sizeof(size_t);
+}
+
+static void *realloc_managed(void *managed_ptr, size_t request)
+{
+    void *new_ptr;
+    const size_t old_size = get_size_managed(managed_ptr);
+
+    new_ptr = alloc_managed(request);
+
+    memcpy(new_ptr, managed_ptr, old_size);
+    free_managed(managed_ptr);
+    return new_ptr;
 }
 
 static void free_managed(void *managed_ptr) {
