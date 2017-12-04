@@ -4,7 +4,7 @@
 # readable by the object tracker
 
 if [ -z $1 ]; then
-    printf "Usage: $0 <program>\n"
+    printf "Usage: $0 <program> ARGS...\n"
     exit 1
 fi
 
@@ -13,6 +13,6 @@ LIBOBJTRACKER=./lib/libobjtracker.so
 
 make -C ./lib/ libobjtracker.so
 
-echo "malloc" | cat - <(env LD_PRELOAD=$LIBOBJTRACKER $1 | awk '/reqsize=\[[0-9a-f]+\]/{print $3,$4}' | sort -u) | tee $fname
+echo "malloc" | cat - <(env LD_PRELOAD=$LIBOBJTRACKER $1 ${@:2} | awk '/reqsize=\[[0-9a-f]+\]/{print $3,$4}' | sort -u) | tee $fname
 
 printf "Saved to $fname\n"
