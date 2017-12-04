@@ -5,14 +5,12 @@
 
 int n;
 complex float *x, *y;
-int incx, incy;
+const int incx = 1, incy = 1;
 const float c = 1, s = 1;
 
 int prologue(int num) {
     int len_x, len_y;
 
-    incx = 1;
-    incy = 1;
     len_x = n * incx;
     len_y = n * incy;
 

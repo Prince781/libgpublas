@@ -2,15 +2,15 @@
 #include <stdlib.h>
 #include "test.h"
 
+char outfname[100];
+
 float *x, *y;
 int n;
-int incx, incy;
+const int incx = 1, incy = 1;
 
 int prologue(int num) {
     int len_x, len_y;
 
-    incx = n % 10;
-    incy = n / 10;
     len_x = n * incx;
     len_y = n * incy;
 
@@ -32,6 +32,17 @@ void test_scopy(void) {
 }
 
 int epilogue(int num) {
+    if (num == 9) {
+        FILE *fp;
+        
+        if (!(fp = fopen(outfname, "w"))) {
+            perror("fopen");
+            exit(1);
+        }
+        print_vector(y, incy*n, fp);
+        fclose(fp);
+    }
+
     free(x);
     free(y);
     return 0;
@@ -41,6 +52,7 @@ int main(int argc, char *argv[]) {
     struct perf_info pinfo;
 
     get_N_or_fail(argc, argv, &n);
+    snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
     run_test(10, &prologue, &test_scopy, &epilogue, &pinfo);
     print_results("COPY", n, &pinfo);
 

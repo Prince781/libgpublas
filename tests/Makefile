@@ -1,6 +1,6 @@
 TEST_SOURCES=$(filter-out test.c,$(wildcard *.c))
 BINARIES=$(TEST_SOURCES:%.c=%)
-CFLAGS=-std=gnu99 -Wall -Werror
+CFLAGS=-std=gnu11 -Wall -Werror
 LDFLAGS=-lm
 
 ifeq ($(USE_MKL), y)
@@ -14,6 +14,8 @@ endif
 
 .PHONY: all-tests clean
 
+all-tests: $(BINARIES)
+
 %.o: %.c test.h Makefile
 	$(CC) $(CFLAGS) $(LDFLAGS) -c $< -o $@
 
@@ -23,7 +25,7 @@ dsdot: dsdot.o test.o
 
 rot: rot.o test.o
 
-all-tests: $(BINARIES)
+gbmv: gbmv.o test.o
 
 clean:
 	rm -f $(BINARIES)

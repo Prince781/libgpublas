@@ -5,14 +5,12 @@
 
 int n;
 float *x, *y;
-int incx, incy;
+const int incx = 1, incy = 1;
 float result;
 
 int prologue(int num) {
     int len_x, len_y;
 
-    incx = 1;
-    incy = 1;
     len_x = n * incx;
     len_y = n * incy;
 
@@ -36,6 +34,17 @@ void test_dsdot(void) {
 }
 
 int epilogue(int num) {
+    if (num == 9) {
+        FILE *fp;
+        
+        if (!(fp = fopen(outfname, "w"))) {
+            perror("fopen");
+            exit(1);
+        }
+        print_vector(y, incy*n, fp);
+        fclose(fp);
+    }
+
     free(x);
     free(y);
     return 0;
