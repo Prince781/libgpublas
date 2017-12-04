@@ -80,3 +80,9 @@ void get_N_or_fail(int argc, char *argv[], int *N) {
 
     *N = n;
 }
+
+void print_results(const char *name, 
+        int n, const struct perf_info *pinfo) {
+    printf(" %10s[n=%d]: %ld s + %ld ns\n",
+            name, n, pinfo->avg.tv_sec, pinfo->avg.tv_nsec);
+}

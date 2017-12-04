@@ -31,4 +31,6 @@ void print_help(const char *progname);
 
 void get_N_or_fail(int argc, char *argv[], int *N);
 
+void print_results(const char *name, int n, const struct perf_info *pinfo);
+
 #endif

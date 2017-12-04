@@ -43,9 +43,7 @@ int main(int argc, char *argv[]) {
 
     get_N_or_fail(argc, argv, &n);
     run_test(10, &prologue, &test_scopy, &epilogue, &pinfo);
-
-    printf(" COPY[n=%d]: %ld s + %ld ns\n",
-            n, pinfo.avg.tv_sec, pinfo.avg.tv_nsec);
+    print_results("COPY", n, &pinfo);
 
     return 0;
 }
