@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
+#include <errno.h>
 #include "test.h"
 
 void run_test(int num,
@@ -17,7 +18,7 @@ void run_test(int num,
         struct timespec start, end;
         struct timespec ts_diff;
         if (prologue(i) < 0) {
-            fprintf(stderr, "sub-test %d failed\n", i);
+            fprintf(stderr, "sub-test %d failed\n", i+1);
             continue;
         }
         if (clock_gettime(CLOCK_MONOTONIC_RAW, &start) == -1) {
@@ -30,7 +31,7 @@ void run_test(int num,
             exit(1);
         }
         if (epilogue(i) < 0) {
-            fprintf(stderr, "sub-test %d failed\n", i);
+            fprintf(stderr, "sub-test %d failed\n", i+1);
             continue;
         }
 
@@ -56,4 +57,26 @@ void run_test(int num,
     total.tv_sec /= num;
     total.tv_nsec /= num;
     pinfo->avg = total;
+}
+
+void print_help(const char *progname) {
+    fprintf(stderr, "Usage: %s N\n", progname);
+}
+
+void get_N_or_fail(int argc, char *argv[], int *N) {
+    int n;
+
+    errno = 0;
+    if (argc > 1) {
+        n = (int) strtol(argv[1], NULL, 0);
+        if (errno) {
+            perror("strtol");
+            exit(1);
+        } else if (n < 1) {
+            fprintf(stderr, "N must be positive\n");
+            exit(1);
+        }
+    }
+
+    *N = n;
 }

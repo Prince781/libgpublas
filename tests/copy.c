@@ -9,11 +9,10 @@ int incx, incy;
 int prologue(int num) {
     int len_x, len_y;
 
-    n = num;
-    incx = num % 10;
-    incy = num / 10;
-    len_x = num * incx;
-    len_y = num * incy;
+    incx = n % 10;
+    incy = n / 10;
+    len_x = n * incx;
+    len_y = n * incy;
 
     if (!(x = malloc(len_x * sizeof(*x))))
         return -1;
@@ -39,13 +38,14 @@ int epilogue(int num) {
     return 0;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     struct perf_info pinfo;
 
-    run_test(100, &prologue, &test_scopy, &epilogue, &pinfo);
+    get_N_or_fail(argc, argv, &n);
+    run_test(10, &prologue, &test_scopy, &epilogue, &pinfo);
 
-    printf(" COPY: %ld s + %ld ns\n",
-            pinfo.avg.tv_sec, pinfo.avg.tv_nsec);
+    printf(" COPY[n=%d]: %ld s + %ld ns\n",
+            n, pinfo.avg.tv_sec, pinfo.avg.tv_nsec);
 
     return 0;
 }

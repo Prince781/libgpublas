@@ -27,4 +27,8 @@ void run_test(int num, prologue_t prologue,
         epilogue_t epilogue,
         struct perf_info *pinfo);
 
+void print_help(const char *progname);
+
+void get_N_or_fail(int argc, char *argv[], int *N);
+
 #endif
