@@ -4,7 +4,7 @@ CFLAGS=-std=gnu99 -Wall -Werror
 LDFLAGS=-lm
 
 ifeq ($(USE_MKL), y)
-    CFLAGS += -I$(MKLROOT)/include 
+    CFLAGS += -I$(MKLROOT)/include -DUSE_MKL
     LDFLAGS += -L$(MKLROOT)/lib/intel64 -L$(TBBROOT)/lib/intel64/gcc4.7
     LDFLAGS += -lmkl_intel_lp64 -lmkl_tbb_thread -lmkl_core -ltbb -lstdc++ -lpthread
     LDFLAGS += -Wl,-rpath=$(MKLROOT)/lib/intel64,-rpath=$(TBBROOT)/lib/intel64/gcc4.7
