@@ -32,7 +32,6 @@ void test_scopy(void) {
 }
 
 int epilogue(int num) {
-    /* TODO: check for correctness */
     free(x);
     free(y);
     return 0;
