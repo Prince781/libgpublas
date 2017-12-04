@@ -33,7 +33,10 @@ $(OBJDIR)/%.o: %.cc
 #$(LIBDIR)/libobjtracker.so:
 #	$(MAKE) -C $(LIBDIR) libobjtracker.so
 
-.PHONY: clean
+.PHONY: clean tests
+
+tests:
+	$(MAKE) -C tests/
 
 clean:
 	rm -rf $(OBJDIR)
