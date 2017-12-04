@@ -92,7 +92,7 @@ void print_mat_f(const float *mat, int rows, int cols, FILE *fin) {
         fprintf(fin, "|");
         for (int c=0; c<cols; ++c) {
             float e = mat[r*cols + c];
-            fprintf(fin, " %f\n", e);
+            fprintf(fin, " %f", e);
         }
         fprintf(fin, " |\n");
     }
@@ -103,7 +103,7 @@ void print_mat_d(const double *mat, int rows, int cols, FILE *fin) {
         fprintf(fin, "|");
         for (int c=0; c<cols; ++c) {
             double e = mat[r*cols + c];
-            fprintf(fin, " %lf\n", e);
+            fprintf(fin, " %lf", e);
         }
         fprintf(fin, " |\n");
     }
@@ -114,7 +114,7 @@ void print_mat_cf(const complex float *mat, int rows, int cols, FILE *fin) {
         fprintf(fin, "|");
         for (int c=0; c<cols; ++c) {
             complex float e = mat[r*cols + c];
-            fprintf(fin, " %f + %fi\n", crealf(e), cimagf(e));
+            fprintf(fin, " %f + %fi", crealf(e), cimagf(e));
         }
         fprintf(fin, " |\n");
     }
@@ -125,7 +125,7 @@ void print_mat_cd(const complex double *mat, int rows, int cols, FILE *fin) {
         fprintf(fin, "|");
         for (int c=0; c<cols; ++c) {
             complex double e = mat[r*cols + c];
-            fprintf(fin, " %lf + %lfi\n", creal(e), cimag(e));
+            fprintf(fin, " %lf + %lfi", creal(e), cimag(e));
         }
         fprintf(fin, " |\n");
     }
