@@ -1,6 +1,6 @@
 # blas2cuda
 
-This is a library to intercept calls to CPU-bound BLAS kernels and run their
+This is a library to intercept calls to CPU BLAS kernels and run their
 equivalent on the GPU in a CUDA environment.
 
 ## Compiling
