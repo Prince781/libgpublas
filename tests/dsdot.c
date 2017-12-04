@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include "test.h"
+
+int n;
+float *x, *y;
+int incx, incy;
+float result;
+
+int prologue(int num) {
+    int len_x, len_y;
+
+    incx = 1;
+    incy = 1;
+    len_x = n * incx;
+    len_y = n * incy;
+
+    if (!(x = malloc(len_x * sizeof(*x))))
+        return -1;
+    if (!(y = malloc(len_y * sizeof(*y)))) {
+        free(x);
+        return -1;
+    }
+
+    for (int i = 0; i < len_x; i += incx)
+        x[i] = i + 1;
+    for (int i = 0; i < len_y; i += incy)
+        y[i] = i + 1;
+
+    return 0;
+}
+
+void test_dsdot(void) {
+    result = cblas_dsdot(n, x, incx, y, incy);
+}
+
+int epilogue(int num) {
+    free(x);
+    free(y);
+    return 0;
+}
+
+int main(int argc, char *argv[]) {
+    struct perf_info pinfo;
+
+    get_N_or_fail(argc, argv, &n);
+    run_test(10, &prologue, &test_dsdot, &epilogue, &pinfo);
+    print_results("DSDOT", n, &pinfo);
+
+    return 0;
+}

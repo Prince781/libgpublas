@@ -19,6 +19,8 @@ endif
 
 copy: copy.o test.o
 
+dsdot: dsdot.o test.o
+
 all-tests: $(BINARIES)
 
 clean:
