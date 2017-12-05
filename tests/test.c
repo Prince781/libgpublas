@@ -76,6 +76,9 @@ void get_N_or_fail(int argc, char *argv[], int *N) {
             fprintf(stderr, "N must be positive\n");
             exit(1);
         }
+    } else {
+        fprintf(stderr, "Usage: %s N (N is size of element(s) of computation)\n", argv[0]);
+        exit(1);
     }
 
     *N = n;
