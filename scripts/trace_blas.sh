@@ -5,4 +5,6 @@ if [ -z $1 ]; then
     exit 1
 fi
 
-ltrace -e "cblas_*" -e free -e malloc $1 ${@:2}
+logfile=`basename $1`.ltrace
+
+ltrace -i -e "cblas_*" -e free -e malloc -o "$logfile" $1 ${@:2}
