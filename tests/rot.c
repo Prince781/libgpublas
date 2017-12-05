@@ -3,6 +3,7 @@
 #include <complex.h>
 #include "test.h"
 
+char outfname[100];
 int n;
 complex float *x, *y;
 const int incx = 1, incy = 1;
@@ -34,6 +35,18 @@ void test_csrot(void) {
 }
 
 int epilogue(int num) {
+    if (num == 9) {
+        FILE *fp;
+        
+        if (!(fp = fopen(outfname, "w"))) {
+            perror("fopen");
+            exit(1);
+        }
+        print_vector(x, incx*n, fp);
+        print_vector(y, incy*n, fp);
+        fclose(fp);
+    }
+
     free(x);
     free(y);
     return 0;
@@ -43,6 +56,7 @@ int main(int argc, char *argv[]) {
     struct perf_info pinfo;
 
     get_N_or_fail(argc, argv, &n);
+    snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
     run_test(10, &prologue, &test_csrot, &epilogue, &pinfo);
     print_results("CSROT", n, &pinfo);
 

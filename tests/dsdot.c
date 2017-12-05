@@ -42,7 +42,7 @@ int epilogue(int num) {
             perror("fopen");
             exit(1);
         }
-        print_vector(y, incy*n, fp);
+        print_scalar(result, fp);
         fclose(fp);
     }
 
@@ -55,6 +55,7 @@ int main(int argc, char *argv[]) {
     struct perf_info pinfo;
 
     get_N_or_fail(argc, argv, &n);
+    snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
     run_test(10, &prologue, &test_dsdot, &epilogue, &pinfo);
     print_results("DSDOT", n, &pinfo);
 
