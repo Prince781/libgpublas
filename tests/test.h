@@ -12,6 +12,7 @@
 #else
 #include <cblas.h>
 #endif
+#include <stdbool.h>
 
 typedef int (*prologue_t)(int num);
 typedef void (*blas_func_t)(void);
@@ -32,9 +33,9 @@ void run_test(int num, prologue_t prologue,
 
 void print_help(const char *progname);
 
-void get_N_or_fail(int argc, char *argv[], int *N);
+void parse_args(int argc, char *argv[], int *N, bool *print_res);
 
-void print_results(const char *name, int n, const struct perf_info *pinfo);
+void print_perfinfo(const char *name, int n, const struct perf_info *pinfo);
 
 void print_mat_f(const float *mat, int rows, int cols, FILE *fin);
 void print_mat_d(const double *mat, int rows, int cols, FILE *fin);

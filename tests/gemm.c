@@ -3,6 +3,7 @@
 #include "test.h"
 
 char outfname[100];
+bool print_res = true;
 
 int n, m, k;
 float *mat_A /* [m x k] */, *mat_B /* [k x n] */, *mat_C /* [m x n] */;
@@ -47,7 +48,7 @@ void test_gemm(void) {
 }
 
 int epilogue(int num) {
-    if (num == 9) {
+    if (num == 9 && print_res) {
         FILE *fp;
         
         if (!(fp = fopen(outfname, "w"))) {
@@ -67,10 +68,10 @@ int epilogue(int num) {
 int main(int argc, char *argv[]) {
     struct perf_info pinfo;
 
-    get_N_or_fail(argc, argv, &n);
+    parse_args(argc, argv, &n, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
     run_test(10, &prologue, &test_gemm, &epilogue, &pinfo);
-    print_results("GEMM", n, &pinfo);
+    print_perfinfo("GEMM", n, &pinfo);
 
     return 0;
 }

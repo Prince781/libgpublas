@@ -3,6 +3,7 @@
 #include "test.h"
 
 char outfname[100];
+bool print_res = true;
 
 int n;  /* cols for mat_A, rows for vec_x, vec_y */
 int m;  /* rows for mat_A */
@@ -58,7 +59,7 @@ void test_gbmv(void) {
 }
 
 int epilogue(int num) {
-    if (num == 9) {
+    if (num == 9 && print_res) {
         FILE *fp;
         
         if (!(fp = fopen(outfname, "w"))) {
@@ -78,10 +79,10 @@ int epilogue(int num) {
 int main(int argc, char *argv[]) {
     struct perf_info pinfo;
 
-    get_N_or_fail(argc, argv, &n);
+    parse_args(argc, argv, &n, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
     run_test(10, &prologue, &test_gbmv, &epilogue, &pinfo);
-    print_results("GBMV", n, &pinfo);
+    print_perfinfo("GBMV", n, &pinfo);
 
     return 0;
 }

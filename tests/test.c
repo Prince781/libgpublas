@@ -3,6 +3,7 @@
 #include <time.h>
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 #include "test.h"
 
 void run_test(int num,
@@ -63,7 +64,7 @@ void print_help(const char *progname) {
     fprintf(stderr, "Usage: %s N\n", progname);
 }
 
-void get_N_or_fail(int argc, char *argv[], int *N) {
+void parse_args(int argc, char *argv[], int *N, bool *print_res) {
     int n;
 
     errno = 0;
@@ -76,15 +77,20 @@ void get_N_or_fail(int argc, char *argv[], int *N) {
             fprintf(stderr, "N must be positive\n");
             exit(1);
         }
+
+        if (argc > 2) {
+            *print_res = !!strcmp(argv[2], "--no-print-results");
+        } else
+            *print_res = true;
     } else {
-        fprintf(stderr, "Usage: %s N (N is size of element(s) of computation)\n", argv[0]);
+        fprintf(stderr, "Usage: %s N [--no-print-results]\n", argv[0]);
         exit(1);
     }
 
     *N = n;
 }
 
-void print_results(const char *name, 
+void print_perfinfo(const char *name, 
         int n, const struct perf_info *pinfo) {
     printf(" %10s[n=%d]: %ld s + %ld ns\n",
             name, n, pinfo->avg.tv_sec, pinfo->avg.tv_nsec);
