@@ -13,6 +13,7 @@ const float alpha = 1, beta = 1;
 
 int prologue(int num) {
     int len_x, len_y;
+    m = n;
     const int lda = m;
 
     len_x = n * incx;
