@@ -29,6 +29,8 @@ gbmv: gbmv.o test.o
 
 trmv: trmv.o test.o
 
+gemm: gemm.o test.o
+
 clean:
 	rm -f $(BINARIES)
 	rm -f *.o
