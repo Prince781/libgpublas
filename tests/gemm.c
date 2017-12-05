@@ -7,7 +7,7 @@ bool print_res = true;
 
 int n, m, k;
 float *mat_A /* [m x k] */, *mat_B /* [k x n] */, *mat_C /* [m x n] */;
-const float alpha = 1, beta = 1;
+const float alpha = 1, beta = 0;
 
 int prologue(int num) {
     m = n;
