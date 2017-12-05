@@ -70,7 +70,6 @@ int epilogue(int num) {
     free(mat_B);
     free(mat_C);
     return 0;
-
 }
 
 int main(int argc, char *argv[]) {
