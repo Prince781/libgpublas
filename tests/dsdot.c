@@ -3,6 +3,7 @@
 #include <math.h>
 #include "test.h"
 
+char outfname[100];
 int n;
 float *x, *y;
 const int incx = 1, incy = 1;
