@@ -12,7 +12,7 @@ else
     LDFLAGS += -lcblas
 endif
 
-.PHONY: all-tests clean
+.PHONY: all-tests clean 
 
 all-tests: $(BINARIES)
 
@@ -30,3 +30,4 @@ gbmv: gbmv.o test.o
 clean:
 	rm -f $(BINARIES)
 	rm -f *.o
+	rm -f *.out
