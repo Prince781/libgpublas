@@ -57,12 +57,13 @@ while (my $line = <$track_file_h>) {
 
 close $track_file_h or die "Could not close $track_file";
 
-open (my $output_fh, ">$progname.objtrack")
+open (my $output_fh, ">$progname.objtrack.1")
     or die "Failed to open $progname.objtrack for writing.";
 # Now output allocs to file
-print $output_fh "malloc\n";
 foreach my $alloc (@allocs) {
     print $output_fh "reqsize=[$alloc->[0]] ip=[$alloc->[1]]\n"
 }
 
-close $output_fh or die "Could not close $progname.objtrack";
+close $output_fh or die "Could not close $progname.objtrack.1";
+system("bash -c 'echo \"malloc\" | cat - <(sort -u $progname.objtrack.1) > $progname.objtrack'");
+system("rm $progname.objtrack.1");
