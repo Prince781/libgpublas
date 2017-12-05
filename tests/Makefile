@@ -1,6 +1,6 @@
 TEST_SOURCES=$(filter-out test.c,$(wildcard *.c))
 BINARIES=$(TEST_SOURCES:%.c=%)
-CFLAGS=-std=gnu11 -Wall -Werror
+CFLAGS=-std=gnu11 -Wall -Werror $(DEBUG)
 LDFLAGS=-lm
 
 ifeq ($(USE_MKL), y)
@@ -32,6 +32,8 @@ trmv: trmv.o test.o
 gemm: gemm.o test.o
 
 hemm: hemm.o test.o
+
+trsm: trsm.o test.o
 
 clean:
 	rm -f $(BINARIES)
