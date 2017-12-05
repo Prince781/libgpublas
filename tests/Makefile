@@ -27,6 +27,8 @@ rot: rot.o test.o
 
 gbmv: gbmv.o test.o
 
+trmv: trmv.o test.o
+
 clean:
 	rm -f $(BINARIES)
 	rm -f *.o
