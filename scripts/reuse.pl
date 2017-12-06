@@ -61,7 +61,7 @@ open (my $output_fh, ">$progname.objtrack.1")
     or die "Failed to open $progname.objtrack for writing.";
 # Now output allocs to file
 foreach my $alloc (@allocs) {
-    print $output_fh "reqsize=[$alloc->[0]] ip=[$alloc->[1]]\n"
+    print $output_fh "reqsize=[$alloc->[0]] ip=[0x$alloc->[1]]\n"
 }
 
 close $output_fh or die "Could not close $progname.objtrack.1";
