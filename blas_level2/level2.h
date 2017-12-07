@@ -87,6 +87,20 @@ void cblas_##prefix##geru(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__GERU(c, float _Complex);
 DECLARE_CBLAS__GERU(z, double _Complex);
 
+#define DECLARE_CBLAS__HBMV(prefix, type)               \
+void cblas_##prefix##hbmv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n, const int k,                       \
+        const type *alpha,                              \
+        const type *a, const int lda,                   \
+        const type *x, const int incx,                  \
+        const type *beta,                               \
+        type *y, const int incy)
+
+DECLARE_CBLAS__HBMV(c, float _Complex);
+DECLARE_CBLAS__HBMV(z, double _Complex);
+
+
 };
 
 #endif
