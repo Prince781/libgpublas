@@ -9,7 +9,7 @@
 #include <malloc.h>
 #include <stdint.h> /* intptr_t */
 
-#define CAPACITY    (1 << 25)
+#define CAPACITY    (1 << 10)
 
 /**
  * Information for knowing when to record objects
@@ -66,8 +66,11 @@ static ENTRY *insert_retval;
 
 #define mktabl(sym,member,nel) \
     if (!sym->member) {\
-        sym->member = real_malloc(sizeof(*sym->member));\
-        hcreate_r(nel, sym->member);\
+        sym->member = real_calloc(1, sizeof(*sym->member));\
+        if (hcreate_r(nel, sym->member) < 0) {\
+            perror("Failed to create hash table of allocations");\
+            exit(1);\
+        }\
     }
 
 static inline struct syminfo *get_syminfo(enum alloc_sym sym) {
