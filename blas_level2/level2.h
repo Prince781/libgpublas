@@ -165,6 +165,25 @@ void cblas_##prefix##spmv(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__SPMV(s, float);
 DECLARE_CBLAS__SPMV(d, double);
 
+/* ?spr */
+
+/* ?spr2 */
+
+/* ?symv - matrix-vector product for symmetric matrix */
+#define DECLARE_CBLAS__SYMV(prefix, type)               \
+void cblas_##prefix##symv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type alpha,                               \
+        const type *a, const int lda,                   \
+        const type *x, const int incx,                  \
+        const type beta,                                \
+        type *y, const int incy)
+
+
+DECLARE_CBLAS__SYMV(s, float);
+DECLARE_CBLAS__SYMV(d, double);
+
 };
 
 #endif
