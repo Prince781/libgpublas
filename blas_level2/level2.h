@@ -121,6 +121,26 @@ void cblas_##prefix##hpmv(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__HPMV(c, float _Complex);
 DECLARE_CBLAS__HPMV(z, double _Complex);
 
+/* ?hpr */
+
+/* ?hpr2 */
+
+/* ?sbmv */
+
+/* ?spmv */
+#define DECLARE_CBLAS__SPMV(prefix, type)               \
+void cblas_##prefix##spmv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type alpha,                               \
+        const type *ap,                                 \
+        const type *x, const int incx,                  \
+        const type beta,                                \
+        type *y, const int incy)
+
+DECLARE_CBLAS__SPMV(s, float);
+DECLARE_CBLAS__SPMV(d, double);
+
 };
 
 #endif

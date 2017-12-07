@@ -100,3 +100,26 @@ DECLARE_CBLAS__HPMV(z, float _Complex) {
             &cublasZhpmv,
             &cublasZgeam);
 }
+
+DECLARE_CBLAS__SPMV(s, float) {
+    _cblas_hpmv(Layout, uplo, n,
+            alpha,
+            ap,
+            x, incx,
+            beta,
+            y, incy,
+            &cublasSspmv,
+            &cublasSgeam);
+}
+
+DECLARE_CBLAS__SPMV(d, double) {
+    _cblas_hpmv(Layout, uplo, n,
+            alpha,
+            ap,
+            x, incx,
+            beta,
+            y, incy,
+            &cublasDspmv,
+            &cublasDgeam);
+}
+
