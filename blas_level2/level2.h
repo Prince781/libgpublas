@@ -102,6 +102,18 @@ DECLARE_CBLAS__HBMV(c, float _Complex);
 DECLARE_CBLAS__HBMV(z, double _Complex);
 
 /* ?hemv - matrix-vector product using Hermitian matrix */
+#define DECLARE_CBLAS__HEMV(prefix, type)               \
+void cblas_##prefix##hemv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type *alpha,                              \
+        const type *a, const int lda,                   \
+        const type *x, const int incx,                  \
+        const type *beta,                               \
+        type *y, const int incy)
+
+DECLARE_CBLAS__HEMV(c, float _Complex);
+DECLARE_CBLAS__HEMV(z, double _Complex);
 
 /* ?her - rank-1 update of Hermitian matrix */
 
@@ -130,10 +142,10 @@ DECLARE_CBLAS__HPMV(z, double _Complex);
 void cblas_##prefix##sbmv(const CBLAS_LAYOUT Layout,    \
         const CBLAS_UPLO uplo,                          \
         const int n, const int k,                       \
-        const type alpha,                              \
+        const type alpha,                               \
         const type *a, const int lda,                   \
         const type *x, const int incx,                  \
-        const type beta,                               \
+        const type beta,                                \
         type *y, const int incy)
 
 DECLARE_CBLAS__SBMV(s, float);
