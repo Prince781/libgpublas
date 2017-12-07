@@ -155,6 +155,16 @@ DECLARE_CBLAS__HPMV(c, float _Complex);
 DECLARE_CBLAS__HPMV(z, double _Complex);
 
 /* ?hpr */
+#define DECLARE_CBLAS__HPR(prefix, stype, type)         \
+void cblas_##prefix##hpr(const CBLAS_LAYOUT Layout,     \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const stype alpha,                              \
+        const type *x, const int incx,                  \
+        type *ap)
+
+DECLARE_CBLAS__HPR(c, float, float _Complex);
+DECLARE_CBLAS__HPR(z, double, double _Complex);
 
 /* ?hpr2 */
 
