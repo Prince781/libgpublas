@@ -13,7 +13,9 @@ if [ -z $debugcmdfile ] || [ -z $trackfile ] || [ -z $progname ]; then
 fi
 
 if [ ! -e $BLAS2CUDA ]; then
-    make -C .. $BLAS2CUDA
+    if ! make -C $(dirname $BLAS2CUDA); then
+        exit 1
+    fi
 fi
 
 tempfile=$(mktemp)
