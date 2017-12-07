@@ -65,6 +65,17 @@ void cblas_##prefix##ger(const CBLAS_LAYOUT Layout,     \
 DECLARE_CBLAS__GER(s, float);
 DECLARE_CBLAS__GER(d, double);
 
+#define DECLARE_CBLAS__GERC(prefix, type)               \
+void cblas_##prefix##gerc(const CBLAS_LAYOUT Layout,    \
+        const int m, const int n,                       \
+        const type *alpha,                              \
+        const type *x, const int incx,                  \
+        const type *y, const int incy,                  \
+        type *a, const int lda)
+
+DECLARE_CBLAS__GERC(c, float _Complex); 
+DECLARE_CBLAS__GERC(z, double _Complex); 
+
 };
 
 #endif

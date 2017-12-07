@@ -93,3 +93,23 @@ DECLARE_CBLAS__GER(d, double) {
             &cublasDger,
             &cublasDgeam);
 }
+
+DECLARE_CBLAS__GERC(c, float _Complex) {
+    _cblas_ger(Layout, m, n,
+            *(cuComplex *) alpha,
+            (cuComplex *) x, incx,
+            (cuComplex *) y, incy,
+            (cuComplex *) a, lda,
+            &cublasCgerc,
+            &cublasCgeam);
+}
+
+DECLARE_CBLAS__GERC(z, double _Complex) {
+    _cblas_ger(Layout, m, n,
+            *(cuDoubleComplex *) alpha,
+            (cuDoubleComplex *) x, incx,
+            (cuDoubleComplex *) y, incy,
+            (cuDoubleComplex *) a, lda,
+            &cublasZgerc,
+            &cublasZgeam);
+}
