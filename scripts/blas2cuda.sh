@@ -4,7 +4,7 @@
 
 trackfile=$1
 progname=$2
-BLAS2CUDA=./libblas2cuda.so
+BLAS2CUDA=../libblas2cuda.so
 
 if [ -z $trackfile ] || [ -z $progname ]; then
     echo "Usage: $0 <objtrackfile> <command> ARGS..."
@@ -12,7 +12,9 @@ if [ -z $trackfile ] || [ -z $progname ]; then
 fi
 
 if [ ! -e $BLAS2CUDA ]; then
-    make $BLAS2CUDA
+    if ! make -C $(dirname $BLAS2CUDA); then
+        exit 1
+    fi
 fi
 
 env LD_PRELOAD=$BLAS2CUDA BLAS2CUDA_OPTIONS="track=$trackfile" $progname ${@:3}
