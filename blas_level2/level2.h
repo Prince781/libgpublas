@@ -87,6 +87,7 @@ void cblas_##prefix##geru(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__GERU(c, float _Complex);
 DECLARE_CBLAS__GERU(z, double _Complex);
 
+/* ?hbmv - matrix-vector product using Hermitian band matrix */
 #define DECLARE_CBLAS__HBMV(prefix, type)               \
 void cblas_##prefix##hbmv(const CBLAS_LAYOUT Layout,    \
         const CBLAS_UPLO uplo,                          \
@@ -100,6 +101,25 @@ void cblas_##prefix##hbmv(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__HBMV(c, float _Complex);
 DECLARE_CBLAS__HBMV(z, double _Complex);
 
+/* ?hemv - matrix-vector product using Hermitian matrix */
+
+/* ?her - rank-1 update of Hermitian matrix */
+
+/* ?her2 - rank-2 update of Hermitian matrix */
+
+/* ?hpmv - matrix-vector product using Hermitian packed matrix */
+#define DECLARE_CBLAS__HPMV(prefix, type)               \
+void cblas_##prefix##hpmv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type *alpha,                              \
+        const type *ap,                                 \
+        const type *x, const int incx,                  \
+        const type *beta,                               \
+        type *y, const int incy)
+
+DECLARE_CBLAS__HPMV(c, float _Complex);
+DECLARE_CBLAS__HPMV(z, double _Complex);
 
 };
 
