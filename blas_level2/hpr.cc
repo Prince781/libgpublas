@@ -82,4 +82,14 @@ DECLARE_CBLAS__HPR(c, float, float _Complex) {
 }
 
 DECLARE_CBLAS__HPR(z, double, double _Complex) {
+    double _Complex _alpha = 1.0;
+    double _Complex _beta = 1.0;
+    _cblas_hpr(Layout, uplo,
+            n, alpha, 
+            (cuDoubleComplex *) x, incx,
+            (cuDoubleComplex *) ap,
+            &cublasZhpr,
+            &cublasZgeam,
+            *(cuDoubleComplex *) &_alpha,
+            *(cuDoubleComplex *) &_beta);
 }
