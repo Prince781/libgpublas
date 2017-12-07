@@ -116,6 +116,16 @@ DECLARE_CBLAS__HEMV(c, float _Complex);
 DECLARE_CBLAS__HEMV(z, double _Complex);
 
 /* ?her - rank-1 update of Hermitian matrix */
+#define DECLARE_CBLAS__HER(prefix, rtype, type)         \
+void cblas_##prefix##her(const CBLAS_LAYOUT Layout,     \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const rtype alpha,                              \
+        const type *x, const int incx,                  \
+        type *a, const int lda)
+
+DECLARE_CBLAS__HER(c, float, float _Complex);
+DECLARE_CBLAS__HER(z, double, double _Complex);
 
 /* ?her2 - rank-2 update of Hermitian matrix */
 
