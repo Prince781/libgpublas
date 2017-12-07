@@ -21,6 +21,7 @@ echo "creating $tempfile"
 cat >$tempfile <<EOF
 set environment LD_PRELOAD=../libblas2cuda.so
 set environment BLAS2CUDA_OPTIONS=track=$trackfile
+run ${@:4}
 $(cat $debugcmdfile)
 run ${@:4}
 EOF
