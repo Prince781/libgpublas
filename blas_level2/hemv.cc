@@ -33,7 +33,7 @@ void _cblas_hemv (const CBLAS_LAYOUT Layout,
 
         a_info = NULL;
         rows_a = n;
-        cols_a = (n+1)/2;
+        cols_a = lda;
 
         gpu_a_trans = (T *) b2c_copy_to_gpu((void *) a, size_a);
         
@@ -65,10 +65,10 @@ void _cblas_hemv (const CBLAS_LAYOUT Layout,
     hemv_func(b2c_handle, fillmode,
             n,
             &alpha,
-            a, lda,
-            x, incx,
+            gpu_a, lda,
+            gpu_x, incx,
             &beta,
-            y, incy);
+            gpu_y, incy);
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);
