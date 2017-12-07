@@ -65,10 +65,10 @@ static void _cblas_hbmv(const CBLAS_LAYOUT Layout,
     hbmv_func(b2c_handle, fillmode,
             n, k,
             &alpha,
-            a, lda,
-            x, incx,
+            gpu_a, lda,
+            gpu_x, incx,
             &beta,
-            y, incy);
+            gpu_y, incy);
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

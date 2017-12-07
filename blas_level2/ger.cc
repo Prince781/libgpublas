@@ -61,7 +61,7 @@ static void _cblas_ger(const CBLAS_LAYOUT Layout,
             &alpha, 
             gpu_x, incx,
             gpu_y, incy,
-            a, lda);
+            gpu_a, lda);
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);
