@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 extern void *(*real_malloc)(size_t);
+extern void *(*real_calloc)(size_t, size_t);
 extern void *(*real_realloc)(void *, size_t);
 extern void (*real_free)(void *);
 

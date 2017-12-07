@@ -22,6 +22,7 @@
 #include <sys/syscall.h>
 #include <libunwind.h>
 #include <errno.h>
+#include <pthread.h>        /* for read-write locks */
 #include "callinfo.h"
 #include "obj_tracker.h"
 
@@ -81,11 +82,13 @@ static bool initialized = false;
 static bool destroying = false;
 static pid_t creation_thread = 0;
 #if RBTREE
-static struct rbtree __thread *objects = NULL;
+static struct rbtree *objects = NULL;
 #else
-static void __thread *objects = NULL;
+static void *objects = NULL;
 #endif
-static unsigned long __thread num_objects = 0;
+static unsigned long num_objects = 0;
+
+static pthread_rwlock_t rwlock;
 
 /* allows us to temporarily disable tracking */
 #if STANDALONE
@@ -96,9 +99,10 @@ static bool tracking = false;
 /* whether the user has specified any watchpoints */
 static bool watchpoints = false;
 
-void *(*real_malloc)(size_t) = NULL;
-void *(*real_realloc)(void *, size_t) = NULL;
-void (*real_free)(void *) = NULL;
+void *(*real_malloc)(size_t);
+void *(*real_calloc)(size_t, size_t);
+void *(*real_realloc)(void *, size_t);
+void (*real_free)(void *);
 
 static void obj_tracker_get_fptrs(void) {
     static bool success = false;
@@ -108,6 +112,15 @@ static void obj_tracker_get_fptrs(void) {
             dlerror();
             real_malloc = (void *(*)(size_t)) dlsym(RTLD_NEXT, "malloc");
             if (real_malloc == NULL) {
+                fprintf(stderr, "dlsym: %s\n", dlerror());
+                abort();
+            }
+        }
+
+        if (real_calloc == NULL) {
+            dlerror();
+            real_calloc = (void *(*)(size_t, size_t)) dlsym(RTLD_NEXT, "calloc");
+            if (real_calloc == NULL) {
                 fprintf(stderr, "dlsym: %s\n", dlerror());
                 abort();
             }
@@ -151,6 +164,11 @@ void obj_tracker_init(bool tracking_enabled)
         initialized = true;
 
         creation_thread = syscall(SYS_gettid);
+
+        if (pthread_rwlock_init(&rwlock, NULL) < 0) {
+            perror("Failed to initialize rwlock");
+            exit(1);
+        }
 
         obj_tracker_get_fptrs();
 
@@ -255,6 +273,11 @@ void __attribute__((destructor)) obj_tracker_fini(void) {
     pid_t tid;
     if (initialized && !destroying) {
         destroying = true;
+
+        if (pthread_rwlock_destroy(&rwlock) < 0) {
+            perror("Failed to destroy rwlock");
+            exit(1);
+        }
 #if RBTREE
         rbtree_destroy(&objects, object_destroy, NULL);
 #else
@@ -285,13 +308,27 @@ static void object_print(const void *o, int n, char buf[n]) {
 
 static void *insert_objinfo(struct objinfo *oinfo)
 {
+    void *node;
+
+    if (pthread_rwlock_wrlock(&rwlock) < 0) {
+        perror("Failed to get write lock");
+        exit(1);
+    }
+
 #if RBTREE
-    struct rbtree *node;
     node = rbtree_insert(&objects, oinfo, objects_compare);
 #else
-    void *node;
     node = tsearch(oinfo, &objects, objects_compare);
 #endif
+
+    if (node) {
+        ++num_objects;
+    }
+
+    if (pthread_rwlock_unlock(&rwlock) < 0) {
+        perror("Failed to unlock write lock");
+        exit(1);
+    }
 
     return node;
 }
@@ -300,7 +337,11 @@ static void track_object(void *ptr,
         struct objmngr *mngr, size_t request, size_t size, unsigned long ip)
 {
     struct objinfo *oinfo;
+#if TRACE_OUTPUT
     void *node;
+#else
+    __attribute__((unused)) void *node;
+#endif
 
     tracking = false;
 
@@ -318,28 +359,39 @@ static void track_object(void *ptr,
     tid = syscall(SYS_gettid);
 
     if (node) {
-        ++num_objects;
         track(ptr);
         printf("T [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
     } else {
         fprintf(stderr, "F [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n", ptr, request, ip, tid);
     }
-#else
-    if (node)
-        ++num_objects;
 #endif
+
     tracking = true;
 }
 
 static void *find_objinfo(struct objinfo *o)
 {
+    void *node;
+    int ret;
+
+    while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
+            && errno == EAGAIN)
+        ;
+    if (ret < 0) {
+        perror("Failed to acquire read lock");
+        exit(1);
+    }
+
 #if RBTREE
-    struct rbtree *node;
     node = rbtree_find(&objects, &o, objects_compare);
 #else
-    void *node;
     node = tfind(o, &objects, objects_compare);
 #endif
+
+    if (pthread_rwlock_unlock(&rwlock) < 0) {
+        perror("Failed to unlock read lock");
+        exit(1);
+    }
     return node;
 }
 
@@ -347,6 +399,12 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 {
     struct objinfo *objinfo;
     void *result;
+
+    if (pthread_rwlock_wrlock(&rwlock) < 0) {
+        perror("Failed to acquire write lock");
+        exit(1);
+    }
+
 #if RBTREE
     objinfo = ((struct rbtree *)node)->item;
     result = rbtree_delete(&objects, node);
@@ -365,6 +423,11 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
     real_free(objinfo);
+
+    if (pthread_rwlock_unlock(&rwlock) < 0) {
+        perror("Failed to unlock write lock");
+        exit(1);
+    }
     return result;
 }
 
