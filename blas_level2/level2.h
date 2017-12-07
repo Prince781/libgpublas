@@ -52,6 +52,19 @@ DECLARE_CBLAS__GEMV(d, double);
 DECLARE_CBLAS__GEMV(c, float _Complex);
 DECLARE_CBLAS__GEMV(z, double _Complex);
 
+
+/* cblas_?ger - rank-1 update of a general matrix */
+#define DECLARE_CBLAS__GER(prefix, type)                \
+void cblas_##prefix##ger(const CBLAS_LAYOUT Layout,     \
+        const int m, const int n,                       \
+        const type alpha,                               \
+        const type *x, const int incx,                  \
+        const type *y, const int incy,                  \
+        type *a, const int lda)
+
+DECLARE_CBLAS__GER(s, float);
+DECLARE_CBLAS__GER(d, double);
+
 };
 
 #endif
