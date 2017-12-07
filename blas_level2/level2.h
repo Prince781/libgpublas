@@ -128,6 +128,17 @@ DECLARE_CBLAS__HER(c, float, float _Complex);
 DECLARE_CBLAS__HER(z, double, double _Complex);
 
 /* ?her2 - rank-2 update of Hermitian matrix */
+#define DECLARE_CBLAS__HER2(prefix, type)               \
+void cblas_##prefix##her2(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type alpha,                               \
+        const type *x, const int incx,                  \
+        const type *y, const int incy,                  \
+        type *a, const int lda)
+
+DECLARE_CBLAS__HER2(c, float _Complex);
+DECLARE_CBLAS__HER2(z, double _Complex);
 
 /* ?hpmv - matrix-vector product using Hermitian packed matrix */
 #define DECLARE_CBLAS__HPMV(prefix, type)               \
