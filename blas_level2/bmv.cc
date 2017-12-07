@@ -103,5 +103,31 @@ DECLARE_CBLAS__HBMV(z, double _Complex) {
             (cuDoubleComplex *) y, incy,
             &cublasZhbmv,
             &cublasZgeam);
+}
+
+
+DECLARE_CBLAS__SBMV(s, float) {
+    _cblas_hbmv(Layout, uplo,
+            n, k,
+            alpha,
+            a, lda,
+            x, incx,
+            beta,
+            y, incy,
+            &cublasSsbmv,
+            &cublasSgeam);
+}
+
+
+DECLARE_CBLAS__SBMV(d, double) {
+    _cblas_hbmv(Layout, uplo,
+            n, k,
+            alpha,
+            a, lda,
+            x, incx,
+            beta,
+            y, incy,
+            &cublasDsbmv,
+            &cublasDgeam);
 
 }
