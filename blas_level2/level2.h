@@ -350,6 +350,22 @@ DECLARE_CBLAS__TRMV(d, double);
 DECLARE_CBLAS__TRMV(c, float _Complex);
 DECLARE_CBLAS__TRMV(z, double _Complex);
 
+/* ?trsv - solve a system of linear equations whose coefficients are in a
+ * triangular matrix */
+#define DECLARE_CBLAS__TRSV(prefix, type)               \
+void cblas_##prefix##trsv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const CBLAS_DIAG diag,                          \
+        const int n,                                    \
+        const type *a, const int lda,                   \
+        type *x, const int incx)
+
+DECLARE_CBLAS__TRSV(s, float);
+DECLARE_CBLAS__TRSV(d, double);
+DECLARE_CBLAS__TRSV(c, float _Complex);
+DECLARE_CBLAS__TRSV(z, double _Complex);
+
 };
 
 #endif
