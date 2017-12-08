@@ -319,6 +319,22 @@ DECLARE_CBLAS__TPMV(d, double);
 DECLARE_CBLAS__TPMV(c, float _Complex);
 DECLARE_CBLAS__TPMV(z, double _Complex);
 
+/* ?tpsv - solves a system of linear equations whose coefficients are in a
+ * triangular packed matrix */
+#define DECLARE_CBLAS__TPSV(prefix, type)               \
+void cblas_##prefix##tpsv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const CBLAS_DIAG diag,                          \
+        const int n,                                    \
+        const type *ap,                                 \
+        type *x, const int incx)
+
+DECLARE_CBLAS__TPSV(s, float);
+DECLARE_CBLAS__TPSV(d, double);
+DECLARE_CBLAS__TPSV(c, float _Complex);
+DECLARE_CBLAS__TPSV(z, double _Complex);
+
 };
 
 #endif
