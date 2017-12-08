@@ -220,6 +220,17 @@ DECLARE_CBLAS__SPR(s, float);
 DECLARE_CBLAS__SPR(d, double);
 
 /* ?spr2 */
+#define DECLARE_CBLAS__SPR2(prefix, type)               \
+void cblas_##prefix##spr2(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type alpha,                               \
+        const type *x, const int incx,                  \
+        const type *y, const int incy,                  \
+        type *ap)
+
+DECLARE_CBLAS__SPR2(s, float);
+DECLARE_CBLAS__SPR2(d, double);
 
 /* ?symv - matrix-vector product for symmetric matrix */
 #define DECLARE_CBLAS__SYMV(prefix, type)               \
