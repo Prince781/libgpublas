@@ -260,6 +260,19 @@ void cblas_##prefix##syr (const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__SYR(s, float);
 DECLARE_CBLAS__SYR(d, double);
 
+/* ?syr2 - rank-2 update of symmetric matrix */
+#define DECLARE_CBLAS__SYR2(prefix, type)               \
+void cblas_##prefix##syr2 (const CBLAS_LAYOUT Layout,   \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type alpha,                               \
+        const type *x, const int incx,                  \
+        const type *y, const int incy,                  \
+        type *a, const int lda)
+
+DECLARE_CBLAS__SYR2(s, float);
+DECLARE_CBLAS__SYR2(d, double);
+
 };
 
 #endif
