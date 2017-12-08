@@ -100,8 +100,8 @@ DECLARE_CBLAS__TRSV(c, float _Complex) {
             (cuComplex *) x, incx,
             &cublasCtrsv,
             &cublasCgeam,
-            *(cuComplex *) &_alpha,
-            *(cuComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }
 
 DECLARE_CBLAS__TRSV(z, double _Complex) {
@@ -113,6 +113,6 @@ DECLARE_CBLAS__TRSV(z, double _Complex) {
             (cuDoubleComplex *) x, incx,
             &cublasZtrsv,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha,
-            *(cuDoubleComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }

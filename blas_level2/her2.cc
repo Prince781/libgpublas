@@ -82,24 +82,24 @@ DECLARE_CBLAS__HER2(c, float _Complex) {
     float _Complex _alpha = 1.0;
     float _Complex _beta = 0.0;
     _cblas_her2(Layout, uplo,
-            n, *(cuComplex *) &alpha,
+            n, cu(alpha),
             (cuComplex *) x, incx,
             (cuComplex *) y, incy,
             (cuComplex *) a, lda,
             &cublasCher2,
             &cublasCgeam,
-            *(cuComplex *) &_alpha, *(cuComplex *) &_beta);
+            cu(_alpha), cu(_beta));
 }
 
 DECLARE_CBLAS__HER2(z, double _Complex) {
     double _Complex _alpha = 1.0;
     double _Complex _beta = 0.0;
     _cblas_her2(Layout, uplo,
-            n, *(cuDoubleComplex *) &alpha,
+            n, cu(alpha),
             (cuDoubleComplex *) x, incx,
             (cuDoubleComplex *) y, incy,
             (cuDoubleComplex *) a, lda,
             &cublasZher2,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha, *(cuDoubleComplex *) &_beta);
+            cu(_alpha), cu(_beta));
 }

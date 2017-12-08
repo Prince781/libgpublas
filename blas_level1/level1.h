@@ -4,6 +4,7 @@
 #include <ccomplex>
 #include "../blas2cuda.h"
 #include "../cblas.h"   /* this should come after the above */
+#include "../conversions.h"
 
 extern "C" {
 

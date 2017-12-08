@@ -77,8 +77,8 @@ DECLARE_CBLAS__HPR(c, float, float _Complex) {
             (cuComplex *) ap,
             &cublasChpr,
             &cublasCgeam,
-            *(cuComplex *) &_alpha,
-            *(cuComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }
 
 DECLARE_CBLAS__HPR(z, double, double _Complex) {
@@ -90,6 +90,6 @@ DECLARE_CBLAS__HPR(z, double, double _Complex) {
             (cuDoubleComplex *) ap,
             &cublasZhpr,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha,
-            *(cuDoubleComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }

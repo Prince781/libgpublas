@@ -76,7 +76,7 @@ DECLARE_CBLAS__HER(c, float, float _Complex) {
             (cuComplex *) a, lda,
             &cublasCher,
             &cublasCgeam,
-            *(cuComplex *) &_alpha, *(cuComplex *) &_beta);
+            cu(_alpha), cu(_beta));
 }
 
 DECLARE_CBLAS__HER(z, double, double _Complex) {
@@ -88,5 +88,5 @@ DECLARE_CBLAS__HER(z, double, double _Complex) {
             (cuDoubleComplex *) a, lda,
             &cublasZher,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha, *(cuDoubleComplex *) &_beta);
+            cu(_alpha), cu(_beta));
 }

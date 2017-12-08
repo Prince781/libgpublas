@@ -83,14 +83,14 @@ DECLARE_CBLAS__HPR2(c, float _Complex) {
     float _Complex _beta = 1.0;
 
     _cblas_hpr2(Layout, uplo,
-            n, *(cuComplex *) &alpha, 
+            n, cu(alpha), 
             (cuComplex *) x, incx,
             (cuComplex *) y, incy,
             (cuComplex *) ap,
             &cublasChpr2,
             &cublasCgeam,
-            *(cuComplex *) &_alpha,
-            *(cuComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }
 
 DECLARE_CBLAS__HPR2(z, double _Complex) {
@@ -98,12 +98,12 @@ DECLARE_CBLAS__HPR2(z, double _Complex) {
     double _Complex _beta = 1.0;
 
     _cblas_hpr2(Layout, uplo,
-            n, *(cuDoubleComplex *) &alpha, 
+            n, cu(alpha), 
             (cuDoubleComplex *) x, incx,
             (cuDoubleComplex *) y, incy,
             (cuDoubleComplex *) ap,
             &cublasZhpr2,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha,
-            *(cuDoubleComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }

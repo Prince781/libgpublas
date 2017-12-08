@@ -45,10 +45,10 @@ DECLARE_CBLAS__AXPY(d, double) {
 }
 
 DECLARE_CBLAS__AXPY(c, float _Complex) {
-    _cblas_axpy(n, *(cuComplex *) &a, (const cuComplex *) x, incx, (cuComplex *) y, incy, &cublasCaxpy);
+    _cblas_axpy(n, cu(a), (const cuComplex *) x, incx, (cuComplex *) y, incy, &cublasCaxpy);
 }
 
 DECLARE_CBLAS__AXPY(z, double _Complex) {
-    _cblas_axpy(n, *(cuDoubleComplex *) &a, (const cuDoubleComplex *) x, incx,
+    _cblas_axpy(n, cu(a), (const cuDoubleComplex *) x, incx,
             (cuDoubleComplex *) y, incy, &cublasZaxpy);
 }

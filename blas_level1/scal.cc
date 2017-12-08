@@ -35,11 +35,11 @@ DECLARE_CBLAS__SCAL(d, double, double) {
 }
 
 DECLARE_CBLAS__SCAL(c, float _Complex, float _Complex) {
-    _cblas_scal(n, *(cuComplex *) &a, (cuComplex *) x, incx, &cublasCscal);
+    _cblas_scal(n, cu(a), (cuComplex *) x, incx, &cublasCscal);
 }
 
 DECLARE_CBLAS__SCAL(z, double _Complex, double _Complex) {
-    _cblas_scal(n, *(cuDoubleComplex *) &a, (cuDoubleComplex *) x, incx, &cublasZscal);
+    _cblas_scal(n, cu(a), (cuDoubleComplex *) x, incx, &cublasZscal);
 }
 
 DECLARE_CBLAS__SCAL(cs, float _Complex, float) {

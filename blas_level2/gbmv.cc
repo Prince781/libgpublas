@@ -116,10 +116,10 @@ DECLARE_CBLAS__GBMV(d, double) {
 DECLARE_CBLAS__GBMV(c, float _Complex) {
     _cblas_gbmv(Layout, trans, 
             m, n, kl, ku, 
-            *(cuComplex *) &alpha, 
+            cu(alpha), 
             (cuComplex *) A, lda,
             (cuComplex *) x, incx,
-            *(cuComplex *) &beta,
+            cu(beta),
             (cuComplex *) y, incy,
             &cublasCgbmv, &cublasCgeam);
 }
@@ -127,10 +127,10 @@ DECLARE_CBLAS__GBMV(c, float _Complex) {
 DECLARE_CBLAS__GBMV(z, double _Complex) {
     _cblas_gbmv(Layout, trans, 
             m, n, kl, ku, 
-            *(cuDoubleComplex *) &alpha, 
+            cu(alpha), 
             (cuDoubleComplex *) A, lda,
             (cuDoubleComplex *) x, incx,
-            *(cuDoubleComplex *) &beta,
+            cu(beta),
             (cuDoubleComplex *) y, incy, 
             &cublasZgbmv, &cublasZgeam);
 }

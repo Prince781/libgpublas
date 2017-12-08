@@ -101,8 +101,8 @@ DECLARE_CBLAS__TBSV(c, float _Complex) {
             (cuComplex *) x, incx,
             &cublasCtbsv,
             &cublasCgeam,
-            *(cuComplex *) &_alpha,
-            *(cuComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }
 
 DECLARE_CBLAS__TBSV(z, double _Complex) {
@@ -114,6 +114,6 @@ DECLARE_CBLAS__TBSV(z, double _Complex) {
             (cuDoubleComplex *) x, incx,
             &cublasZtbsv,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha,
-            *(cuDoubleComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }

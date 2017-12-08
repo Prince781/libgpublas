@@ -116,19 +116,19 @@ DECLARE_CBLAS__GEMV(d, double) {
 DECLARE_CBLAS__GEMV(c, float _Complex) {
     _cblas_gemv(Layout, trans, 
             m, n, 
-            *(cuComplex *) &alpha, 
+            cu(alpha), 
             (cuComplex *) A, lda,
             (cuComplex *) x, incx,
-            *(cuComplex *) &beta,
+            cu(beta),
             (cuComplex *) y, incy, &cublasCgemv, &cublasCgeam);
 }
 
 DECLARE_CBLAS__GEMV(z, double _Complex) {
     _cblas_gemv(Layout, trans, 
             m, n, 
-            *(cuDoubleComplex *) &alpha, 
+            cu(alpha), 
             (cuDoubleComplex *) A, lda,
             (cuDoubleComplex *) x, incx,
-            *(cuDoubleComplex *) &beta,
+            cu(beta),
             (cuDoubleComplex *) y, incy, &cublasZgemv, &cublasZgeam);
 }

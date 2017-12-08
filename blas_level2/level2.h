@@ -4,6 +4,7 @@
 #include <complex.h>
 #include "../blas2cuda.h"
 #include "../cblas.h"
+#include "../conversions.h"
 
 template <typename T>
 using geam_t = cublasStatus_t (*)(cublasHandle_t,

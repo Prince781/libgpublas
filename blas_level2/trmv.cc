@@ -102,8 +102,8 @@ DECLARE_CBLAS__TRMV(c, float _Complex) {
             (cuComplex *) x, incx,
             &cublasCtrmv,
             &cublasCgeam,
-            *(cuComplex *) &_alpha,
-            *(cuComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }
 
 
@@ -117,6 +117,6 @@ DECLARE_CBLAS__TRMV(z, double _Complex) {
             (cuDoubleComplex *) x, incx,
             &cublasZtrmv,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha,
-            *(cuDoubleComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }

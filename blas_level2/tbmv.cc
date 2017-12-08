@@ -102,8 +102,8 @@ DECLARE_CBLAS__TBMV(c, float _Complex) {
             (cuComplex *) x, incx,
             &cublasCtbmv,
             &cublasCgeam,
-            *(cuComplex *) &_alpha,
-            *(cuComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 }
 
 
@@ -116,7 +116,7 @@ DECLARE_CBLAS__TBMV(z, double _Complex) {
             (cuDoubleComplex *) x, incx,
             &cublasZtbmv,
             &cublasZgeam,
-            *(cuDoubleComplex *) &_alpha,
-            *(cuDoubleComplex *) &_beta);
+            cu(_alpha),
+            cu(_beta));
 
 }
