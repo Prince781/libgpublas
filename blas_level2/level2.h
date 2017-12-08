@@ -208,6 +208,16 @@ DECLARE_CBLAS__SPMV(s, float);
 DECLARE_CBLAS__SPMV(d, double);
 
 /* ?spr */
+#define DECLARE_CBLAS__SPR(prefix, type)                \
+void cblas_##prefix##spr(const CBLAS_LAYOUT Layout,     \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type alpha,                               \
+        const type *x, const int incx,                  \
+        type *ap)
+
+DECLARE_CBLAS__SPR(s, float);
+DECLARE_CBLAS__SPR(d, double);
 
 /* ?spr2 */
 
