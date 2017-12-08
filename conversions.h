@@ -29,6 +29,7 @@ static inline cublasOperation_t cu(CBLAS_TRANSPOSE trans) {
         case CblasConjTrans:
             return CUBLAS_OP_C;
         default:
+            fprintf(stderr, "Invalid value for enum: %d\n", trans);
             abort();
             break;
     }
@@ -41,6 +42,7 @@ static inline cublasFillMode_t cu(CBLAS_UPLO uplo) {
         case CblasLower:
             return CUBLAS_FILL_MODE_LOWER;
         default:
+            fprintf(stderr, "Invalid value for enum: %d\n", uplo);
             abort();
             break;
     }
@@ -53,6 +55,7 @@ static inline cublasDiagType_t cu(CBLAS_DIAG diag) {
         case CblasUnit:
             return CUBLAS_DIAG_UNIT;
         default:
+            fprintf(stderr, "Invalid value for enum: %d\n", diag);
             abort();
             break;
     }
