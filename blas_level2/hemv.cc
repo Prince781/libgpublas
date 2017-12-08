@@ -49,9 +49,9 @@ void _cblas_hemv (const CBLAS_LAYOUT Layout,
             NULL);
 
     hemv_func(b2c_handle, fillmode,
-            rows_a,
+            n,
             &alpha,
-            gpu_a, cols_a,
+            gpu_a, lda,
             gpu_x, incx,
             &beta,
             gpu_y, incy);

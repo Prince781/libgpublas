@@ -33,8 +33,9 @@ void _cblas_tpsv(const CBLAS_LAYOUT Layout,
 
         gpu_a = transpose(a, size_a, &rows_a, &cols_a, rows_a, geam_func);
     } else {
-        cols_a = (n+1)/2;
         rows_a = n;
+        cols_a = (n+1)/2;
+
         gpu_a = (const T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
     }
 

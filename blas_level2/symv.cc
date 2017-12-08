@@ -33,8 +33,8 @@ void _cblas_symv (const CBLAS_LAYOUT Layout,
 
         gpu_a = transpose(a, size_a, &rows_a, &cols_a, rows_a, geam_func);
     } else {
-        cols_a = lda;
-        rows_a = n;
+        rows_a = lda;
+        cols_a = n;
         gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
     }
 

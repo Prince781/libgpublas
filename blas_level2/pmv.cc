@@ -32,8 +32,8 @@ static void _cblas_hpmv(const CBLAS_LAYOUT Layout,
         cols_a = (n+1)/2;
         gpu_a = transpose(a, size_a, &rows_a, &cols_a, rows_a, geam_func);
     } else {
-        rows_a = (n+1)/2;
-        cols_a = n;
+        rows_a = n;
+        cols_a = (n+1)/2;
         gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
     }
 

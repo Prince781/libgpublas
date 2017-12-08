@@ -46,7 +46,7 @@ static void _cblas_hbmv(const CBLAS_LAYOUT Layout,
             NULL);
 
     hbmv_func(b2c_handle, fillmode,
-            rows_a, cols_a,
+            n, k,
             &alpha,
             gpu_a, lda,
             gpu_x, incx,

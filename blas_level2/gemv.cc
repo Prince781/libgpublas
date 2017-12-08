@@ -31,23 +31,12 @@ void _cblas_gemv (const CBLAS_LAYOUT Layout,
     if (Layout == CblasRowMajor && trans == CblasConjTrans) {
         /* create a new buffer that is the transpose matrix of A*/
         A_info = NULL;
-        rows_A = n;
-        cols_A = m;
+        rows_A = m;
+        cols_A = n;
 
         gpu_A = transpose(A, size_A, &rows_A, &cols_A, rows_A, geam_func);
     } else {
         gpu_A = (const T *) b2c_place_on_gpu((void *) A, size_A, &A_info, NULL);
-        if (Layout == CblasRowMajor) {
-            if (trans == CblasNoTrans)
-                op = CUBLAS_OP_T;
-            else if (trans == CblasTrans)
-                op = CUBLAS_OP_N;
-            rows_A = n;
-            cols_A = m;
-        } else {
-            rows_A = m;
-            cols_A = n;
-        }
     }
 
     gpu_x = (const T *) b2c_place_on_gpu((void *) x, size_x, &x_info,
@@ -59,7 +48,7 @@ void _cblas_gemv (const CBLAS_LAYOUT Layout,
             NULL);
 
     gemv_func(b2c_handle, op,
-            rows_A, cols_A,
+            m, n,
             &alpha, 
             gpu_A, lda,
             gpu_x, incx,

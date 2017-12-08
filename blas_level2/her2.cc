@@ -32,8 +32,8 @@ static void _cblas_her2(const CBLAS_LAYOUT Layout,
 
         gpu_a = transpose(a, size_a, &rows_a, &cols_a, rows_a, geam_func);
     } else {
-        cols_a = n;
         rows_a = lda;
+        cols_a = n;
         gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
     }
 
@@ -56,8 +56,11 @@ static void _cblas_her2(const CBLAS_LAYOUT Layout,
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);
 
-    if (!a_info)
+    if (!a_info) {
+        if (Layout == CblasRowMajor)
+            transpose(gpu_a, size_a, &rows_a, &cols_a, lda, geam_func);
         b2c_copy_from_gpu(a, gpu_a, size_a);
+    }
 
     b2c_cleanup_gpu_ptr((void *) gpu_a, a_info);
     b2c_cleanup_gpu_ptr((void *) gpu_x, x_info);

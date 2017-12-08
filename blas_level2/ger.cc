@@ -25,8 +25,8 @@ static void _cblas_ger(const CBLAS_LAYOUT Layout,
 
     if (Layout == CblasRowMajor) {
         a_info = NULL;
-        rows_a = n;
-        cols_a = m;
+        rows_a = m;
+        cols_a = n;
 
         gpu_a = transpose(a, size_a, &rows_a, &cols_a, rows_a, geam_func);
     } else {
@@ -43,7 +43,7 @@ static void _cblas_ger(const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    ger_func(b2c_handle, rows_a, cols_a,
+    ger_func(b2c_handle, m, n,
             &alpha, 
             gpu_x, incx,
             gpu_y, incy,
@@ -52,8 +52,11 @@ static void _cblas_ger(const CBLAS_LAYOUT Layout,
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);
 
-    if (!a_info)
+    if (!a_info) {
+        if (Layout == CblasRowMajor)
+            transpose(gpu_a, size_a, &rows_a, &cols_a, lda, geam_func);
         b2c_copy_from_gpu(a, gpu_a, size_a);
+    }
 
     b2c_cleanup_gpu_ptr((void *) gpu_a, a_info);
     b2c_cleanup_gpu_ptr((void *) gpu_x, x_info);
