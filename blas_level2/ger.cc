@@ -17,9 +17,9 @@ static void _cblas_ger(const CBLAS_LAYOUT Layout,
 {
     const T *gpu_x, *gpu_y;
     T *gpu_a;
-    const int size_x = size(n, incx, sizeof(*x));
-    const int size_y = size(n, incy, sizeof(*y));
-    const int size_a = size(n, lda, sizeof(*a));
+    const int size_x = size(1, m - 1, incx, sizeof(*x));
+    const int size_y = size(1, m - 1, incy, sizeof(*y));
+    const int size_a = size(0, n, lda, sizeof(*a));
     const struct objinfo *x_info, *y_info, *a_info;
     int rows_a, cols_a;
 

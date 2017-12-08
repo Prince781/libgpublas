@@ -18,8 +18,8 @@ void _cblas_tpsv(const CBLAS_LAYOUT Layout,
 {
     const T *gpu_a;
     T *gpu_x;
-    const int size_a = size(n, (n+1)/2, sizeof(*a));
-    const int size_x = size(n, incx, sizeof(*x));
+    const int size_a = size(0, n, n+1, sizeof(*a))/2;
+    const int size_x = size(1, n-1, incx, sizeof(*x));
     const struct objinfo *a_info, *x_info;
     int rows_a, cols_a;
     const cublasFillMode_t fillmode = cu(uplo);

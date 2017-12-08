@@ -1,9 +1,11 @@
 #ifndef CBLAS_H
 #define CBLAS_H
 
+#include <stdlib.h>
+
 #define IDX2F(i,j,ld) ((((j)-1)*(ld))+((i)-1))
 
-#define size(n,stride,sz) ((n) * (stride) * (sz))
+#define size(amt, n,stride,sz) (((amt) + (n) * abs(stride)) * (sz))
 
 /* taken from cblas.h */
 

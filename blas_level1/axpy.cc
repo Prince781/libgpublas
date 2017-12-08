@@ -15,8 +15,8 @@ static void _cblas_axpy (const int n,
 {
     const T *gpu_x;
     T *gpu_y;
-    const int size_x = size(n, incx, sizeof(*x));
-    const int size_y = size(n, incy, sizeof(*y));
+    const int size_x = size(1, n-1, incx, sizeof(*x));
+    const int size_y = size(1, n-1, incy, sizeof(*y));
     const struct objinfo *x_info, *y_info;
 
     gpu_x = (const T *) b2c_place_on_gpu((void *) x, size_x, &x_info, NULL);
