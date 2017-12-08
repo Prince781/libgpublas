@@ -154,7 +154,7 @@ void cblas_##prefix##hpmv(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__HPMV(c, float _Complex);
 DECLARE_CBLAS__HPMV(z, double _Complex);
 
-/* ?hpr */
+/* ?hpr - rank-1 update of a Hermitian packed matrix */
 #define DECLARE_CBLAS__HPR(prefix, stype, type)         \
 void cblas_##prefix##hpr(const CBLAS_LAYOUT Layout,     \
         const CBLAS_UPLO uplo,                          \
@@ -166,7 +166,7 @@ void cblas_##prefix##hpr(const CBLAS_LAYOUT Layout,     \
 DECLARE_CBLAS__HPR(c, float, float _Complex);
 DECLARE_CBLAS__HPR(z, double, double _Complex);
 
-/* ?hpr2 */
+/* ?hpr2 - rank-2 update of a Hermitian packed matrix */
 #define DECLARE_CBLAS__HPR2(prefix, type)               \
 void cblas_##prefix##hpr2(const CBLAS_LAYOUT Layout,    \
         const CBLAS_UPLO uplo,                          \
@@ -179,7 +179,7 @@ void cblas_##prefix##hpr2(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__HPR2(c, float _Complex);
 DECLARE_CBLAS__HPR2(z, double _Complex);
 
-/* ?sbmv */
+/* ?sbmv - matrix-vector product using a symmetric band matrix */
 #define DECLARE_CBLAS__SBMV(prefix, type)               \
 void cblas_##prefix##sbmv(const CBLAS_LAYOUT Layout,    \
         const CBLAS_UPLO uplo,                          \
@@ -193,7 +193,7 @@ void cblas_##prefix##sbmv(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__SBMV(s, float);
 DECLARE_CBLAS__SBMV(d, double);
 
-/* ?spmv */
+/* ?spmv - matrix-vector product using a symmetric packed matrix */
 #define DECLARE_CBLAS__SPMV(prefix, type)               \
 void cblas_##prefix##spmv(const CBLAS_LAYOUT Layout,    \
         const CBLAS_UPLO uplo,                          \
@@ -207,7 +207,7 @@ void cblas_##prefix##spmv(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__SPMV(s, float);
 DECLARE_CBLAS__SPMV(d, double);
 
-/* ?spr */
+/* ?spr - rank-1 update of a symmetric packed matrix */
 #define DECLARE_CBLAS__SPR(prefix, type)                \
 void cblas_##prefix##spr(const CBLAS_LAYOUT Layout,     \
         const CBLAS_UPLO uplo,                          \
@@ -219,7 +219,7 @@ void cblas_##prefix##spr(const CBLAS_LAYOUT Layout,     \
 DECLARE_CBLAS__SPR(s, float);
 DECLARE_CBLAS__SPR(d, double);
 
-/* ?spr2 */
+/* ?spr2 - rank-2 update of a symmetric packed matrix */
 #define DECLARE_CBLAS__SPR2(prefix, type)               \
 void cblas_##prefix##spr2(const CBLAS_LAYOUT Layout,    \
         const CBLAS_UPLO uplo,                          \
@@ -246,6 +246,19 @@ void cblas_##prefix##symv(const CBLAS_LAYOUT Layout,    \
 
 DECLARE_CBLAS__SYMV(s, float);
 DECLARE_CBLAS__SYMV(d, double);
+
+/* ?syr - rank-1 update of a symmetric matrix */
+#define DECLARE_CBLAS__SYR(prefix, type)                \
+void cblas_##prefix##syr (const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const int n,                                    \
+        const type alpha,                               \
+        const type *x, const int incx,                  \
+        type *a, const int lda)
+
+
+DECLARE_CBLAS__SYR(s, float);
+DECLARE_CBLAS__SYR(d, double);
 
 };
 
