@@ -62,6 +62,19 @@ static inline cublasDiagType_t cu(CBLAS_DIAG diag) {
     }
 }
 
+static inline cublasSideMode_t cu(CBLAS_SIDE side) {
+    switch (side) {
+        case CblasLeft:
+            return CUBLAS_SIDE_LEFT;
+        case CblasRight:
+            return CUBLAS_SIDE_RIGHT;
+        default:
+            fprintf(stderr, "Invalid value for enum: %d\n", side);
+            abort();
+            break;
+    }
+}
+
 template <typename T>
 using geam_t = cublasStatus_t (*)(cublasHandle_t,
             cublasOperation_t, cublasOperation_t,
@@ -74,5 +87,9 @@ using geam_t = cublasStatus_t (*)(cublasHandle_t,
 
 template <typename T>
 T *transpose(const T *host_a, int size_a, int *rows_a, int *cols_a, int lda, geam_t<T> geam);
+
+template <typename T>
+void transpose_in(T *gpu_a, int size_a, int *rows_a, int *cols_a, int lda, geam_t<T> geam);
+
 
 #endif

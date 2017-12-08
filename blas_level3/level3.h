@@ -27,4 +27,20 @@ DECLARE_CBLAS__GEMM(d, double);
 DECLARE_CBLAS__GEMM(c, float _Complex);
 DECLARE_CBLAS__GEMM(z, double _Complex);
 
+
+/* ?hemm - matrix-matrix product with general matrices */
+#define DECLARE_CBLAS__HEMM(prefix, T)                  \
+void cblas_##prefix##hemm(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_SIDE side,                          \
+        const CBLAS_UPLO uplo,                          \
+        const int m, const int n,                       \
+        const T *alpha,                                 \
+        const T *a, const int lda,                      \
+        const T *b, const int ldb,                      \
+        const T *beta,                                  \
+        T *c, const int ldc)
+
+DECLARE_CBLAS__HEMM(c, float _Complex);
+DECLARE_CBLAS__HEMM(z, double _Complex);
+
 #endif
