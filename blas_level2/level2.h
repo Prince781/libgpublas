@@ -273,6 +273,21 @@ void cblas_##prefix##syr2 (const CBLAS_LAYOUT Layout,   \
 DECLARE_CBLAS__SYR2(s, float);
 DECLARE_CBLAS__SYR2(d, double);
 
+/* ?tbmv - matrix-vector product using a triangular band matrix */
+#define DECLARE_CBLAS__TBMV(prefix, type)               \
+void cblas_##prefix##tbmv (const CBLAS_LAYOUT Layout,   \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const CBLAS_DIAG diag,                          \
+        const int n, const int k,                       \
+        const type *a, const int lda,                   \
+        type *x, const int incx)
+
+DECLARE_CBLAS__TBMV(s, float);
+DECLARE_CBLAS__TBMV(d, double);
+DECLARE_CBLAS__TBMV(c, float _Complex);
+DECLARE_CBLAS__TBMV(z, double _Complex);
+
 };
 
 #endif
