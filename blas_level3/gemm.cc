@@ -86,7 +86,8 @@ void _cblas_gemm(const CBLAS_LAYOUT Layout,
         b2c_fatal_error(cudaGetLastError(), __func__);
 
     if (!c_info) {
-        transpose(gpu_c, size_c, &rows_c, &cols_c, ldc, geam_func);
+        if (Layout == CblasRowMajor)
+            transpose(gpu_c, size_c, &rows_c, &cols_c, ldc, geam_func);
         b2c_copy_from_gpu(c, gpu_c, size_c);
     }
 
