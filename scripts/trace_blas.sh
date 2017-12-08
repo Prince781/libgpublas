@@ -7,4 +7,4 @@ fi
 
 logfile=`basename $1`.ltrace
 
-ltrace -i -e "cblas_*" -e free -e malloc -o "$logfile" $1 ${@:2}
+/bin/ltrace -f -s 1024 -i -e "cblas_*" -e free -e malloc -o "$logfile" $1 ${@:2}

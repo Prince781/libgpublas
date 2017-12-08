@@ -9,9 +9,11 @@ if [ -z $1 ]; then
 fi
 
 fname=$(basename ${1}.objtrack)
-LIBOBJTRACKER=./lib/libobjtracker.so
+LIBOBJTRACKER=../lib/libobjtracker.so
 
-make -C ./lib/ libobjtracker.so
+if [ ! -e $LIBOBJTRACKER ]; then
+    make -C $(dirname $LIBOBJTRACKER) $(basename $LIBOBJTRACKER)
+fi
 
 echo "malloc" | cat - <(env LD_PRELOAD=$LIBOBJTRACKER $1 ${@:2} | awk '/reqsize=\[[0-9a-f]+\]/{print $3,$4}' | sort -u) | tee $fname
 
