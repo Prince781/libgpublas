@@ -288,6 +288,22 @@ DECLARE_CBLAS__TBMV(d, double);
 DECLARE_CBLAS__TBMV(c, float _Complex);
 DECLARE_CBLAS__TBMV(z, double _Complex);
 
+/* ?tbsv - solve a system of linear equations whose coefficients are in a
+ * triangular band matrix */
+#define DECLARE_CBLAS__TBSV(prefix, type)               \
+void cblas_##prefix##tbsv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const CBLAS_DIAG diag,                          \
+        const int n, const int k,                       \
+        const type *a, const int lda,                   \
+        type *x, const int incx)
+
+DECLARE_CBLAS__TBSV(s, float);
+DECLARE_CBLAS__TBSV(d, double);
+DECLARE_CBLAS__TBSV(c, float _Complex);
+DECLARE_CBLAS__TBSV(z, double _Complex);
+
 };
 
 #endif
