@@ -43,4 +43,18 @@ void cblas_##prefix##hemm(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__HEMM(c, float _Complex);
 DECLARE_CBLAS__HEMM(z, double _Complex);
 
+/* ?herk - Hermitian rank-k update */
+#define DECLARE_CBLAS__HERK(prefix, S, T)               \
+void cblas_##prefix##herk(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const int n, const int k,                       \
+        const S alpha,                                  \
+        const T *a, const int lda,                      \
+        const S beta,                                   \
+        T *c, const int ldc)
+
+DECLARE_CBLAS__HERK(c, float, float _Complex);
+DECLARE_CBLAS__HERK(z, float, double _Complex);
+
 #endif
