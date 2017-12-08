@@ -335,6 +335,21 @@ DECLARE_CBLAS__TPSV(d, double);
 DECLARE_CBLAS__TPSV(c, float _Complex);
 DECLARE_CBLAS__TPSV(z, double _Complex);
 
+/* ?trmv - compute  a matrix-vector product using a triangular matrix */
+#define DECLARE_CBLAS__TRMV(prefix, type)               \
+void cblas_##prefix##trmv(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const CBLAS_DIAG diag,                          \
+        const int n,                                    \
+        const type *a, const int lda,                   \
+        type *x, const int incx)
+
+DECLARE_CBLAS__TRMV(s, float);
+DECLARE_CBLAS__TRMV(d, double);
+DECLARE_CBLAS__TRMV(c, float _Complex);
+DECLARE_CBLAS__TRMV(z, double _Complex);
+
 };
 
 #endif
