@@ -12,7 +12,7 @@ void _cblas_tpmv(const CBLAS_LAYOUT Layout,
             cublasFillMode_t, cublasOperation_t,
             cublasDiagType_t,
             int,
-            const T*, 
+            const T *, 
             T *, int),
         geam_t<T> geam_func,
         T geam_alpha = 1.0, T geam_beta = 0.0)
