@@ -23,9 +23,9 @@ void _cblas_tbsv(const CBLAS_LAYOUT Layout,
     const int size_x = size(n, incx, sizeof(*x));
     const struct objinfo *a_info, *x_info;
     int rows_a, cols_a;
-    const cublasFillMode_t fillmode = (cublasFillMode_t) (uplo - CblasUpper);
-    const cublasOperation_t op = (cublasOperation_t) (trans - CblasNoTrans);
-    const cublasDiagType_t cdiag = (cublasDiagType_t) (diag - CblasNonUnit);
+    const cublasFillMode_t fillmode = cu(uplo);
+    const cublasOperation_t op = cu(trans);
+    const cublasDiagType_t cdiag = cu(diag);
 
     if (Layout == CblasRowMajor) {
         T *gpu_a_trans;

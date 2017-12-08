@@ -3,7 +3,7 @@
 
 #define IDX2F(i,j,ld) ((((j)-1)*(ld))+((i)-1))
 
-#define size(n,stride,sz) (n * stride * sz)
+#define size(n,stride,sz) ((n) * (stride) * (sz))
 
 /* taken from cblas.h */
 
@@ -23,5 +23,11 @@ typedef enum {CblasNonUnit=131, CblasUnit=132} CBLAS_DIAG;
 typedef enum {CblasLeft=141, CblasRight=142} CBLAS_SIDE;
 
 typedef CBLAS_LAYOUT CBLAS_ORDER; /* this for backward compatibility with CBLAS_ORDER */
+
+static inline int get_lda(CBLAS_LAYOUT layout, int rows, int cols) {
+    if (layout == CblasRowMajor)
+        return rows;
+    return cols;
+}
 
 #endif

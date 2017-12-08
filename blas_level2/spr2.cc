@@ -24,7 +24,7 @@ void _cblas_spr2(const CBLAS_LAYOUT Layout,
     const int size_y = 1 + size(n-1, incy, sizeof(*y));
     const struct objinfo *a_info, *x_info, *y_info;
     int rows_a, cols_a;
-    const cublasFillMode_t fillmode = (cublasFillMode_t) (uplo - CblasUpper);
+    const cublasFillMode_t fillmode = cu(uplo);
 
     if (Layout == CblasRowMajor) {
         T *gpu_a_trans;

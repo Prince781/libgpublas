@@ -26,7 +26,7 @@ void _cblas_gemv (const CBLAS_LAYOUT Layout,
     const int size_y = size(n, incy, sizeof(*y));
     const struct objinfo *A_info, *x_info, *y_info;
     int rows_A, cols_A;
-    cublasOperation_t op = (cublasOperation_t) (trans - CblasNoTrans);
+    cublasOperation_t op = cu(trans);
 
     if (Layout == CblasRowMajor && trans == CblasConjTrans) {
         /* create a new buffer that is the transpose matrix of A*/

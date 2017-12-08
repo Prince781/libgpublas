@@ -17,7 +17,7 @@ static void _cblas_hpmv(const CBLAS_LAYOUT Layout,
             T *, int),
         geam_t<T> geam_func)
 {
-    const cublasFillMode_t fillmode = (cublasFillMode_t) (uplo - CblasUpper);
+    const cublasFillMode_t fillmode = cu(uplo);
     const T *gpu_a, *gpu_x;
     T *gpu_y;
     const int size_a = size((n * (n+1))/2, 1, sizeof(*a));

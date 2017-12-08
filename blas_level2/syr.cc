@@ -21,7 +21,7 @@ void _cblas_syr(const CBLAS_LAYOUT Layout,
     const int size_x = 1 + size(n-1, incx, sizeof(*x));
     const struct objinfo *a_info, *x_info;
     int rows_a, cols_a;
-    const cublasFillMode_t fillmode = (cublasFillMode_t) (uplo - CblasUpper);
+    const cublasFillMode_t fillmode = cu(uplo);
 
     if (Layout == CblasRowMajor) {
         T *gpu_a_trans;
