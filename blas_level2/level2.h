@@ -6,16 +6,6 @@
 #include "../cblas.h"
 #include "../conversions.h"
 
-template <typename T>
-using geam_t = cublasStatus_t (*)(cublasHandle_t,
-            cublasOperation_t, cublasOperation_t,
-            int, int,
-            const T *,
-            const T *, int,
-            const T *,
-            const T *, int,
-            T *, int);
-
 extern "C" {
 
 /* BLAS Level 2 routines */

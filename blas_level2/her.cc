@@ -23,28 +23,14 @@ static void _cblas_her(const CBLAS_LAYOUT Layout,
     const cublasFillMode_t fillmode = cu(uplo);
 
     if (Layout == CblasRowMajor) {
-        T *gpu_a_trans;
-
         a_info = NULL;
-        rows_a = n;
-        cols_a = lda;
+        rows_a = lda;
+        cols_a = n;
 
-        gpu_a_trans = (T *) b2c_copy_to_gpu((void *) a, size_a);
-        
-        /* transpose A */
-        geam_func(b2c_handle, CUBLAS_OP_T, CUBLAS_OP_N,
-                rows_a, cols_a,
-                &geam_alpha,
-                gpu_a_trans, lda,
-                &geam_beta,
-                NULL, 0,
-                gpu_a_trans, lda);
-        
-        if (cudaPeekAtLastError() != cudaSuccess)
-            b2c_fatal_error(cudaGetLastError(), __func__);
-
-        gpu_a = gpu_a_trans;
+        gpu_a = transpose(a, size_a, &rows_a, &cols_a, rows_a, geam_func);
     } else {
+        cols_a = lda;
+        rows_a = n;
         gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
     }
 

@@ -31,26 +31,12 @@ void _cblas_gbmv (const CBLAS_LAYOUT Layout,
 
     if (Layout == CblasRowMajor && trans == CblasConjTrans) {
         /* create a new buffer that is the transpose matrix of A*/
-        T *gpu_A_conj;
 
         A_info = NULL;
         rows_A = n;
         cols_A = m;
-        gpu_A_conj = (T *) b2c_copy_to_gpu((void *) A, size_A);
 
-        /* transpose A */
-        geam_func(b2c_handle, CUBLAS_OP_T, CUBLAS_OP_N,
-                rows_A, cols_A,
-                &alpha,
-                gpu_A_conj, lda,
-                0,
-                0, 0,
-                gpu_A_conj, lda);
-
-        if (cudaPeekAtLastError() != cudaSuccess)
-            b2c_fatal_error(cudaGetLastError(), __func__);
-
-        gpu_A = gpu_A_conj;
+        gpu_A = transpose(A, size_A, &rows_A, &cols_A, rows_A, geam_func);
     } else {
         gpu_A = (const T *) b2c_place_on_gpu((void *) A, size_A, &A_info, NULL);
         if (Layout == CblasRowMajor) {

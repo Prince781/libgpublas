@@ -3,6 +3,7 @@
 
 #include <complex.h>
 #include <cublas_api.h>
+#include "cblas.h"
 
 static inline cuComplex cu(float _Complex f) {
     return (cuComplex) { .x = crealf(f), .y = cimagf(f) };
@@ -60,5 +61,18 @@ static inline cublasDiagType_t cu(CBLAS_DIAG diag) {
             break;
     }
 }
+
+template <typename T>
+using geam_t = cublasStatus_t (*)(cublasHandle_t,
+            cublasOperation_t, cublasOperation_t,
+            int, int,
+            const T *,
+            const T *, int,
+            const T *,
+            const T *, int,
+            T *, int);
+
+template <typename T>
+T *transpose(const T *host_a, int size_a, int *rows_a, int *cols_a, int lda, geam_t<T> geam);
 
 #endif
