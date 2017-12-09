@@ -14,23 +14,25 @@ COMPFLAGS = -Wall -Werror -fPIC -fdiagnostics-color -ggdb3 -I$(CUDA)/include
 CFLAGS += $(COMPFLAGS) -std=gnu11
 CXXFLAGS += $(COMPFLAGS) -std=gnu++11
 NVCFLAGS=$(subst $(space),$(comma),$(CFLAGS))
-LDFLAGS += -L$(CUDA)/lib64 -lcublas -L$(LIBDIR) -ldl -lunwind -lunwind-x86_64
+NVCXXFLAGS=$(subst $(space),$(comma),$(CXXFLAGS))
+LDFLAGS += -shared -L$(CUDA)/lib64 -lcublas -L$(LIBDIR) -ldl -lunwind -lunwind-x86_64 -lpthread
 NVLDFLAGS=$(subst $(space),$(comma),$(LDFLAGS))
+INCLUDES=#$(wildcard *.h)
 
 libblas2cuda.so: $(NVSOURCES:%.cu=$(OBJDIR)/%.o) $(CSOURCES:%.c=$(OBJDIR)/%.o) $(CXXSOURCES:%.cc=$(OBJDIR)/%.o)
-	$(NVCC) -shared -Xlinker $(NVLDFLAGS) $^ -o $@
+	$(NVCC) -shared -Xcompiler $(NVCXXFLAGS) -Xlinker $(NVLDFLAGS) $^ -o $@
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c $(INCLUDES) Makefile
 	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
-	$(CC) $(CFLAGS) -shared $(LDFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: %.cu cblas.h
+$(OBJDIR)/%.o: %.cu $(INCLUDES) Makefile
 	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
-	$(NVCC) -Xcompiler $(NVCFLAGS) -shared -c $< -o $@
+	$(NVCC) -Xcompiler $(NVCXXFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: %.cc cblas.h
+$(OBJDIR)/%.o: %.cc $(INCLUDES) Makefile
 	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
-	$(CXX) $(CXXFLAGS) -shared $(LDFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 #$(LIBDIR)/libobjtracker.so:
 #	$(MAKE) -C $(LIBDIR) libobjtracker.so
