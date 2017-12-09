@@ -50,3 +50,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Other
+compile_commands.json
+*.objtrack
+*.ltrace
+*.log
+*.swp
