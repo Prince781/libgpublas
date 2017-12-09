@@ -661,7 +661,21 @@ DECLARE_CBLAS__SYMM(d, double);
 DECLARE_CBLAS__SYMM(c, float _Complex);
 DECLARE_CBLAS__SYMM(z, double _Complex);
 
-/* ?syrk */
+/* ?syrk - symmetric rank-k update */
+#define DECLARE_CBLAS__SYRK(prefix, T)                  \
+void cblas_##prefix##syrk(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const int n, const int k,                       \
+        const T alpha,                                  \
+        const T *a, const int lda,                      \
+        const T beta,                                   \
+        T *c, const int ldc)
+
+DECLARE_CBLAS__SYRK(s, float);
+DECLARE_CBLAS__SYRK(d, double);
+DECLARE_CBLAS__SYRK(c, float _Complex);
+DECLARE_CBLAS__SYRK(z, double _Complex);
 
 /* ?syr2k */
 
