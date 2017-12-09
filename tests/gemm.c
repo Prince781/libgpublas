@@ -28,17 +28,17 @@ int prologue(int num) {
     /* fill mat_A */
     for (int row = 0; row < m; ++row)
         for (int col = 0; col < k; ++col)
-            mat_A[row * k + col] = (row * k + col) / k;
+            mat_A[col * m + row] = (row * k + col) / k;
     /* fill mat_B */
     for (int row = 0; row < k; ++row)
         for (int col = 0; col < n; ++col)
-            mat_B[row * n + col] = (row * n + col) % n;
+            mat_B[col * k + row] = (row * n + col) % n;
 
     return 0;
 }
 
 void test_gemm(void) {
-    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+    cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,
             m, n, k,
             alpha, 
             mat_A, k,
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 
     parse_args(argc, argv, &n, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
-    run_test(10, &prologue, &test_gemm, &epilogue, &pinfo);
+    run_test(N_TESTS, &prologue, &test_gemm, &epilogue, &pinfo);
     print_perfinfo("GEMM", n, &pinfo);
 
     return 0;

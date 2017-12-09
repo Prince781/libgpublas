@@ -15,6 +15,10 @@ void run_test(int num,
     struct timespec total = { 0, 0 };
 
     assert (num > 0);
+    if (num == 1) {
+        fprintf(stderr, "WARNING: You should run more than one test to discount "
+                "overhead of b2c initialization\n");
+    }
     for (int i=0; i<num; ++i) {
         struct timespec start, end;
         struct timespec ts_diff;
@@ -47,11 +51,14 @@ void run_test(int num,
         /* subtract seconds */
         ts_diff.tv_sec -= start.tv_sec;
 
-        /* add to total */
-        total.tv_sec += ts_diff.tv_sec;
-        if (total.tv_nsec + ts_diff.tv_nsec >= 1000000000L)
-            ++total.tv_sec;
-        total.tv_nsec = (total.tv_nsec + ts_diff.tv_nsec) % 1000000000L;
+        /* add to total;
+         * discount first example for initialization overhead */
+        if (num == 1 || i > 0) {
+            total.tv_sec += ts_diff.tv_sec;
+            if (total.tv_nsec + ts_diff.tv_nsec >= 1000000000L)
+                ++total.tv_sec;
+            total.tv_nsec = (total.tv_nsec + ts_diff.tv_nsec) % 1000000000L;
+        }
     }
 
     pinfo->total = total;

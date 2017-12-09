@@ -28,16 +28,16 @@ int prologue(int num) {
     for (int row = 0; row < m; ++row)
         for (int col = row; col < m; ++col) {
             if (col == row)
-                mat_A[row * m + col] = col;
+                mat_A[idx(row, col, m, m)] = col;
             else {
-                mat_A[row * m + col] = col + row * I;
-                mat_A[col * m + row] = col - row * I;
+                mat_A[idx(row, col, m, m)] = col + row * I;
+                mat_A[idx(col, row, m, m)] = col - row * I;
             }
         }
     /* fill mat_B */
     for (int row = 0; row < m; ++row)
         for (int col = 0; col < n; ++col)
-            mat_B[row * n + col] = (row * n + col) % n + (row % 10) * I;
+            mat_B[idx(row, col, m, n)] = (row * n + col) % n + (row % 10) * I;
 
     return 0;
 
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 
     parse_args(argc, argv, &n, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
-    run_test(10, &prologue, &test_hemm, &epilogue, &pinfo);
+    run_test(N_TESTS, &prologue, &test_hemm, &epilogue, &pinfo);
     print_perfinfo("HEMM", n, &pinfo);
 
     return 0;

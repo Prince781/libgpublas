@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
 
     parse_args(argc, argv, &n, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
-    run_test(10, &prologue, &test_csrot, &epilogue, &pinfo);
+    run_test(N_TESTS, &prologue, &test_csrot, &epilogue, &pinfo);
     print_perfinfo("CSROT", n, &pinfo);
 
     return 0;

@@ -14,6 +14,18 @@
 #endif
 #include <stdbool.h>
 
+#define N_TESTS     (1 + 10)
+
+/* row-major indexing */
+static inline int idx(int row, int col, int n_rows, int n_cols) {
+    return row * n_cols + col;
+}
+
+/* fortran-style column major indexing */
+static inline int fidx(int row, int col, int n_rows, int n_cols) {
+    return col * n_rows + row;
+}
+
 typedef int (*prologue_t)(int num);
 typedef void (*blas_func_t)(void);
 typedef int (*epilogue_t)(int num);

@@ -24,7 +24,7 @@ int prologue(int num) {
     /* initialize mat_A */
     for (int row = 0; row < n; ++row)
         for (int col = row; col < n; ++col)
-            mat_A[row * n + col] = (row * n + col) % ((n * n) / 10);
+            mat_A[fidx(row, col, n, n)] = (row * n + col) % ((n * n) / 10);
 
     /* initialize vec_x */
     for (int i = 0; i < len_x; i += incx) {
@@ -34,7 +34,7 @@ int prologue(int num) {
 }
 
 void test_trmv(void) {
-    cblas_strmv(CblasRowMajor, CblasUpper, CblasNoTrans,
+    cblas_strmv(CblasColMajor, CblasUpper, CblasNoTrans,
             CblasNonUnit /* unit triangle = all 1's */,
             n, mat_A, n,
             vec_x, incx);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 
     parse_args(argc, argv, &n, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
-    run_test(10, &prologue, &test_trmv, &epilogue, &pinfo);
+    run_test(N_TESTS, &prologue, &test_trmv, &epilogue, &pinfo);
     print_perfinfo("TRMV", n, &pinfo);
 
     return 0;

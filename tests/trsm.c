@@ -21,13 +21,13 @@ int prologue(int num) {
     /* fill mat_A */
     for (int row = 0; row < m; ++row)
         for (int col = row; col < m; ++col) {
-            mat_A[row * m + col] = (row * m + col) % 10;
+            mat_A[fidx(row, col, m, m)] = (row * m + col) % 10;
         }
 
     /* fill mat_B */
     for (int row = 0; row < m; ++row)
         for (int col = 0; col < n; ++col) {
-            mat_B[row * n + col] = (row * n + col) % 10;
+            mat_B[fidx(row, col, m, n)] = (row * n + col) % 10;
         }
 
     return 0;
@@ -35,7 +35,7 @@ int prologue(int num) {
 
 void test_trsm(void) {
     /* FIXME: segfault when m > 100 */
-    cblas_dtrsm(CblasRowMajor, CblasLeft, CblasUpper, CblasNoTrans,
+    cblas_dtrsm(CblasColMajor, CblasLeft, CblasUpper, CblasNoTrans,
             CblasNonUnit,
             m, n,
             alpha,
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
 
     parse_args(argc, argv, &m, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
-    run_test(10, &prologue, &test_trsm, &epilogue, &pinfo);
+    run_test(N_TESTS, &prologue, &test_trsm, &epilogue, &pinfo);
     print_perfinfo("TRSM", m, &pinfo);
 
     return 0;

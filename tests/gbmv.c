@@ -52,7 +52,7 @@ int prologue(int num) {
 }
 
 void test_gbmv(void) {
-    cblas_sgbmv(CblasRowMajor, CblasNoTrans, 
+    cblas_sgbmv(CblasColMajor, CblasNoTrans, 
             m, n, kl, ku, alpha, mat_A, n, 
             vec_x, incx,
             beta, vec_y, incy);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
 
     parse_args(argc, argv, &n, &print_res);
     snprintf(outfname, sizeof outfname, "%s.out", argv[0]);
-    run_test(10, &prologue, &test_gbmv, &epilogue, &pinfo);
+    run_test(N_TESTS, &prologue, &test_gbmv, &epilogue, &pinfo);
     print_perfinfo("GBMV", n, &pinfo);
 
     return 0;
