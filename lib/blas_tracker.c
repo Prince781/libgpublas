@@ -65,33 +65,41 @@ void blas_tracker_fini(void) {
 }
 
 /* Level 1 */
-DECLARE_CBLAS__COPY(s, float) {
-    typeof(cblas_scopy) *fun;
-
-    print_objtrack_info(x);
-    print_objtrack_info(y);
-
-    if ((fun = get_real_blas_fun(__func__))) {
-        fun(n, x, incx, y, incy);
-    }
+#define COPY_TRACK(prefix, type)                \
+DECLARE_CBLAS__COPY(prefix, type) {             \
+    typeof(cblas_scopy) *fun;                   \
+    print_objtrack_info(x);                     \
+    print_objtrack_info(y);                     \
+    if ((fun = get_real_blas_fun(__func__))) {  \
+        fun(n, x, incx, y, incy);               \
+    }                                           \
 }
+COPY_TRACK(s, float)
+COPY_TRACK(d, double)
+COPY_TRACK(c, float _Complex)
+COPY_TRACK(z, double _Complex)
+
 
 /* Level 2 */
 
 /* Level 3 */
-DECLARE_CBLAS__GEMM(s, float) {
-    typeof(cblas_sgemm) *fun;
-
-    print_objtrack_info(a);
-    print_objtrack_info(b);
-    print_objtrack_info(c);
-
-    if ((fun = get_real_blas_fun(__func__)))
-        fun(Layout, transa, transb,
-                m, n, k,
-                alpha,
-                a, lda,
-                b, ldb,
-                beta,
-                c, ldc);
+#define GEMM_TRACK(prefix, type)                \
+DECLARE_CBLAS__GEMM(prefix, type) {             \
+    typeof(cblas_sgemm) *fun;                   \
+    print_objtrack_info(a);                     \
+    print_objtrack_info(b);                     \
+    print_objtrack_info(c);                     \
+    if ((fun = get_real_blas_fun(__func__)))    \
+        fun(Layout, transa, transb,             \
+                m, n, k,                        \
+                alpha,                          \
+                a, lda,                         \
+                b, ldb,                         \
+                beta,                           \
+                c, ldc);                        \
 }
+
+GEMM_TRACK(s, float)
+GEMM_TRACK(d, double)
+GEMM_TRACK(c, float _Complex)
+GEMM_TRACK(z, double _Complex)

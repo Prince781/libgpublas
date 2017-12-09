@@ -91,5 +91,4 @@ T *transpose(const T *host_a, int size_a, int *rows_a, int *cols_a, int lda, gea
 template <typename T>
 void transpose_in(T *gpu_a, int size_a, int *rows_a, int *cols_a, int lda, geam_t<T> geam);
 
-
 #endif

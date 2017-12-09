@@ -629,6 +629,22 @@ void cblas_##prefix##herk(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__HERK(c, float, float _Complex);
 DECLARE_CBLAS__HERK(z, float, double _Complex);
 
+/* ?symm - matrix-matrix product where one input is symmetric */
+#define DECLARE_CBLAS__SYMM(prefix, T)                  \
+void cblas_##prefix##symm(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_SIDE side,                          \
+        const CBLAS_UPLO uplo,                          \
+        const int m, const int n,                       \
+        const T alpha,                                  \
+        const T *a, const int lda,                      \
+        const T *b, const int ldb,                      \
+        const T beta,                                   \
+        T *c, const int ldc)
+
+DECLARE_CBLAS__SYMM(s, float);
+DECLARE_CBLAS__SYMM(d, double);
+DECLARE_CBLAS__SYMM(c, float _Complex);
+DECLARE_CBLAS__SYMM(z, double _Complex);
 
 #ifdef __cplusplus
 };
