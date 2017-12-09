@@ -29,6 +29,7 @@ struct syminfo {
 
 static struct syminfo symbols[N_ALLOC_SYMS] = {
     symdef(malloc),
+    symdef(calloc),
 };
 
 #define def_tostr_(type,typename,fmt) \
@@ -74,7 +75,13 @@ static ENTRY *insert_retval;
     }
 
 static inline struct syminfo *get_syminfo(enum alloc_sym sym) {
-    return sym == ALLOC_MALLOC ? &symbols[sym] : NULL;
+    switch (sym) {
+        case ALLOC_MALLOC:
+        case ALLOC_CALLOC:
+            return &symbols[sym];
+        default:
+            return NULL;
+    }
 }
 
 static inline struct alloc_callinfo *
@@ -89,6 +96,7 @@ make_callinfo(const struct objmngr *mngr,
         memcpy(&ci->mngr, mngr, sizeof(*mngr));
     else {
         ci->mngr.ctor = real_malloc;
+        ci->mngr.cctor = real_calloc;
         ci->mngr.dtor = real_free;
         ci->mngr.get_size = malloc_usable_size;
     }
@@ -203,8 +211,9 @@ get_callinfo_and(enum alloc_sym sym, long ip, size_t reqsize, void *ptr)
 enum alloc_sym
 get_alloc(const char *symbol)
 {
-    if (strcmp(symbol, symbols[ALLOC_MALLOC].symbol) == 0)
-        return ALLOC_MALLOC;
+    for (int i=0; i<N_ALLOC_SYMS; ++i)
+        if (strcmp(symbol, symbols[i].symbol) == 0)
+            return i;
 
     return ALLOC_UNKNWN;
 }

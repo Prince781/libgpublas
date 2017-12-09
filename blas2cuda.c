@@ -13,6 +13,7 @@ static bool init = false;
 extern "C" {
 #endif
 static void *alloc_managed(size_t request);
+static void *calloc_managed(size_t nmemb, size_t size);
 static void *realloc_managed(void *managed_ptr, size_t request);
 static void free_managed(void *managed_ptr);
 static size_t get_size_managed(void *managed_ptr);
@@ -22,6 +23,7 @@ static size_t get_size_managed(void *managed_ptr);
 
 struct objmngr blas2cuda_manager = {
     .ctor = alloc_managed,
+    .cctor = calloc_managed,
     .realloc = realloc_managed,
     .dtor = free_managed,
     .get_size = get_size_managed
@@ -205,6 +207,12 @@ static void *alloc_managed(size_t request)
 
     *((size_t *)ptr) = request;
     return ptr + sizeof(size_t);
+}
+
+static void *calloc_managed(size_t nmemb, size_t size) {
+    void *ptr = alloc_managed(nmemb * size);
+    memset(ptr, 0, nmemb * size);
+    return ptr;
 }
 
 static void *realloc_managed(void *managed_ptr, size_t request)

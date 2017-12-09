@@ -25,10 +25,27 @@
 #include <pthread.h>        /* for read-write locks */
 #include "callinfo.h"
 #include "obj_tracker.h"
+#if STANDALONE
+#include "blas_tracker.h"
+#endif
 
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT    1
 #endif
+
+#define write_conststr(fd, str) \
+{                                               \
+    int fild = fd;                              \
+    syscall(SYS_write, fild, str, sizeof(str)); \
+}
+
+#define write_str(fd, str)              \
+{                                       \
+    int fild = fd;                      \
+    const char *_str = (str);           \
+    size_t sz = strlen(_str);           \
+    syscall(SYS_write, fild, _str, sz); \
+}
 
 static void *find_objinfo(struct objinfo *o);
 
@@ -110,42 +127,62 @@ static void obj_tracker_get_fptrs(void) {
     if (!success) {
         if (real_malloc == NULL) {
             dlerror();
+            write_str(STDOUT_FILENO, "Reset dlerror\n");
             real_malloc = (void *(*)(size_t)) dlsym(RTLD_NEXT, "malloc");
             if (real_malloc == NULL) {
-                fprintf(stderr, "dlsym: %s\n", dlerror());
+                write_conststr(STDERR_FILENO, "dlsym: ");
+                write_str(STDERR_FILENO, dlerror());
+                write_conststr(STDERR_FILENO, "\n");
                 abort();
-            }
-        }
+            } else
+                write_str(STDOUT_FILENO, "Got malloc\n");
+        } else
+            write_str(STDOUT_FILENO, "malloc already found\n");
 
         if (real_calloc == NULL) {
             dlerror();
+            write_str(STDOUT_FILENO, "Reset dlerror\n");
             real_calloc = (void *(*)(size_t, size_t)) dlsym(RTLD_NEXT, "calloc");
             if (real_calloc == NULL) {
-                fprintf(stderr, "dlsym: %s\n", dlerror());
+                write_conststr(STDERR_FILENO, "dlsym: ");
+                write_str(STDERR_FILENO, dlerror());
+                write_conststr(STDERR_FILENO, "\n");
                 abort();
-            }
+            } else
+                write_str(STDOUT_FILENO, "Got calloc\n");
         }
 
         if (real_realloc == NULL) {
             dlerror();
+            write_str(STDOUT_FILENO, "Reset dlerror\n");
             real_realloc = (void *(*)(void *, size_t)) dlsym(RTLD_NEXT, "realloc");
             if (real_realloc == NULL) {
-                fprintf(stderr, "dlsym: %s\n", dlerror());
+                write_conststr(STDERR_FILENO, "dlsym: ");
+                write_str(STDERR_FILENO, dlerror());
+                write_conststr(STDERR_FILENO, "\n");
                 abort();
-            }
+            } else
+                write_str(STDOUT_FILENO, "Got realloc\n");
         }
 
         if (real_free == NULL) {
             dlerror();
+            write_str(STDOUT_FILENO, "Reset dlerror\n");
             real_free = (void (*)(void *)) dlsym(RTLD_NEXT, "free");
             if (real_free == NULL) {
-                fprintf(stderr, "dlsym: %s\n", dlerror());
+                write_conststr(STDERR_FILENO, "dlsym: ");
+                write_str(STDERR_FILENO, dlerror());
+                write_conststr(STDERR_FILENO, "\n");
                 abort();
-            }
+            } else
+                write_str(STDOUT_FILENO, "Got free\n");
         }
 
-        printf("real_malloc = %p, fake malloc() = %p\n", real_malloc, &malloc);
-        printf("real_free = %p, fake free() = %p\n", real_free, &free);
+        /*
+        printf("real malloc = %p, fake malloc() = %p\n", real_malloc, &malloc);
+        printf("real calloc = %p, fake calloc() = %p\n", real_calloc, &calloc);
+        printf("real free = %p, fake free() = %p\n", real_free, &free);
+        */
 
         success = true;
     }
@@ -153,7 +190,7 @@ static void obj_tracker_get_fptrs(void) {
 
 void obj_tracker_init(bool tracking_enabled)
 {
-    extern char etext, edata, end;
+/*    extern char etext, edata, end; */
 #if STANDALONE
     char *opt;
     char *option, *saveptr;
@@ -161,23 +198,30 @@ void obj_tracker_init(bool tracking_enabled)
 
     if (!initialized) {
         tracking = false;
-        initialized = true;
 
         creation_thread = syscall(SYS_gettid);
 
+        write_str(STDOUT_FILENO, "Initializing object tracker...\n");
+        write_str(STDOUT_FILENO, "Acquiring lock...\n");
         if (pthread_rwlock_init(&rwlock, NULL) < 0) {
-            perror("Failed to initialize rwlock");
+            write_str(STDERR_FILENO, "Failed to initialize rwlock");
             exit(1);
         }
+        write_str(STDOUT_FILENO, "Lock acquired...\n");
 
+        write_str(STDOUT_FILENO, "Getting function pointers...\n");
         obj_tracker_get_fptrs();
+        write_str(STDOUT_FILENO, "Got function pointers...\n");
+        initialized = true;
 
 #if STANDALONE
 
         if ((opt = getenv("OBJTRACKER_HELP"))) {
-            printf("Object Tracker Options\n"
+            write_conststr(STDOUT_FILENO, 
+                   "Object Tracker Options\n"
                    "HELP                ->  shows this message\n"
-                   "WATCHPOINTS         ->  a comma-separated list of files\n");
+                   "WATCHPOINTS         ->  a comma-separated list of files\n"
+                   "BLASLIB             ->  the BLAS library to load from\n");
         }
 
         if ((opt = getenv("OBJTRACKER_WATCHPOINTS"))) {
@@ -187,8 +231,15 @@ void obj_tracker_init(bool tracking_enabled)
                 option = strtok_r(NULL, ",", &saveptr);
             }
         }
+
+        if ((opt = getenv("OBJTRACKER_BLASLIB"))) {
+            blas_tracker_libname = opt; 
+        }
+
+        blas_tracker_init();
 #endif
 
+        /*
         printf("initialized object tracker on thread %d\n", creation_thread);
         printf("segments: {\n"
                "    .text = %10p\n"
@@ -196,6 +247,7 @@ void obj_tracker_init(bool tracking_enabled)
                "    .bss  = %10p\n"
                "    .heap = %10p\n"
                "}\n", &etext, &edata, &end, sbrk(0));
+               */
         tracking = tracking_enabled;
     }
 }
@@ -223,6 +275,9 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
         abort();
     }
 
+    for (int i=0; i<N_ALLOC_SYMS; ++i)
+        init_callinfo(i);
+
     do {
         if ((res = getline(&buf, &bufsize, fp)) != EOF) {
             if ((nl = strchr(buf, '\n')))
@@ -230,7 +285,6 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
             if ((sym = get_alloc(buf)) == ALLOC_UNKNWN)
                 fprintf(stderr, "%s: unsupported symbol '%s'\n", __func__, buf);
             else {
-                init_callinfo(sym);
                 while ((res = fscanf(fp, /*"ptr=[%p] */"reqsize=[%zu] ip=[0x%lx]\n", /*&ptr,*/ &reqsize, &ip)) == 2) {
                     if ((ci_res = add_callinfo(sym, mngr, ip, reqsize, NULL)) == 0) {
                         watchpoints = true;
@@ -284,6 +338,10 @@ void __attribute__((destructor)) obj_tracker_fini(void) {
         tdestroy(objects, real_free);
 #endif
         objects = NULL;
+
+#if STANDALONE
+        blas_tracker_fini();
+#endif
         tid = syscall(SYS_gettid);
         printf("decommissioned object tracker on thread %d\n", tid);
         initialized = false;
@@ -542,8 +600,11 @@ void *malloc(size_t request) {
     struct objmngr mngr;
     struct alloc_callinfo *ci;
 
-    if (inside || destroying)
+    if (inside || destroying) {
+        if (inside && !real_malloc)
+            return NULL;
         return real_malloc(request);
+    }
 
     if (!request)
         return NULL;
@@ -566,6 +627,7 @@ void *malloc(size_t request) {
                         NULL /* TODO: see callinfo.c */)))) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
+            mngr.cctor = real_calloc;
             mngr.realloc = real_realloc;
             mngr.dtor = real_free;
             mngr.get_size = malloc_usable_size;
@@ -597,6 +659,80 @@ void *malloc(size_t request) {
     return ptr;
 }
 
+void *calloc(size_t nmemb, size_t size) {
+    static bool inside = false;
+    size_t request;
+    void *ptr;
+    size_t actual_size;
+    long ip;
+    struct objmngr mngr;
+    struct alloc_callinfo *ci;
+
+    request = nmemb * size;
+    if (request / nmemb != size) {
+        errno = ERANGE;
+        return NULL;
+    }
+
+    if (inside || destroying) {
+        if (inside && !real_calloc)
+            return NULL;
+        return real_calloc(nmemb, size);
+    }
+
+    if (!nmemb || !size)
+        return real_calloc(nmemb, size);
+
+    inside = true;
+    if (!initialized) {
+        obj_tracker_init(tracking);
+    }
+
+    if (real_calloc == NULL) {
+        fprintf(stderr, "error: real_calloc is NULL! Was constructor called?\n");
+        abort();
+    }
+
+    /* Only track the object if we are supposed
+     * to be tracking it.
+     */
+    ip = get_ip(2);
+    if (tracking && (!watchpoints || (ci = get_callinfo_and(ALLOC_CALLOC, ip, request, 
+                        NULL /* TODO: see callinfo.c */)))) {
+        if (!watchpoints) {
+            mngr.ctor = real_malloc;
+            mngr.cctor = real_calloc;
+            mngr.realloc = real_realloc;
+            mngr.dtor = real_free;
+            mngr.get_size = malloc_usable_size;
+        } else /* ci is non-NULL */ {
+            memcpy(&mngr, &ci->mngr, sizeof(mngr));
+        }
+
+        /*
+         * If our memory manager constructor is
+         * not libc's calloc(), then we free this
+         * memory and use the manager's constructor.
+         */
+        if (mngr.cctor != real_calloc) {
+            ptr = mngr.cctor(nmemb, size);
+        } else
+            ptr = real_calloc(nmemb, size);
+        actual_size = mngr.get_size(ptr);
+        track_object(ptr, &mngr, request, actual_size, ip);
+    } else
+        ptr = real_calloc(nmemb, size);
+
+    if (ptr && !memcheck(ptr)) {
+        fprintf(stderr, "invalid pointer %p\n", ptr);
+        abort();
+    }
+
+
+    inside = false;
+    return ptr;
+}
+
 void *realloc(void *ptr, size_t size) {
     static bool inside = false;
     void *new_ptr;
@@ -604,8 +740,11 @@ void *realloc(void *ptr, size_t size) {
     if (!size)
         return NULL;
 
-    if (inside || destroying)
+    if (inside || destroying) {
+        if (inside && !real_realloc)
+            return NULL;
         return real_realloc(ptr, size);
+    }
 
     if ((ptr_info = obj_tracker_objinfo(ptr))) {
         new_ptr = ptr_info->ci.mngr.realloc(ptr, size);
@@ -648,6 +787,7 @@ void free(void *ptr) {
          * fail to set mngr.
          */
         mngr.ctor = real_malloc;
+        mngr.cctor = real_calloc;
         mngr.realloc = real_realloc;
         mngr.dtor = real_free;
         untrack_object(ptr, &mngr);
