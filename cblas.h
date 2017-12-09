@@ -694,7 +694,22 @@ DECLARE_CBLAS__SYR2K(d, double);
 DECLARE_CBLAS__SYR2K(c, float _Complex);
 DECLARE_CBLAS__SYR2K(z, double _Complex);
 
-/* ?trmm */
+/* ?trmm - matrix-matrix product where one input matrix is triangular */
+#define DECLARE_CBLAS__TRMM(prefix, T)                  \
+void cblas_##prefix##trmm(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_SIDE side,                          \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE transa,                   \
+        const CBLAS_DIAG diag,                          \
+        const int m, const int n,                       \
+        const T alpha,                                  \
+        const T *a, const int lda,                      \
+        T *b, const int ldb)
+
+DECLARE_CBLAS__TRMM(s, float);
+DECLARE_CBLAS__TRMM(d, double);
+DECLARE_CBLAS__TRMM(c, float _Complex);
+DECLARE_CBLAS__TRMM(z, double _Complex);
 
 /* ?trsm - solves a triangular matrix equation */
 #define DECLARE_CBLAS__TRSM(prefix, T)                  \
