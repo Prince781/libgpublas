@@ -10,7 +10,7 @@ CXXSOURCES=$(wildcard *.cc) $(wildcard blas_level1/*.cc) $(wildcard blas_level2/
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 LIBDIR=lib
-COMPFLAGS = -Wall -Werror -fPIC -ggdb3 -I$(CUDA)/include
+COMPFLAGS = -Wall -Werror -fPIC -fdiagnostics-color -ggdb3 -I$(CUDA)/include
 CFLAGS += $(COMPFLAGS) -std=gnu11
 CXXFLAGS += $(COMPFLAGS) -std=gnu++11
 NVCFLAGS=$(subst $(space),$(comma),$(CFLAGS))
@@ -24,13 +24,13 @@ $(OBJDIR)/%.o: %.c
 	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
 	$(CC) $(CFLAGS) -shared $(LDFLAGS) -c $^ -o $@
 
-$(OBJDIR)/%.o: %.cu
+$(OBJDIR)/%.o: %.cu cblas.h
 	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
-	$(NVCC) -Xcompiler $(NVCFLAGS) -shared -c $^ -o $@
+	$(NVCC) -Xcompiler $(NVCFLAGS) -shared -c $< -o $@
 
-$(OBJDIR)/%.o: %.cc
+$(OBJDIR)/%.o: %.cc cblas.h
 	@if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
-	$(CXX) $(CXXFLAGS) -shared $(LDFLAGS) -c $^ -o $@
+	$(CXX) $(CXXFLAGS) -shared $(LDFLAGS) -c $< -o $@
 
 #$(LIBDIR)/libobjtracker.so:
 #	$(MAKE) -C $(LIBDIR) libobjtracker.so
