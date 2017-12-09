@@ -630,6 +630,19 @@ DECLARE_CBLAS__HERK(c, float, float _Complex);
 DECLARE_CBLAS__HERK(z, float, double _Complex);
 
 /* ?her2k */
+#define DECLARE_CBLAS__HER2K(prefix, S, T)              \
+void cblas_##prefix##her2k(const CBLAS_LAYOUT Layout,   \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE trans,                    \
+        const int n, const int k,                       \
+        const T *alpha,                                 \
+        const T *a, const int lda,                      \
+        const T *b, const int ldb,                      \
+        const S beta,                                   \
+        T *c, const int ldc)
+
+DECLARE_CBLAS__HER2K(c, float, float _Complex);
+DECLARE_CBLAS__HER2K(z, double, double _Complex);
 
 /* ?symm - matrix-matrix product where one input is symmetric */
 #define DECLARE_CBLAS__SYMM(prefix, T)                  \
@@ -670,6 +683,7 @@ DECLARE_CBLAS__TRSM(s, float);
 DECLARE_CBLAS__TRSM(d, double);
 DECLARE_CBLAS__TRSM(c, float _Complex);
 DECLARE_CBLAS__TRSM(z, double _Complex);
+
 
 #ifdef __cplusplus
 };
