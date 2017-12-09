@@ -629,6 +629,8 @@ void cblas_##prefix##herk(const CBLAS_LAYOUT Layout,    \
 DECLARE_CBLAS__HERK(c, float, float _Complex);
 DECLARE_CBLAS__HERK(z, float, double _Complex);
 
+/* ?her2k */
+
 /* ?symm - matrix-matrix product where one input is symmetric */
 #define DECLARE_CBLAS__SYMM(prefix, T)                  \
 void cblas_##prefix##symm(const CBLAS_LAYOUT Layout,    \
@@ -645,6 +647,29 @@ DECLARE_CBLAS__SYMM(s, float);
 DECLARE_CBLAS__SYMM(d, double);
 DECLARE_CBLAS__SYMM(c, float _Complex);
 DECLARE_CBLAS__SYMM(z, double _Complex);
+
+/* ?syrk */
+
+/* ?syr2k */
+
+/* ?trmm */
+
+/* ?trsm - solves a triangular matrix equation */
+#define DECLARE_CBLAS__TRSM(prefix, T)                  \
+void cblas_##prefix##trsm(const CBLAS_LAYOUT Layout,    \
+        const CBLAS_SIDE side,                          \
+        const CBLAS_UPLO uplo,                          \
+        const CBLAS_TRANSPOSE transa,                   \
+        const CBLAS_DIAG diag,                          \
+        const int m, const int n,                       \
+        const T alpha,                                  \
+        const T *a, const int lda,                      \
+        T *b, const int ldb)
+
+DECLARE_CBLAS__TRSM(s, float);
+DECLARE_CBLAS__TRSM(d, double);
+DECLARE_CBLAS__TRSM(c, float _Complex);
+DECLARE_CBLAS__TRSM(z, double _Complex);
 
 #ifdef __cplusplus
 };
