@@ -115,8 +115,8 @@ T *transpose(const T *host_a, int size_a, int *rows_a, int *cols_a, int lda, gea
             *rows_a, *cols_a,
             &alpha,
             gpu_a_trans, lda,
-            0,
-            &beta, 0,
+            &beta,
+            gpu_a_trans, lda,
             gpu_a_trans, lda);
     
     if (cudaPeekAtLastError() != cudaSuccess)
