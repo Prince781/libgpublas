@@ -59,4 +59,3 @@ TODO: expand this section
 - Currently only works with ASLR disabled, since it relies on IP, SP, etc not
   being randomized.
 - Needs more testing.
-- Needs implementation of all BLAS kernels.
