@@ -627,7 +627,7 @@ void cblas_##prefix##herk(const CBLAS_LAYOUT Layout,    \
         T *c, const int ldc)
 
 DECLARE_CBLAS__HERK(c, float, float _Complex);
-DECLARE_CBLAS__HERK(z, float, double _Complex);
+DECLARE_CBLAS__HERK(z, double, double _Complex);
 
 /* ?her2k */
 #define DECLARE_CBLAS__HER2K(prefix, S, T)              \
