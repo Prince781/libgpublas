@@ -96,6 +96,7 @@ static inline void untrack(void *ptr) { }
 #endif
 
 static bool initialized = false;
+static bool initializing = false;
 static bool destroying = false;
 static pid_t creation_thread = 0;
 #if RBTREE
@@ -116,10 +117,15 @@ static bool tracking = false;
 /* whether the user has specified any watchpoints */
 static bool watchpoints = false;
 
-void *(*real_malloc)(size_t);
-void *(*real_calloc)(size_t, size_t);
-void *(*real_realloc)(void *, size_t);
-void (*real_free)(void *);
+void *__libc_malloc(size_t);
+void *__libc_calloc(size_t, size_t);
+void *__libc_realloc(void *, size_t);
+void __libc_free(void *);
+
+void *(*real_malloc)(size_t) = &__libc_malloc;
+void *(*real_calloc)(size_t, size_t) = &__libc_calloc;
+void *(*real_realloc)(void *, size_t) = &__libc_realloc;
+void (*real_free)(void *) = &__libc_free;
 
 static void obj_tracker_get_fptrs(void) {
     static bool success = false;
@@ -233,6 +239,9 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
             c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid);
 }
 
+#if STANDALONE
+__attribute__((constructor))
+#endif
 void obj_tracker_init(bool tracking_enabled)
 {
 /*    extern char etext, edata, end; */
@@ -243,6 +252,7 @@ void obj_tracker_init(bool tracking_enabled)
 
     if (!initialized) {
         tracking = false;
+        initializing = true;
 
         creation_thread = syscall(SYS_gettid);
 
@@ -298,6 +308,7 @@ void obj_tracker_init(bool tracking_enabled)
                "}\n", &etext, &edata, &end, sbrk(0));
                */
         tracking = tracking_enabled;
+        initializing = false;
     }
 }
 
@@ -367,10 +378,12 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
         free(off_str);
         off_str = NULL;
         */
-        free(line);
-        line = NULL;
-        line_len = 0;
     }
+
+    free(line);
+    line = NULL;
+    line_len = 0;
+
 
     return fclose(fp);
 }
@@ -397,7 +410,10 @@ static void object_destroy(void *o, void *udata) {
 }
 #endif
 
-void __attribute__((destructor)) obj_tracker_fini(void) {
+#if STANDALONE
+__attribute__((destructor))
+#endif
+void obj_tracker_fini(void) {
     pid_t tid;
     if (initialized && !destroying) {
         destroying = true;
@@ -679,8 +695,8 @@ void *malloc(size_t request) {
     struct objmngr mngr;
     struct alloc_callinfo *ci;
 
-    if (inside || destroying) {
-        if (inside && !real_malloc)
+    if (inside || destroying || initializing) {
+        if (!real_malloc)
             return NULL;
         return real_malloc(request);
     }
@@ -690,9 +706,6 @@ void *malloc(size_t request) {
 
     inside = true;
 
-    if (!initialized)
-        obj_tracker_init(tracking);
-    
     if (real_malloc == NULL) {
         fprintf(stderr, "error: real_malloc is NULL! Was constructor called?\n");
         abort();
@@ -754,8 +767,8 @@ void *calloc(size_t nmemb, size_t size) {
         return NULL;
     }
 
-    if (inside || destroying) {
-        if (inside && !real_calloc)
+    if (inside || destroying || initializing) {
+        if (!real_calloc)
             return NULL;
         return real_calloc(nmemb, size);
     }
@@ -764,9 +777,6 @@ void *calloc(size_t nmemb, size_t size) {
         return real_calloc(nmemb, size);
 
     inside = true;
-    if (!initialized) {
-        obj_tracker_init(tracking);
-    }
 
     if (real_calloc == NULL) {
         fprintf(stderr, "error: real_calloc is NULL! Was constructor called?\n");
@@ -847,15 +857,14 @@ void free(void *ptr) {
         abort();
     }
 
-    if (inside || destroying) {
-        real_free(ptr);
+    if (inside || destroying || initializing) {
+        if (real_free)
+            real_free(ptr);
         return;
     }
 
     inside = true;
 
-    if (!initialized)
-        obj_tracker_init(tracking);
     if (real_free == NULL) {
         fprintf(stderr, "error: real_free is NULL! Was constructor called?\n");
         abort();
