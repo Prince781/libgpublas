@@ -114,7 +114,6 @@ void *b2c_copy_to_gpu(const void *devbuf, size_t size)
 {
     void *gpubuf = NULL;
 
-    init_cublas();
 
     cudaMalloc(&gpubuf, size);
 
@@ -132,8 +131,6 @@ void *b2c_copy_to_gpu(const void *devbuf, size_t size)
 void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
 {
     void *devbuf = NULL;
-
-    init_cublas();
 
     devbuf = malloc(size);
 
@@ -261,6 +258,9 @@ void blas2cuda_init(void)
         tid = syscall(SYS_gettid);
         printf("initialized blas2cuda on thread %d\n", tid);
         obj_tracker_set_tracking(blas2cuda_tracking);
+        printf("initializing cuBLAS...\n");
+        init_cublas();
+        printf("initialized cuBLAS\n");
         b2c_initialized = true;
         inside = false;
     }
