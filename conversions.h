@@ -144,8 +144,8 @@ void transpose_in(T *gpu_a, int size_a, int *rows_a, int *cols_a, int lda, geam_
             *rows_a, *cols_a,
             &alpha,
             gpu_a, lda,
-            0,
-            &beta, 0,
+            &beta,
+            gpu_a, lda,
             gpu_a, lda);
     
     if (cudaPeekAtLastError() != cudaSuccess)
