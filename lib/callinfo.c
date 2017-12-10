@@ -18,7 +18,7 @@ struct syminfo {
     /* symbol of the allocator */
     const char *symbol;
     /* instruction pointers */
-    struct hsearch_data *ip;
+    struct hsearch_data *offs_str;
     /* requested size */
     struct hsearch_data *reqsize;
     /* memory locations */
@@ -44,11 +44,14 @@ static char *tostr_##typename(type a) {\
 def_tostr(long, "%lx")
 def_tostr(size_t, "%zu")
 def_tostr_(void *, ptr, "%p")
+def_tostr_(const char *, str, "%s")
 
 #define tostr(val) _Generic((val), \
                     long:   tostr_long,\
                     size_t: tostr_size_t, \
-                    void *: tostr_ptr \
+                    void *: tostr_ptr, \
+                    const char *: tostr_str, \
+                    char *: tostr_str \
 )(val)
 
 static ENTRY *insert_retval;
@@ -86,7 +89,8 @@ static inline struct syminfo *get_syminfo(enum alloc_sym sym) {
 
 static inline struct alloc_callinfo *
 make_callinfo(const struct objmngr *mngr, 
-              long ip, 
+              enum alloc_sym sym,
+              const struct ip_offs *offs, 
               size_t reqsize,
               void *ptr)
 {
@@ -100,19 +104,58 @@ make_callinfo(const struct objmngr *mngr,
         ci->mngr.dtor = real_free;
         ci->mngr.get_size = malloc_usable_size;
     }
-    ci->ip = ip;
+    ci->alloc = sym;
+    ci->offs = *offs;
     ci->reqsize = reqsize;
     ci->ptr = ptr;
     return ci;
 }
 
-void
-init_callinfo(enum alloc_sym sym)
+char *
+ip_offs_tostr(const struct ip_offs *offs, char buf[1 + N_IP_OFFS * 8])
 {
-    struct syminfo *si = get_syminfo(sym);
+    char tmpbuf[8];
 
+    buf[0] = '\0';
+    for (int i=0; i<N_IP_OFFS; ++i) {
+        snprintf(tmpbuf, sizeof(tmpbuf), "%hx", offs->off[i]);
+        if (i > 0)
+            strcat(buf, ".");
+        strcat(buf, tmpbuf);
+    }
+
+    return buf;
+}
+
+int
+ip_offs_parse(const char *str, struct ip_offs *offs)
+{
+    int n;
+    short o;
+    char *dupstr = strdup(str);
+    char *saveptr;
+    char *off_s;
+
+    off_s = strtok_r(dupstr, ".", &saveptr);
+    for (n = 0; n < N_IP_OFFS; ++n) {
+        if (!off_s || sscanf(off_s, "%hx", &o) != 1)
+            break;
+        else {
+            offs->off[n] = o;
+            off_s = strtok_r(NULL, ".", &saveptr);
+        }
+    }
+
+    free(dupstr);
+    return n;
+}
+
+void
+init_callinfo(void)
+{
     for (int i=0; i<N_ALLOC_SYMS; ++i) {
-        mktabl(si, ip, CAPACITY);
+        struct syminfo *si = get_syminfo(i);
+        mktabl(si, offs_str, CAPACITY);
         mktabl(si, reqsize, CAPACITY);
         /* mktabl(si, ptr, CAPACITY); */
     }
@@ -121,7 +164,7 @@ init_callinfo(enum alloc_sym sym)
 int
 add_callinfo(enum alloc_sym sym, 
              const struct objmngr *mngr,
-             long ip,
+             const struct ip_offs *offs,
              size_t reqsize,
              void *ptr)
 {
@@ -130,12 +173,14 @@ add_callinfo(enum alloc_sym sym,
     ENTRY *entp;
     char *valstr = NULL;
     int retval = -1;
+    char offs_str[1 + N_IP_OFFS * 8];
 
+    ip_offs_tostr(offs, offs_str);
     if ((info = get_syminfo(sym))) {
-        ci = make_callinfo(mngr, ip, reqsize, ptr);
+        ci = make_callinfo(mngr, sym, offs, reqsize, ptr);
         retval = 1;
-        if (!lookup(info, ip, entp)) {
-            if (!insert(info, ip, ci, valstr)) {
+        if (!lookup(info, offs_str, entp)) {
+            if (!insert(info, offs_str, ci, valstr)) {
                 real_free(valstr);
                 return -1;
             } else
@@ -163,15 +208,20 @@ add_callinfo(enum alloc_sym sym,
 }
 
 struct alloc_callinfo *
-get_callinfo_or(enum alloc_sym sym, long ip, size_t reqsize, void *ptr)
+get_callinfo_or(enum alloc_sym sym, 
+        const struct ip_offs *offs, 
+        size_t reqsize, 
+        void *ptr)
 {
     struct syminfo *info;
     ENTRY *entp;
+    char offs_str[1 + N_IP_OFFS * 8];
 
     if (!(info = get_syminfo(sym)))
         return NULL;
 
-    if (lookup(info, ip, entp))
+    ip_offs_tostr(offs, offs_str);
+    if (lookup(info, offs_str, entp))
         return entp->data;
     if (lookup(info, reqsize, entp))
         return entp->data;
@@ -184,15 +234,20 @@ get_callinfo_or(enum alloc_sym sym, long ip, size_t reqsize, void *ptr)
 }
 
 struct alloc_callinfo *
-get_callinfo_and(enum alloc_sym sym, long ip, size_t reqsize, void *ptr)
+get_callinfo_and(enum alloc_sym sym,
+        const struct ip_offs *offs,
+        size_t reqsize, 
+        void *ptr)
 {
     struct syminfo *info;
     ENTRY *entp = NULL;
+    char offs_str[1 + N_IP_OFFS * 8];
 
     if (!(info = get_syminfo(sym)))
         return NULL;
 
-    if (!lookup(info, ip, entp))
+    ip_offs_tostr(offs, offs_str);
+    if (!lookup(info, offs_str, entp))
         return NULL;
 
     if (!lookup(info, reqsize, entp))

@@ -71,7 +71,9 @@ static void set_options(void) {
             char *fname = strchr(option, '=');
             if (fname) {
                 fname++;
+                printf("loading %s\n", fname);
                 obj_tracker_load(fname, &blas2cuda_manager);
+                printf("loaded %s\n", fname);
                 blas2cuda_tracking = true;
             } else
                 fprintf(stderr, "blas2cuda: you must provide a filename. Set BLAS2CUDA_OPTIONS=help.\n");
@@ -241,7 +243,9 @@ void blas2cuda_init(void)
 {
     pid_t tid;
     obj_tracker_init(false);
+    printf("getting options...\n");
     set_options();
+    printf("got options\n");
     tid = syscall(SYS_gettid);
     printf("initialized blas2cuda on thread %d\n", tid);
     obj_tracker_set_tracking(blas2cuda_tracking);

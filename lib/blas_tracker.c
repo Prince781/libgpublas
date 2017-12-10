@@ -13,7 +13,6 @@ void *blas_lib_handle;
 
 static void print_objtrack_info(const void *ptr) {
     const struct objinfo *info;
-    pid_t tid;
 
     if (!blas_tracker_libname) {
         fprintf(stderr, "OBJTRACKER_BLASLIB is undefined. See OBJTRACKER_HELP\n");
@@ -21,11 +20,8 @@ static void print_objtrack_info(const void *ptr) {
         fprintf(stderr, "library handle is NULL.\n");
     }
 
-    tid = syscall(SYS_gettid);
-
     if ((info = obj_tracker_objinfo((void *) ptr))) {
-        printf("C [%p] reqsize=[%zu] ip=[0x%lx] tid=[%d]\n",
-                info->ptr, info->ci.reqsize, info->ci.ip, tid);
+        obj_tracker_print_info(OBJPRINT_CALL, info);
     } else
         fprintf(stderr, "no objinfo for %p\n", ptr);
 }

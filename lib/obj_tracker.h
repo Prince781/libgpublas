@@ -27,6 +27,15 @@ struct objinfo {
     void *ptr;          /* location of object */
 };
 
+enum objprint_type {
+    OBJPRINT_TRACK,
+    OBJPRINT_TRACK_FAIL,
+    OBJPRINT_UNTRACK,
+    OBJPRINT_CALL
+};
+
+void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info);
+
 
 /* Initialize the object tracker. */
 void obj_tracker_init(bool tracking_enabled);
@@ -38,15 +47,7 @@ struct objmngr;
 
 /**
  * Loads a definition from a file.
- * The file format must be of the following:
- * <name of function 1>
- * reqsize=[%zu] ip=[0x%lx] } N_1 instances of these
- * <name of function 2>
- * reqsize=[%zu] ip=[0x%lx] } N_2 instances of these
- * ...
- * <name of function m>
- * reqsize=[%zu] ip=[0x%lx] } N_m instances of these
- * ...
+ * See obj_tracker_print_obj() for file format.
  * @return 0 on success, < 0 on failure
  */
 int obj_tracker_load(const char *filename, struct objmngr *mngr);

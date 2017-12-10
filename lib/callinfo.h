@@ -14,6 +14,23 @@ enum alloc_sym {
     ALLOC_UNKNWN
 };
 
+static inline const char *alloc_sym_tostr(enum alloc_sym sym) {
+    switch (sym) {
+        case ALLOC_MALLOC:
+            return "malloc";
+        case ALLOC_CALLOC:
+            return "calloc";
+        default:
+            return "??";
+    }
+}
+
+#define N_IP_OFFS   4
+
+struct ip_offs {
+    short off[N_IP_OFFS];
+};
+
 struct objmngr {
     void *(*ctor)(size_t);
     void *(*cctor)(size_t, size_t);
@@ -24,13 +41,23 @@ struct objmngr {
 
 struct alloc_callinfo {
     struct objmngr mngr;
-    long ip;
+    enum alloc_sym alloc;
+    struct ip_offs offs;
     size_t reqsize;
     void *ptr;
 };
 
+char *
+ip_offs_tostr(const struct ip_offs *offs, char buf[1 + N_IP_OFFS * 8]);
+
+/**
+ * Returns number of offsets parsed.
+ */
+int
+ip_offs_parse(const char *str, struct ip_offs *offs);
+
 void
-init_callinfo(enum alloc_sym sym);
+init_callinfo(void);
 
 /**
  * Adds a new description for a call.
@@ -38,7 +65,8 @@ init_callinfo(enum alloc_sym sym);
  * {mngr}       - The manager to use for objects allocated
  *                at this call. If NULL, glibc's malloc()
  *                and free() will be used.
- * {ip}         - Instruction pointer at time of call.
+ * {offs}       - An array of offsets of each function within
+ *                its parent in the call chain.
  * {reqsize}    - Requested size.
  * {ptr}        - Location of the memory.
  * Returns: negative on error, 0 on success, and positive if 
@@ -47,7 +75,7 @@ init_callinfo(enum alloc_sym sym);
 int
 add_callinfo(enum alloc_sym sym, 
              const struct objmngr *mngr,
-             long ip, 
+             const struct ip_offs *offs,
              size_t reqsize,
              void *ptr);
 
@@ -57,7 +85,7 @@ add_callinfo(enum alloc_sym sym,
  */
 struct alloc_callinfo *
 get_callinfo_or(enum alloc_sym sym, 
-                long ip, 
+                const struct ip_offs *offs,
                 size_t reqsize,
                 void *ptr);
 
@@ -67,7 +95,7 @@ get_callinfo_or(enum alloc_sym sym,
  */
 struct alloc_callinfo *
 get_callinfo_and(enum alloc_sym sym, 
-                 long ip,
+                 const struct ip_offs *offs,
                  size_t reqsize,
                  void *ptr);
 

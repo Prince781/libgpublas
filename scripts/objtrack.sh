@@ -1,4 +1,5 @@
 #!/bin/bash
+# :vim tw=0
 # objtrack.sh
 # Track invocations of a program and produce a format
 # readable by the object tracker
@@ -21,6 +22,6 @@ if [ ! -e $LIBOBJTRACKER ]; then
 fi
 
 echo "running: env OBJTRACKER_BLASLIB=$1 LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
-echo "malloc" | cat - <(env OBJTRACKER_BLASLIB=$1 LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} | awk '/C \[0x[0-9a-f]+\].*reqsize=\[[0-9a-f]+\]/{print $3,$4}' | sort -u) | tee $fname
+cat < <(env OBJTRACKER_BLASLIB=$1 LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} | awk '/C \[0x[0-9a-f]+\].*fun=\[\w+\] reqsize=\[[0-9a-f]+\] ip_offs=\[[0-9a-f\.]+\]/{print $3,$4,$5}' | sort -u) | tee $fname
 
 printf "Saved to $fname\n"
