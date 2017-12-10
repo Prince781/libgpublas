@@ -122,15 +122,18 @@ void *__libc_calloc(size_t, size_t);
 void *__libc_realloc(void *, size_t);
 void __libc_free(void *);
 
-void *(*real_malloc)(size_t) = &__libc_malloc;
-void *(*real_calloc)(size_t, size_t) = &__libc_calloc;
-void *(*real_realloc)(void *, size_t) = &__libc_realloc;
-void (*real_free)(void *) = &__libc_free;
+void *(*real_malloc)(size_t);
+void *(*real_calloc)(size_t, size_t);
+void *(*real_realloc)(void *, size_t);
+void (*real_free)(void *);
 
-static void obj_tracker_get_fptrs(void) {
-    static bool success = false;
+static void get_real_free(void);
 
-    if (!success) {
+static void get_real_malloc(void) {
+    static bool inside = false;
+
+    if (!inside) {
+        inside = true;
         if (real_malloc == NULL) {
             dlerror();
             write_str(STDOUT_FILENO, "Reset dlerror\n");
@@ -144,7 +147,16 @@ static void obj_tracker_get_fptrs(void) {
                 write_str(STDOUT_FILENO, "Got malloc\n");
         } else
             write_str(STDOUT_FILENO, "malloc already found\n");
+        get_real_free();
+        inside = false;
+    }
+}
 
+static void get_real_calloc(void) {
+    static bool inside = false;
+
+    if (!inside) {
+        inside = true;
         if (real_calloc == NULL) {
             dlerror();
             write_str(STDOUT_FILENO, "Reset dlerror\n");
@@ -158,7 +170,16 @@ static void obj_tracker_get_fptrs(void) {
                 write_str(STDOUT_FILENO, "Got calloc\n");
         } else
             write_str(STDOUT_FILENO, "calloc already found\n");
+        get_real_free();
+        inside = false;
+    }
+}
 
+static void get_real_realloc(void) {
+    static bool inside = false;
+    
+    if (!inside) {
+        inside = true;
         if (real_realloc == NULL) {
             dlerror();
             write_str(STDOUT_FILENO, "Reset dlerror\n");
@@ -172,7 +193,16 @@ static void obj_tracker_get_fptrs(void) {
                 write_str(STDOUT_FILENO, "Got realloc\n");
         } else
             write_str(STDOUT_FILENO, "realloc already found\n");
+        get_real_free();
+        inside = false;
+    }
+}
 
+static void get_real_free(void) {
+    static bool inside = false;
+
+    if (!inside) {
+        inside = true;
         if (real_free == NULL) {
             dlerror();
             write_str(STDOUT_FILENO, "Reset dlerror\n");
@@ -186,13 +216,18 @@ static void obj_tracker_get_fptrs(void) {
                 write_str(STDOUT_FILENO, "Got free\n");
         } else
             write_str(STDOUT_FILENO, "free already found\n");
+        inside = false;
+    }
+}
 
-        /*
-        printf("real malloc = %p, fake malloc() = %p\n", real_malloc, &malloc);
-        printf("real calloc = %p, fake calloc() = %p\n", real_calloc, &calloc);
-        printf("real free = %p, fake free() = %p\n", real_free, &free);
-        */
+static void obj_tracker_get_fptrs(void) {
+    static bool success = false;
 
+    if (!success) {
+        get_real_malloc();
+        get_real_calloc();
+        get_real_realloc();
+        get_real_free();
         success = true;
     }
 }
@@ -698,9 +733,13 @@ void *malloc(size_t request) {
     struct objmngr mngr;
     struct alloc_callinfo *ci;
 
-    if (inside || destroying || initializing) {
+    if (inside || destroying || initializing || !tracking) {
         if (!real_malloc)
+            get_real_malloc();
+        if (!real_malloc) {
+            write_str(STDOUT_FILENO, "malloc: returning NULL because real_malloc is undefined\n");
             return NULL;
+        }
         return real_malloc(request);
     }
 
@@ -770,9 +809,13 @@ void *calloc(size_t nmemb, size_t size) {
         return NULL;
     }
 
-    if (inside || destroying || initializing) {
+    if (inside || destroying || initializing || !tracking) {
         if (!real_calloc)
+            get_real_calloc();
+        if (!real_calloc) {
+            write_str(STDOUT_FILENO, "calloc: returning NULL because real_calloc is undefined\n");
             return NULL;
+        }
         return real_calloc(nmemb, size);
     }
 
@@ -834,9 +877,14 @@ void *realloc(void *ptr, size_t size) {
     if (!size)
         return NULL;
 
-    if (inside || destroying) {
-        if (inside && !real_realloc)
+    if (inside || destroying || initializing || !tracking) {
+        if (!real_realloc)
+            get_real_realloc();
+        if (!real_realloc) {
+            write_str(STDOUT_FILENO, 
+                    "realloc: returning NULL because real_realloc is undefined\n");
             return NULL;
+        }
         return real_realloc(ptr, size);
     }
 

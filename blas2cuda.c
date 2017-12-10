@@ -251,16 +251,17 @@ void blas2cuda_init(void)
 
     if (!b2c_initialized && !inside) {
         inside = true;
+        tid = syscall(SYS_gettid);
+        printf("initializing blas2cuda on thread %d\n", tid);
+        printf("initializing cuBLAS...\n");
+        init_cublas();
+        printf("initialized cuBLAS\n");
         obj_tracker_init(false);
         printf("getting options...\n");
         set_options();
         printf("got options\n");
-        tid = syscall(SYS_gettid);
-        printf("initialized blas2cuda on thread %d\n", tid);
         obj_tracker_set_tracking(blas2cuda_tracking);
-        printf("initializing cuBLAS...\n");
-        init_cublas();
-        printf("initialized cuBLAS\n");
+        printf("initialized blas2cuda on thread %d\n", tid);
         b2c_initialized = true;
         inside = false;
     }
