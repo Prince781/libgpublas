@@ -62,8 +62,8 @@ void run_test(int num,
     }
 
     pinfo->total = total;
-    total.tv_sec /= num;
-    total.tv_nsec /= num;
+    total.tv_sec /= (num == 1 ? num : num - 1);
+    total.tv_nsec /= (num == 1 ? num : num - 1);
     pinfo->avg = total;
 }
 
