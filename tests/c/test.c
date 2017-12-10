@@ -99,7 +99,7 @@ void parse_args(int argc, char *argv[], int *N, bool *print_res) {
 
 void print_perfinfo(const char *name, 
         int n, const struct perf_info *pinfo) {
-    printf(" %10s[n=%d]: %ld s + %ld ns\n",
+    printf(" %10s[n=%6d]: %4ld s + %8ld ns\n",
             name, n, pinfo->avg.tv_sec, pinfo->avg.tv_nsec);
 }
 

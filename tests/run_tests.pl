@@ -50,7 +50,7 @@ do {
     }
 } while (!$matched);
 
-my $awk_prog = "/[A-Z]+\\[n=[0-9]+\\]/{print}";
+my $awk_prog = "/[A-Z]+\\[n=\\s+[0-9]+\\]/{print}";
 for (my $i = $start-1; $i < @{$tests[$level-1]} and $i <= $end; $i++) {
     my $prog = $tests[$level-1][$i-1];
     my $typename = $type == 1 ? "blas2cuda" : 
