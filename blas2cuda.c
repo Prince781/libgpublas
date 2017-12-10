@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 
-static bool init = false;
+static bool cublas_initialized = false;
 
 #if __cplusplus
 extern "C" {
@@ -20,6 +20,8 @@ static size_t get_size_managed(void *managed_ptr);
 #if __cplusplus
 };
 #endif
+
+static bool b2c_initialized = false;
 
 struct objmngr blas2cuda_manager = {
     .ctor = alloc_managed,
@@ -85,20 +87,26 @@ static void set_options(void) {
 }
 
 void init_cublas(void) {
-    if (!init) {
+    static bool inside = false;
+    if (!cublas_initialized && !inside) {
+        inside = true;
         switch (cublasCreate(&b2c_handle)) {
             case CUBLAS_STATUS_SUCCESS:
-                /* do nothing */
+                {
+                    pid_t tid = syscall(SYS_gettid);
+                    printf("blas2cuda: initialized cuBLAS on thread %d\n", tid);
+                }
                 break;
             case CUBLAS_STATUS_ALLOC_FAILED:
                 fprintf(stderr, "blas2cuda: failed to allocate resources\n");
             case CUBLAS_STATUS_NOT_INITIALIZED:
             default:
                 fprintf(stderr, "blas2cuda: failed to initialize cuBLAS\n");
-                exit(EXIT_FAILURE);
+                abort();
                 break;
         }
-        init = true;
+        cublas_initialized = true;
+        inside = false;
     }
 }
 
@@ -241,24 +249,39 @@ static size_t get_size_managed(void *managed_ptr) {
 __attribute__((constructor))
 void blas2cuda_init(void)
 {
+    static bool inside = false;
     pid_t tid;
-    obj_tracker_init(false);
-    printf("getting options...\n");
-    set_options();
-    printf("got options\n");
-    tid = syscall(SYS_gettid);
-    printf("initialized blas2cuda on thread %d\n", tid);
-    obj_tracker_set_tracking(blas2cuda_tracking);
+
+    if (!b2c_initialized && !inside) {
+        inside = true;
+        obj_tracker_init(false);
+        printf("getting options...\n");
+        set_options();
+        printf("got options\n");
+        tid = syscall(SYS_gettid);
+        printf("initialized blas2cuda on thread %d\n", tid);
+        obj_tracker_set_tracking(blas2cuda_tracking);
+        b2c_initialized = true;
+        inside = false;
+    }
 }
 
 __attribute__((destructor))
 void blas2cuda_fini(void)
 {
+    static bool inside = false;
     pid_t tid;
-    if (init && cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
-        fprintf(stderr, "blas2cuda: failed to destroy. Not initialized\n");
 
-    tid = syscall(SYS_gettid);
-    printf("decommissioned blas2cuda on thread %d\n", tid);
-    obj_tracker_fini();
+    if (!inside && b2c_initialized) {
+        inside = true;
+        if (cublas_initialized 
+                && cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
+            fprintf(stderr, "blas2cuda: failed to destroy. Not initialized\n");
+
+        tid = syscall(SYS_gettid);
+        printf("decommissioned blas2cuda on thread %d\n", tid);
+        obj_tracker_fini();
+        inside = false;
+        b2c_initialized = false;
+    }
 }

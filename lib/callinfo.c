@@ -73,7 +73,7 @@ static ENTRY *insert_retval;
         sym->member = real_calloc(1, sizeof(*sym->member));\
         if (hcreate_r(nel, sym->member) < 0) {\
             perror("Failed to create hash table of allocations");\
-            exit(1);\
+            abort(); \
         }\
     }
 

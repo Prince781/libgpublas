@@ -156,7 +156,8 @@ static void obj_tracker_get_fptrs(void) {
                 abort();
             } else
                 write_str(STDOUT_FILENO, "Got calloc\n");
-        }
+        } else
+            write_str(STDOUT_FILENO, "calloc already found\n");
 
         if (real_realloc == NULL) {
             dlerror();
@@ -169,7 +170,8 @@ static void obj_tracker_get_fptrs(void) {
                 abort();
             } else
                 write_str(STDOUT_FILENO, "Got realloc\n");
-        }
+        } else
+            write_str(STDOUT_FILENO, "realloc already found\n");
 
         if (real_free == NULL) {
             dlerror();
@@ -182,7 +184,8 @@ static void obj_tracker_get_fptrs(void) {
                 abort();
             } else
                 write_str(STDOUT_FILENO, "Got free\n");
-        }
+        } else
+            write_str(STDOUT_FILENO, "free already found\n");
 
         /*
         printf("real malloc = %p, fake malloc() = %p\n", real_malloc, &malloc);
@@ -257,12 +260,12 @@ void obj_tracker_init(bool tracking_enabled)
         creation_thread = syscall(SYS_gettid);
 
         write_str(STDOUT_FILENO, "Initializing object tracker...\n");
-        write_str(STDOUT_FILENO, "Acquiring lock...\n");
+        write_str(STDOUT_FILENO, "Initializing lock...\n");
         if (pthread_rwlock_init(&rwlock, NULL) < 0) {
             write_str(STDERR_FILENO, "Failed to initialize rwlock");
-            exit(1);
+            abort();
         }
-        write_str(STDOUT_FILENO, "Lock acquired...\n");
+        write_str(STDOUT_FILENO, "Lock initialized ...\n");
 
         write_str(STDOUT_FILENO, "Getting function pointers...\n");
         obj_tracker_get_fptrs();
@@ -420,7 +423,7 @@ void obj_tracker_fini(void) {
 
         if (pthread_rwlock_destroy(&rwlock) < 0) {
             perror("Failed to destroy rwlock");
-            exit(1);
+            abort();
         }
 #if RBTREE
         rbtree_destroy(&objects, object_destroy, NULL);
@@ -460,7 +463,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
 
     if (pthread_rwlock_wrlock(&rwlock) < 0) {
         perror("Failed to get write lock");
-        exit(1);
+        abort();
     }
 
 #if RBTREE
@@ -475,7 +478,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
 
     if (pthread_rwlock_unlock(&rwlock) < 0) {
         perror("Failed to unlock write lock");
-        exit(1);
+        abort();
     }
 
     return node;
@@ -524,10 +527,10 @@ static void *find_objinfo(struct objinfo *o)
 
     while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
             && errno == EAGAIN)
-        ;
+        fprintf(stderr, "failed to acquire read lock\n");
     if (ret < 0) {
         perror("Failed to acquire read lock");
-        exit(1);
+        abort();
     }
 
 #if RBTREE
@@ -538,7 +541,7 @@ static void *find_objinfo(struct objinfo *o)
 
     if (pthread_rwlock_unlock(&rwlock) < 0) {
         perror("Failed to unlock read lock");
-        exit(1);
+        abort();
     }
     return node;
 }
@@ -550,7 +553,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     if (pthread_rwlock_wrlock(&rwlock) < 0) {
         perror("Failed to acquire write lock");
-        exit(1);
+        abort();
     }
 
 #if RBTREE
@@ -569,7 +572,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     if (pthread_rwlock_unlock(&rwlock) < 0) {
         perror("Failed to unlock write lock");
-        exit(1);
+        abort();
     }
     return result;
 }
