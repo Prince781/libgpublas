@@ -2,9 +2,10 @@
 # blas2cuda.sh
 # preload libblas2cuda.so and run with a tracker file
 
+pardir=$(dirname $(readlink -f $0))
 trackfile=$1
 progname=$2
-BLAS2CUDA=../libblas2cuda.so
+BLAS2CUDA=$pardir/../libblas2cuda.so
 
 if [ -z $trackfile ] || [ -z $progname ]; then
     echo "Usage: $0 <objtrackfile> <command> ARGS..."

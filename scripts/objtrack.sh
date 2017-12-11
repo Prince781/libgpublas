@@ -4,18 +4,15 @@
 # Track invocations of a program and produce a format
 # readable by the object tracker
 
+pardir=$(dirname $(readlink -f $0))
+
 if [ -z $1 ] || [ -z $2 ]; then
     printf "Usage: $0 <blas_lib.so> <program> ARGS...\n"
     exit 1
 fi
 
-if [ ! -e $2 ]; then
-    echo "$2 doesn't exist"
-    exit 1
-fi
-
 fname=$(basename ${2}.objtrack)
-LIBOBJTRACKER=../lib/libobjtracker.so
+LIBOBJTRACKER=$pardir/../lib/libobjtracker.so
 
 if [ ! -e $LIBOBJTRACKER ]; then
     make -C $(dirname $LIBOBJTRACKER) $(basename $LIBOBJTRACKER)
