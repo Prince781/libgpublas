@@ -48,14 +48,15 @@ void blas_tracker_init(void) {
 
     dlerror();
     if (!(blas_lib_handle = dlopen(blas_tracker_libname, RTLD_LAZY))) {
-        fprintf(stderr, "dlopen(%s) : %s\n", blas_tracker_libname, dlerror());
+        fprintf(stderr, "dlopen() : %s\n", dlerror());
+        abort();
     } else
         printf("object tracker: got a handle to BLAS library %s\n", blas_tracker_libname);
 }
 
 void blas_tracker_fini(void) {
     if (dlclose(blas_lib_handle) != 0) {
-        fprintf(stderr, "dlclose(%s) : %s\n", blas_tracker_libname, dlerror());
+        fprintf(stderr, "dlclose() : %s\n", dlerror());
         abort();
     }
 }
