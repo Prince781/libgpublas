@@ -733,7 +733,7 @@ void *malloc(size_t request) {
     struct objmngr mngr;
     struct alloc_callinfo *ci;
 
-    if (inside || destroying || initializing || !tracking) {
+    if (inside || destroying || initializing || !tracking || !initialized) {
         if (!real_malloc)
             get_real_malloc();
         if (!real_malloc) {
@@ -809,7 +809,7 @@ void *calloc(size_t nmemb, size_t size) {
         return NULL;
     }
 
-    if (inside || destroying || initializing || !tracking) {
+    if (inside || destroying || initializing || !tracking || !initialized) {
         if (!real_calloc)
             get_real_calloc();
         if (!real_calloc) {
@@ -877,7 +877,7 @@ void *realloc(void *ptr, size_t size) {
     if (!size)
         return NULL;
 
-    if (inside || destroying || initializing || !tracking) {
+    if (inside || destroying || initializing || !tracking || !initialized) {
         if (!real_realloc)
             get_real_realloc();
         if (!real_realloc) {
