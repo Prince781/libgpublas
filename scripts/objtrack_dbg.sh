@@ -12,7 +12,7 @@ LIBOBJTRACKER=$pardir/../lib/libobjtracker.so
 
 
 if [ -z $debugcmdfile ] || [ -z $blas_lib ] || [ -z $program ]; then
-    printf "Usage: $0 <debugcmdfile> <blas_lib.so> <program> ARGS...\n"
+    printf "Usage: $0 <debugcmdfile> <blas_lib1.so[,blas_lib2.so,...]> <program> ARGS...\n"
     exit 1
 fi
 
@@ -24,7 +24,7 @@ tempfile=$(mktemp)
 echo "creating $tempfile"
 
 cat >$tempfile <<EOF
-set exec-wrapper env 'OBJTRACKER_BLASLIB=$blas_lib' 'LD_PRELOAD=$LIBOBJTRACKER'
+set exec-wrapper env 'OBJTRACKER_OPTIONS=blas_libs=$blas_lib' 'LD_PRELOAD=$LIBOBJTRACKER'
 run $args
 $(cat $debugcmdfile)
 run $args

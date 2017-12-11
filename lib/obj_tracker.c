@@ -49,6 +49,14 @@
 
 static void *find_objinfo(struct objinfo *o);
 
+#if STANDALONE
+struct obj_options objtracker_options = {
+    .only_print_calls = false,
+    .blas_libs = NULL,
+    .num_blas = 0
+};
+#endif
+
 
 #if DEBUG_TRACKING
 static void **pointers;
@@ -220,6 +228,67 @@ static void get_real_free(void) {
     }
 }
 
+#if STANDALONE
+static void obj_tracker_get_options(void) {
+    char *options = getenv("OBJTRACKER_OPTIONS");
+    char *saveptr = NULL;
+    char *option = NULL;
+    bool help = false;
+
+    if (!options)
+        return;
+
+    option = strtok_r(options, ";", &saveptr);
+    while (option != NULL) {
+        if (strcmp(option, "help") == 0) {
+            if (!help) {
+                fprintf(stderr,
+                        "object tracker options:\n"
+                        "You can chain these options with a semicolon (;)\n"
+                        "help               -- Print help.\n"
+                        "only_print_calls   -- Only print BLAS calls that use objects.\n"
+                        "                      This reduces the output of the tracker.\n"
+                        "                      By default, this option is false.\n"
+                        "blas_libs          -- A comma(,)-separated list of libraries\n"
+                        "                      to load, in the order specified. Use \n"
+                        "                      this for libraries that are not linked\n"
+                        "                      to their dependencies, like Intel MKL.\n");
+                help = true;
+            }
+        } else if (strcmp(option, "only_print_calls") == 0) {
+            objtracker_options.only_print_calls = true;
+        } else if (strncmp(option, "blas_libs=", 10) == 0) {
+            char *blaslibs = strchr(option, '=');
+            char *blas_lib = NULL;
+            char *saveptr_bs = NULL;
+            int size = 1;
+            char **array = real_calloc(size, sizeof(*array));
+            int n = 0;
+            if (blaslibs) {
+                blaslibs++;
+                blas_lib = strtok_r(blaslibs, ",", &saveptr_bs);
+                while (blas_lib != NULL) {
+                    if (n >= size) {
+                        size *= 2;
+                        array = real_realloc(array, sizeof(*array) * size);
+                    }
+                    array[n] = strdup(blas_lib);
+                    ++n;
+                    blas_lib = strtok_r(NULL, ",", &saveptr_bs);
+                }
+                array = real_realloc(array, sizeof(*array) * n);
+                objtracker_options.blas_libs = array;
+                objtracker_options.num_blas = n;
+            } else
+                fprintf(stderr, "objtracker: you must provide a filename. Set OBJTRACKER_OPTIONS=help.\n");
+        } else {
+            fprintf(stderr, "objtracker: unknown option '%s'. Set OBJTRACKER_OPTIONS=help.\n", option);
+        }
+        option = strtok_r(NULL, ";", &saveptr);
+    }
+}
+#endif
+
 static void obj_tracker_get_fptrs(void) {
     static bool success = false;
 
@@ -273,8 +342,11 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
 
     tid = syscall(SYS_gettid);
 
-    printf("%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d]\n",
-            c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid);
+#if STANDALONE
+    if (objtracker_options.only_print_calls)
+#endif
+        printf("%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d]\n",
+                c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid);
 }
 
 #if STANDALONE
@@ -283,11 +355,6 @@ __attribute__((constructor))
 void obj_tracker_init(bool tracking_enabled)
 {
 /*    extern char etext, edata, end; */
-#if STANDALONE
-    char *opt;
-    char *option, *saveptr;
-#endif
-
     if (!initialized) {
         tracking = false;
         initializing = true;
@@ -312,27 +379,7 @@ void obj_tracker_init(bool tracking_enabled)
         write_str(STDOUT_FILENO, "Initialized call info...\n");
 
 #if STANDALONE
-
-        if ((opt = getenv("OBJTRACKER_HELP"))) {
-            write_conststr(STDOUT_FILENO, 
-                   "Object Tracker Options\n"
-                   "HELP                ->  shows this message\n"
-                   "WATCHPOINTS         ->  a comma-separated list of files\n"
-                   "BLASLIB             ->  the BLAS library to load from\n");
-        }
-
-        if ((opt = getenv("OBJTRACKER_WATCHPOINTS"))) {
-            option = strtok_r(opt, ",", &saveptr);
-            while (option) {
-                obj_tracker_load(option, NULL);
-                option = strtok_r(NULL, ",", &saveptr);
-            }
-        }
-
-        if ((opt = getenv("OBJTRACKER_BLASLIB"))) {
-            blas_tracker_libname = opt; 
-        }
-
+        obj_tracker_get_options();
         blas_tracker_init();
 #endif
 

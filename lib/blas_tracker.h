@@ -1,8 +1,8 @@
 #ifndef BLAS_TRACKER_H
 #define BLAS_TRACKER_H
 
-extern char *blas_tracker_libname;
-extern void *blas_lib_handle;
+extern void **blas_lib_handles;
+extern int num_handles;
 
 void blas_tracker_init(void);
 

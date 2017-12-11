@@ -1,24 +1,25 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <search.h>
+#include <errno.h>
 #include "callinfo.h"
 #include "obj_tracker.h"
 #include "../cblas.h"
 
-char *blas_tracker_libname;
-void *blas_lib_handle;
+#define CAPACITY (1 << 10)
+
+void **blas_lib_handles;
+int num_handles;
+
+static struct hsearch_data *fptrs_table;
 
 static void print_objtrack_info(const void *ptr) {
     const struct objinfo *info;
-
-    if (!blas_tracker_libname) {
-        fprintf(stderr, "OBJTRACKER_BLASLIB is undefined. See OBJTRACKER_HELP\n");
-    } else if (!blas_lib_handle) {
-        fprintf(stderr, "library handle is NULL.\n");
-    }
 
     if ((info = obj_tracker_objinfo((void *) ptr))) {
         obj_tracker_print_info(OBJPRINT_CALL, info);
@@ -26,38 +27,94 @@ static void print_objtrack_info(const void *ptr) {
         fprintf(stderr, "no objinfo for %p\n", ptr);
 }
 
-static void *get_real_blas_fun(const char *name) {
-    void *sym;
-    /* Level 3 */
-    if (strcmp(name, "cblas_sgemm") == 0) {
-        dlerror();
-        if (!(sym = dlsym(blas_lib_handle, name))) {
-            fprintf(stderr, "failed to get %s(): %s\n", name, dlerror());
+static void *get_real_blas_fun_cached(const char *name) {
+    ENTRY item = { .key = (char *) name, .data = NULL };
+    ENTRY *result;
+
+    if (!fptrs_table) {
+        fptrs_table = real_calloc(1, sizeof(*fptrs_table));
+        if (hcreate_r(CAPACITY, fptrs_table) < 0) {
+            perror("Failed to create lookup table.");
+            abort();
         }
-        return sym;
     }
 
-    return NULL;
+    if (!hsearch_r(item, FIND, &result, fptrs_table)) {
+        if (errno != ESRCH) {
+            perror("Failed to execute search operation.");
+            abort();
+        }
+    }
+
+    return result ? result->data : NULL;
+}
+
+static void cache_fptr(const char *name, void *fptr) {
+    ENTRY item = { .key = strdup(name), .data = fptr };
+    ENTRY *retval;
+
+    if (!hsearch_r(item, ENTER, &retval, fptrs_table)) {
+        perror("Failed to enter function pointer in cache");
+        abort();
+    }
+}
+
+static void *get_real_blas_fun(const char *name) {
+    void *sym = NULL;
+
+    if ((sym = get_real_blas_fun_cached(name)))
+        return sym;
+
+    if (!blas_lib_handles) {
+        fprintf(stderr, "No libraries loaded! Was blas_tracker_init() called?\n");
+        abort();
+    }
+
+    for (int i=0; i<num_handles; ++i) {
+        dlerror();
+        if ((sym = dlsym(blas_lib_handles[i], name))) {
+            /**
+             * We only call this if it wasn't in the cache before.
+             */
+            cache_fptr(name, sym);
+            break;
+        }
+    }
+
+    if (!sym)
+        fprintf(stderr, "Failed to get handle to function '%s'\n", name);
+
+    return sym;
 }
 
 void blas_tracker_init(void) {
-    if (!blas_tracker_libname) {
-        fprintf(stderr, "blas_tracker_libname not set\n");
+    if (objtracker_options.num_blas == 0) {
+        fprintf(stderr, "You must specify at least one BLAS library.\n");
         abort();
     }
 
-    dlerror();
-    if (!(blas_lib_handle = dlopen(blas_tracker_libname, RTLD_LAZY))) {
-        fprintf(stderr, "dlopen() : %s\n", dlerror());
-        abort();
-    } else
-        printf("object tracker: got a handle to BLAS library %s\n", blas_tracker_libname);
+    if (!blas_lib_handles) {
+        blas_lib_handles = real_calloc(objtracker_options.num_blas,
+                sizeof(*blas_lib_handles));
+        for (int i=0; i<objtracker_options.num_blas; ++i) {
+            dlerror();
+            if (!(blas_lib_handles[i] = 
+                        dlopen(objtracker_options.blas_libs[i], RTLD_LAZY | RTLD_GLOBAL))) {
+                fprintf(stderr, "dlopen() : %s\n", dlerror());
+                abort();
+            } else
+                printf("BLAS tracker: loaded %s\n", objtracker_options.blas_libs[i]);
+        }
+        num_handles = objtracker_options.num_blas;
+    }
 }
 
 void blas_tracker_fini(void) {
-    if (dlclose(blas_lib_handle) != 0) {
-        fprintf(stderr, "dlclose() : %s\n", dlerror());
-        abort();
+    for (int i=0; i<num_handles; ++i) {
+        if (dlclose(blas_lib_handles[i]) != 0) {
+            fprintf(stderr, "dlclose() : %s\n", dlerror());
+            abort();
+        }
     }
 }
 

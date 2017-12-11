@@ -15,6 +15,32 @@ extern void (*real_free)(void *);
 void *fake_malloc(size_t req);
 void fake_free(void *ptr);
 
+/**
+ * These options are only available when in STANDALONE mode.
+ */
+#if STANDALONE
+struct obj_options {
+    /**
+     * Whether we should only print calls. This can reduce 
+     * the output of the object tracker where there are many
+     * allocations.
+     */
+    bool only_print_calls;
+
+    /**
+     * The libraries to load, in order. 
+     */
+    char **blas_libs;
+
+    /**
+     * The number of BLAS libraries (max(0, size of list - 1)).
+     */
+    int num_blas;
+};
+
+extern struct obj_options objtracker_options;
+#endif
+
 /* include callinfo.h */
 struct alloc_callinfo;
 
