@@ -34,9 +34,9 @@ void _cblas_gemm(const CBLAS_LAYOUT Layout,
 {
     const T *gpu_a, *gpu_b;
     T *gpu_c;
-    int rows_a, cols_a,
-        rows_b, cols_b,
-        rows_c, cols_c;
+    int rows_a = 0, cols_a = 0,
+        rows_b = 0, cols_b = 0,
+        rows_c = 0, cols_c = 0;
     int size_a, size_b, size_c;
     cublasOperation_t opa = cu(transa);
     cublasOperation_t opb = cu(transb);
