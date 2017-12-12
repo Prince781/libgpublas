@@ -133,7 +133,7 @@ ip_offs_parse(const char *str, struct ip_offs *offs)
     int n;
     short o;
     char *dupstr = strdup(str);
-    char *saveptr;
+    char *saveptr = NULL;
     char *off_s;
 
     off_s = strtok_r(dupstr, ".", &saveptr);
