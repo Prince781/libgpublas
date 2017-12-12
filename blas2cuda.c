@@ -37,6 +37,17 @@ static bool blas2cuda_tracking = false;
 
 struct options b2c_options = { false, false, false };
 
+void b2c_print_help(void) {
+    fprintf(stderr, 
+            "blas2cuda options (set BLAS2CUDA_OPTIONS):\n"
+            "   You can chain these options with a semicolon (;)\n"
+            "   help           -- print help\n"
+            "   debug_execfail -- debug kernel failures\n"
+            "   debug_exec     -- debug kernel invocations\n"
+            "   trace_copy     -- trace copies between CPU and GPU\n"
+            "   track=<file>   -- use an object tracking definition\n");
+}
+
 static void set_options(void) {
     /* TODO: use secure_getenv() ? */
     char *options = getenv("BLAS2CUDA_OPTIONS");
@@ -51,15 +62,7 @@ static void set_options(void) {
     while (option != NULL) {
         if (strcmp(option, "help") == 0) {
             if (!help) {
-                fprintf(stderr, 
-                        "blas2cuda options:\n"
-                        "You can chain these options with a semicolon (;)\n"
-                        "help           -- print help\n"
-                        "debug_execfail -- debug kernel failures\n"
-                        "debug_exec     -- debug kernel invocations\n"
-                        "trace_copy     -- trace copies between CPU and GPU\n"
-                        "track=<file>   -- use an object tracking definition\n"
-                       );
+                b2c_print_help();
                 help = true;
             }
         } 

@@ -116,6 +116,37 @@ static unsigned long num_objects = 0;
 
 static pthread_rwlock_t rwlock;
 
+static inline void read_lock(void) {
+    /*
+    int ret;
+    while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
+            && errno == EAGAIN)
+        write_str("failed to acquire read lock\n");
+    if (ret < 0) {
+        perror("Failed to acquire read lock");
+        abort();
+    }
+    */
+}
+
+static inline void write_lock(void) {
+    /*
+    if (pthread_rwlock_wrlock(&rwlock) < 0) {
+        perror("Failed to acquire write lock");
+        abort();
+    }
+    */
+}
+
+static inline void unlock(void) {
+    /*
+    if (pthread_rwlock_unlock(&rwlock) < 0) {
+        perror("Failed to unlock write lock");
+        abort();
+    }
+    */
+}
+
 /* allows us to temporarily disable tracking */
 #if STANDALONE
 static bool tracking = true;    /* initial value */
@@ -544,11 +575,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
 {
     void *node;
 
-    if (pthread_rwlock_wrlock(&rwlock) < 0) {
-        perror("Failed to get write lock");
-        abort();
-    }
-
+    write_lock();
 #if RBTREE
     node = rbtree_insert(&objects, oinfo, objects_compare);
 #else
@@ -559,10 +586,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
         ++num_objects;
     }
 
-    if (pthread_rwlock_unlock(&rwlock) < 0) {
-        perror("Failed to unlock write lock");
-        abort();
-    }
+    unlock();
 
     return node;
 }
@@ -606,26 +630,14 @@ static void track_object(void *ptr,
 static void *find_objinfo(struct objinfo *o)
 {
     void *node;
-    int ret;
 
-    while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
-            && errno == EAGAIN)
-        fprintf(stderr, "failed to acquire read lock\n");
-    if (ret < 0) {
-        perror("Failed to acquire read lock");
-        abort();
-    }
-
+    read_lock();
 #if RBTREE
     node = rbtree_find(&objects, &o, objects_compare);
 #else
     node = tfind(o, &objects, objects_compare);
 #endif
-
-    if (pthread_rwlock_unlock(&rwlock) < 0) {
-        perror("Failed to unlock read lock");
-        abort();
-    }
+    unlock();
     return node;
 }
 
@@ -634,10 +646,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     struct objinfo *objinfo;
     void *result;
 
-    if (pthread_rwlock_wrlock(&rwlock) < 0) {
-        perror("Failed to acquire write lock");
-        abort();
-    }
+    write_lock();
 
 #if RBTREE
     objinfo = ((struct rbtree *)node)->item;
@@ -646,6 +655,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     objinfo = *(struct objinfo **) node;
     result = tdelete(objinfo, &objects, objects_compare);
 #endif
+    unlock();
 #if TRACE_OUTPUT
     obj_tracker_print_info(OBJPRINT_UNTRACK, objinfo);
     untrack(objinfo->ptr);
@@ -653,10 +663,6 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
     real_free(objinfo);
 
-    if (pthread_rwlock_unlock(&rwlock) < 0) {
-        perror("Failed to unlock write lock");
-        abort();
-    }
     return result;
 }
 
