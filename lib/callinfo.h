@@ -77,6 +77,14 @@ add_callinfo(enum alloc_sym sym,
              size_t reqsize);
 
 /**
+ * Queries by reqsize.
+ * Returns NULL if not found.
+ */
+struct alloc_callinfo *
+get_callinfo_reqsize(enum alloc_sym sym, size_t reqsize);
+
+
+/**
  * Queries by either IP or reqsize.
  * returns NULL if not found
  */

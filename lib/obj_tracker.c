@@ -815,6 +815,7 @@ void *malloc(size_t request) {
      * to be tracking it.
      */
     if (tracking 
+            && get_callinfo_reqsize(ALLOC_MALLOC, request)
             && (!watchpoints 
                 || 
                 (ci = get_callinfo_and(ALLOC_MALLOC, get_ip_offs(&offs), request)))
@@ -893,6 +894,7 @@ void *calloc(size_t nmemb, size_t size) {
      * to be tracking it.
      */
     if (tracking 
+            && get_callinfo_reqsize(ALLOC_CALLOC, request)
             && (!watchpoints 
                 || 
                 (ci = get_callinfo_and(ALLOC_CALLOC, get_ip_offs(&offs), request)))

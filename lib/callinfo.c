@@ -2,7 +2,7 @@
 #include "obj_tracker.h"
 #define _GNU_SOURCE
 #include <search.h>
-#include <stdio.h>
+#include <stdio.h>  /* asprintf */
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -21,6 +21,8 @@ struct syminfo {
     struct hsearch_data *offs_str;
     /* requested size */
     struct hsearch_data *reqsize;
+    /* offs_str . reqsize */
+    struct hsearch_data *ci_string;
 };
 
 #define symdef(name) { .symbol = #name }
@@ -74,6 +76,11 @@ static ENTRY *insert_retval;
             abort(); \
         }\
     }
+
+static inline int 
+ci_tostr(char **bufp, const char *offs_str, size_t reqsize) {
+    return asprintf(bufp, "%s|req=%zu", offs_str, reqsize);
+}
 
 static inline struct syminfo *get_syminfo(enum alloc_sym sym) {
     switch (sym) {
@@ -153,6 +160,7 @@ init_callinfo(void)
         struct syminfo *si = get_syminfo(i);
         mktabl(si, offs_str, CAPACITY);
         mktabl(si, reqsize, CAPACITY);
+        mktabl(si, ci_string, CAPACITY);
     }
 }
 
@@ -168,11 +176,31 @@ add_callinfo(enum alloc_sym sym,
     char *valstr = NULL;
     int retval = -1;
     char offs_str[1 + N_IP_OFFS * 8];
+    char *ci_string = NULL;
 
     ip_offs_tostr(offs, offs_str);
     if ((info = get_syminfo(sym))) {
         ci = make_callinfo(mngr, sym, offs, reqsize);
+        if (ci_tostr(&ci_string, offs_str, reqsize) < 0) {
+            real_free(ci);
+            return -1;
+        }
         retval = 1;
+        if (!lookup(info, ci_string, entp)) {
+            if (!insert(info, ci_string, ci, valstr)) {
+                real_free(ci);
+                real_free(ci_string);
+                real_free(valstr);
+                return -1;
+            }
+        } else {
+            fprintf(stderr, 
+                    "Warning: callinfo (%s) was already present in table!\n",
+                    ci_string);
+            real_free(ci);
+            real_free(ci_string);
+            return -1;
+        }
         if (!lookup(info, offs_str, entp)) {
             if (!insert(info, offs_str, ci, valstr)) {
                 real_free(valstr);
@@ -190,6 +218,21 @@ add_callinfo(enum alloc_sym sym,
     }
 
     return retval;
+}
+
+struct alloc_callinfo *
+get_callinfo_reqsize(enum alloc_sym sym, size_t reqsize)
+{
+    struct syminfo *info;
+    ENTRY *entp;
+
+    if (!(info = get_syminfo(sym)))
+        return NULL;
+
+    if (lookup(info, reqsize, entp))
+        return entp->data;
+
+    return NULL;
 }
 
 struct alloc_callinfo *
@@ -221,17 +264,20 @@ get_callinfo_and(enum alloc_sym sym,
     struct syminfo *info;
     ENTRY *entp = NULL;
     char offs_str[1 + N_IP_OFFS * 8];
+    char *ci_string = NULL;
 
     if (!(info = get_syminfo(sym)))
         return NULL;
 
     ip_offs_tostr(offs, offs_str);
-    if (!lookup(info, offs_str, entp))
-        return NULL;
+    ci_tostr(&ci_string, offs_str, reqsize);
 
-    if (!lookup(info, reqsize, entp))
+    if (!lookup(info, ci_string, entp)) {
+        real_free(ci_string);
         return NULL;
+    }
 
+    real_free(ci_string);
     return entp ? entp->data : NULL;
 }
 
