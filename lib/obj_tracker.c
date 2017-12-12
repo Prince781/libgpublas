@@ -740,7 +740,7 @@ static bool memcheck(const void *ptr) {
 #define WORDS_BEFORE_RBP    4
 
 static __attribute__((noinline)) 
-void get_ip_offs(struct ip_offs *offs) 
+struct ip_offs *get_ip_offs(struct ip_offs *offs) 
 {
     int n_found = 0;
     unw_cursor_t cursor; unw_context_t uc;
@@ -775,6 +775,8 @@ void get_ip_offs(struct ip_offs *offs)
         printf("[%10s:0x%0lx] IP = 0x%0lx\n", name, offp, (long) ip);
         */
     }
+
+    return offs;
 }
 
 
@@ -812,9 +814,9 @@ void *malloc(size_t request) {
     /* Only track the object if we are supposed
      * to be tracking it.
      */
-    get_ip_offs(&offs);
     if (tracking && (!watchpoints 
-                        || (ci = get_callinfo_and(ALLOC_MALLOC, &offs, request, 
+                        || (ci = get_callinfo_and(ALLOC_MALLOC, 
+                                get_ip_offs(&offs), request, 
                         NULL /* TODO: see callinfo.c */)))) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
@@ -822,6 +824,7 @@ void *malloc(size_t request) {
             mngr.realloc = real_realloc;
             mngr.dtor = real_free;
             mngr.get_size = malloc_usable_size;
+            get_ip_offs(&offs);
         } else /* ci is non-NULL */ {
             memcpy(&mngr, &ci->mngr, sizeof(mngr));
         }
@@ -888,9 +891,9 @@ void *calloc(size_t nmemb, size_t size) {
     /* Only track the object if we are supposed
      * to be tracking it.
      */
-    get_ip_offs(&offs);
     if (tracking && (!watchpoints 
-                    || (ci = get_callinfo_and(ALLOC_CALLOC, &offs, request, 
+                    || (ci = get_callinfo_and(ALLOC_CALLOC, 
+                            get_ip_offs(&offs), request, 
                         NULL /* TODO: see callinfo.c */)))) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
@@ -898,6 +901,7 @@ void *calloc(size_t nmemb, size_t size) {
             mngr.realloc = real_realloc;
             mngr.dtor = real_free;
             mngr.get_size = malloc_usable_size;
+            get_ip_offs(&offs);
         } else /* ci is non-NULL */ {
             memcpy(&mngr, &ci->mngr, sizeof(mngr));
         }
