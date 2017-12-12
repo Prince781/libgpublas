@@ -114,7 +114,7 @@ static void *objects = NULL;
 #endif
 static unsigned long num_objects = 0;
 
-static pthread_rwlock_t rwlock;
+static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 static inline void read_lock(void) {
     /*
