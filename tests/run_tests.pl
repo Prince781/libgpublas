@@ -66,7 +66,7 @@ for (my $i = $start-1; $i < @{$tests[$level-1]} and $i <= $end; $i++) {
         } elsif ($type == 2) {
             system "./c/$prog $N --no-print-results";
         } elsif ($type == 3) {
-            system "cd c && env LD_PRELOAD=$ENV{'CUDA'}/lib64/libnvblas.so NVBLAS_CONFIG_FILE=nvblas.conf ./$prog $N --no-print-results 2>/dev/null | awk '$awk_prog'";
+            system "cd ../scripts && ./run_nvblas.sh ../tests/c/nvblas.conf ../tests/c/$prog $N --no-print-results 2>/dev/null"; # | awk '$awk_prog'";
         }
     }
 }
