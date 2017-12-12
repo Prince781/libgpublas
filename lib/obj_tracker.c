@@ -694,45 +694,6 @@ void obj_tracker_print_rbtree(const char *filename) {
 }
 #endif
 
-static __attribute__((noinline)) struct ip_offs 
-    get_ip_offs(void) 
-{
-    struct ip_offs offs = { .off = { 0 } };
-    int n_found = 0;
-    unw_cursor_t cursor; unw_context_t uc;
-    /* unw_word_t ip = 0; */
-    unw_word_t offp;
-    char name[256];
-    int retval;
-
-    unw_getcontext(&uc);
-    unw_init_local(&cursor, &uc);
-
-    /**
-     * [function that called ?alloc()   ]
-     * [?alloc()                        ]
-     * [this function                   ]
-     */
-    for (int i=0; i<1+N_IP_OFFS && unw_step(&cursor) > 0; ++i) {
-        /* retval = unw_get_reg(&cursor, UNW_REG_IP, &ip); */
-        retval = unw_get_proc_name(&cursor, name, sizeof(name), &offp);
-        if (i == 0)
-            /* skip this offset */
-            continue;
-        if (retval != -UNW_EUNSPEC && retval != -UNW_ENOINFO) {
-            offs.off[n_found] = offp;
-            ++n_found;
-        }
-        /*
-        if (retval == -UNW_EUNSPEC || retval == -UNW_ENOINFO)
-            snprintf(name, sizeof(name), "%s", "??");
-        printf("[%10s:0x%0lx] IP = 0x%0lx\n", name, offp, (long) ip);
-        */
-    }
-
-    return offs;
-}
-
 static jmp_buf jump_memcheck;
 
 static void segv_handler(int sig) {
@@ -770,6 +731,47 @@ static bool memcheck(const void *ptr) {
     return valid;
 }
 
+#define WORDS_BEFORE_RBP    4
+
+static __attribute__((noinline)) 
+void get_ip_offs(struct ip_offs *offs) 
+{
+    int n_found = 0;
+    unw_cursor_t cursor; unw_context_t uc;
+    unw_word_t ip = 0;
+    /* unw_word_t offp; */
+    int retval;
+    /* char buf[2]; */
+
+    unw_getcontext(&uc);
+    unw_init_local(&cursor, &uc);
+
+    /**
+     * [function that called ?alloc()   ]
+     * [?alloc()                        ]
+     * [this function                   ]
+     */
+    for (int i=0; i<1+N_IP_OFFS && unw_step(&cursor) > 0; ++i) {
+        retval = unw_get_reg(&cursor, UNW_REG_IP, &ip);
+        /* retval = unw_get_proc_name(&cursor, buf, 0, &offp); */
+        if (i == 0)
+            /* skip this offset */
+            continue;
+        if (retval != -UNW_EUNSPEC && retval != -UNW_ENOINFO) {
+            offs->off[n_found] = ip; /* offp; */
+            if (n_found > 0)
+                offs->off[n_found-1] -= ip;
+            ++n_found;
+        }
+        /*
+        if (retval == -UNW_EUNSPEC || retval == -UNW_ENOINFO)
+            snprintf(name, sizeof(name), "%s", "??");
+        printf("[%10s:0x%0lx] IP = 0x%0lx\n", name, offp, (long) ip);
+        */
+    }
+}
+
+
 void *malloc(size_t request) {
     static bool inside = false;
     void *ptr;
@@ -804,7 +806,7 @@ void *malloc(size_t request) {
     /* Only track the object if we are supposed
      * to be tracking it.
      */
-    offs = get_ip_offs();
+    get_ip_offs(&offs);
     if (tracking && (!watchpoints 
                         || (ci = get_callinfo_and(ALLOC_MALLOC, &offs, request, 
                         NULL /* TODO: see callinfo.c */)))) {
@@ -880,7 +882,7 @@ void *calloc(size_t nmemb, size_t size) {
     /* Only track the object if we are supposed
      * to be tracking it.
      */
-    offs = get_ip_offs();
+    get_ip_offs(&offs);
     if (tracking && (!watchpoints 
                     || (ci = get_callinfo_and(ALLOC_CALLOC, &offs, request, 
                         NULL /* TODO: see callinfo.c */)))) {
