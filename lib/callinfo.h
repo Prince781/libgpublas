@@ -44,7 +44,6 @@ struct alloc_callinfo {
     enum alloc_sym alloc;
     struct ip_offs offs;
     size_t reqsize;
-    void *ptr;
 };
 
 char *
@@ -68,7 +67,6 @@ init_callinfo(void);
  * {offs}       - An array of offsets of each function within
  *                its parent in the call chain.
  * {reqsize}    - Requested size.
- * {ptr}        - Location of the memory.
  * Returns: negative on error, 0 on success, and positive if 
  *          callinfo wasn't added because it already exists.
  */
@@ -76,8 +74,7 @@ int
 add_callinfo(enum alloc_sym sym, 
              const struct objmngr *mngr,
              const struct ip_offs *offs,
-             size_t reqsize,
-             void *ptr);
+             size_t reqsize);
 
 /**
  * Queries by either IP or reqsize.
@@ -86,8 +83,7 @@ add_callinfo(enum alloc_sym sym,
 struct alloc_callinfo *
 get_callinfo_or(enum alloc_sym sym, 
                 const struct ip_offs *offs,
-                size_t reqsize,
-                void *ptr);
+                size_t reqsize);
 
 /**
  * Queries by both IP and reqsize.
@@ -96,8 +92,7 @@ get_callinfo_or(enum alloc_sym sym,
 struct alloc_callinfo *
 get_callinfo_and(enum alloc_sym sym, 
                  const struct ip_offs *offs,
-                 size_t reqsize,
-                 void *ptr);
+                 size_t reqsize);
 
 
 /**

@@ -471,8 +471,8 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
             /* if (ip_offs_parse(off_str, &offs) != N_IP_OFFS) {
                 fprintf(stderr, "%s: Failed to add watch: could not parse IP offset"
                             " string '%s' on line %d\n", filename, off_str, lineno);
-            } else */if ((ci_res 
-                        = add_callinfo(sym, mngr, &offs, reqsize, NULL)) == 0) {
+            } else */
+            if ((ci_res = add_callinfo(sym, mngr, &offs, reqsize)) == 0) {
                 watchpoints = true;
                 printf("W fun=[%s] reqsize=[%zu] ip_offs=[%hx.%hx.%hx.%hx]\n",
                         symname, reqsize, 
@@ -814,10 +814,11 @@ void *malloc(size_t request) {
     /* Only track the object if we are supposed
      * to be tracking it.
      */
-    if (tracking && (!watchpoints 
-                        || (ci = get_callinfo_and(ALLOC_MALLOC, 
-                                get_ip_offs(&offs), request, 
-                        NULL /* TODO: see callinfo.c */)))) {
+    if (tracking 
+            && (!watchpoints 
+                || 
+                (ci = get_callinfo_and(ALLOC_MALLOC, get_ip_offs(&offs), request)))
+        ) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
             mngr.cctor = real_calloc;
@@ -891,10 +892,11 @@ void *calloc(size_t nmemb, size_t size) {
     /* Only track the object if we are supposed
      * to be tracking it.
      */
-    if (tracking && (!watchpoints 
-                    || (ci = get_callinfo_and(ALLOC_CALLOC, 
-                            get_ip_offs(&offs), request, 
-                        NULL /* TODO: see callinfo.c */)))) {
+    if (tracking 
+            && (!watchpoints 
+                || 
+                (ci = get_callinfo_and(ALLOC_CALLOC, get_ip_offs(&offs), request)))
+        ) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
             mngr.cctor = real_calloc;
