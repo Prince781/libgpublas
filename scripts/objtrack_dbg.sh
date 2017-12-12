@@ -24,7 +24,7 @@ tempfile=$(mktemp)
 echo "creating $tempfile"
 
 cat >$tempfile <<EOF
-set exec-wrapper env 'OBJTRACKER_OPTIONS=blas_libs=$blas_lib' 'LD_PRELOAD=$LIBOBJTRACKER'
+set exec-wrapper env 'OBJTRACKER_OPTIONS=blas_libs=$blas_lib;only_print_calls' 'LD_PRELOAD=$LIBOBJTRACKER'
 run $args
 $(cat $debugcmdfile)
 run $args

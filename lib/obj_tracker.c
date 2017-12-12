@@ -257,6 +257,7 @@ static void obj_tracker_get_options(void) {
             }
         } else if (strcmp(option, "only_print_calls") == 0) {
             objtracker_options.only_print_calls = true;
+            printf("object tracker: will only print calls\n");
         } else if (strncmp(option, "blas_libs=", 10) == 0) {
             char *blaslibs = strchr(option, '=');
             char *blas_lib = NULL;
@@ -343,7 +344,7 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
     tid = syscall(SYS_gettid);
 
 #if STANDALONE
-    if (objtracker_options.only_print_calls)
+    if (!objtracker_options.only_print_calls || type == OBJPRINT_CALL)
 #endif
         printf("%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d]\n",
                 c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid);
