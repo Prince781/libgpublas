@@ -20,7 +20,7 @@ if [ ! -e $BLAS2CUDA ]; then
     fi
 fi
 
-if [ -e $optirun ]; then
+if [ -e /bin/optirun ]; then
     optirun=/bin/optirun
 fi
 
