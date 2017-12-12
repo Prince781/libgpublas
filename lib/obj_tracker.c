@@ -356,7 +356,7 @@ __attribute__((constructor))
 void obj_tracker_init(bool tracking_enabled)
 {
 /*    extern char etext, edata, end; */
-    if (!initialized) {
+    if (!initialized && !initializing) {
         tracking = false;
         initializing = true;
 
