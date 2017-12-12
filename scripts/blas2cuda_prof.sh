@@ -18,4 +18,4 @@ if [ ! -e $BLAS2CUDA ]; then
     fi
 fi
 
-ltrace -Tf env LD_PRELOAD=$BLAS2CUDA BLAS2CUDA_OPTIONS="track=$trackfile" $progname ${@:3}
+ltrace -CTf env LD_PRELOAD=$BLAS2CUDA BLAS2CUDA_OPTIONS="track=$trackfile" $progname ${@:3}
