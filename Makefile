@@ -10,7 +10,7 @@ CXXSOURCES=$(wildcard *.cc) $(wildcard blas_level1/*.cc) $(wildcard blas_level2/
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 LIBDIR=lib
-COMPFLAGS = -Wall -Werror -fPIC -fdiagnostics-color -ggdb3 -I$(CUDA)/include
+COMPFLAGS = -Wall -Werror -fPIC -fdiagnostics-color -ggdb3 -O3 -I$(CUDA)/include
 CFLAGS += $(COMPFLAGS) -std=gnu11
 CXXFLAGS += $(COMPFLAGS) -std=gnu++11
 NVCFLAGS=$(subst $(space),$(comma),$(CFLAGS))
