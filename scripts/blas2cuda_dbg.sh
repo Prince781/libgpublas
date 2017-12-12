@@ -6,6 +6,7 @@ debugcmdfile=$1
 trackfile=$2
 progname=$3
 BLAS2CUDA=$pardir/../libblas2cuda.so
+optirun=
 tempfile=
 
 if [ -z $debugcmdfile ] || [ -z $trackfile ] || [ -z $progname ]; then
@@ -19,10 +20,14 @@ if [ ! -e $BLAS2CUDA ]; then
     fi
 fi
 
+if [ -e $optirun ]; then
+    optirun=/bin/optirun
+fi
+
 tempfile=$(mktemp)
 echo "creating $tempfile"
 cat >$tempfile <<EOF
-set exec-wrapper env 'LD_PRELOAD=$pardir/../libblas2cuda.so' 'BLAS2CUDA_OPTIONS=track=$trackfile'
+set exec-wrapper $optirun env 'LD_PRELOAD=$pardir/../libblas2cuda.so' 'BLAS2CUDA_OPTIONS=track=$trackfile'
 run ${@:4}
 $(cat $debugcmdfile)
 run ${@:4}

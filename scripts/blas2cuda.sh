@@ -6,6 +6,7 @@ pardir=$(dirname $(readlink -f $0))
 trackfile=$1
 progname=$2
 BLAS2CUDA=$pardir/../libblas2cuda.so
+optirun=
 
 if [ -z $trackfile ] || [ -z $progname ]; then
     echo "Usage: $0 <objtrackfile> <command> ARGS..."
@@ -18,4 +19,8 @@ if [ ! -e $BLAS2CUDA ]; then
     fi
 fi
 
-env LD_PRELOAD=$BLAS2CUDA BLAS2CUDA_OPTIONS="track=$trackfile" $progname ${@:3}
+if [ -e /bin/optirun ]; then
+    optirun=/bin/optirun
+fi
+
+$optirun env LD_PRELOAD=$BLAS2CUDA BLAS2CUDA_OPTIONS="track=$trackfile" $progname ${@:3}

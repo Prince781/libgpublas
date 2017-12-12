@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "cblas.h"
+#include "../cblas.h"
 #include "fortran-compat.h"
 
 static CBLAS_TRANSPOSE c_trans(char c) {

@@ -1,4 +1,4 @@
-SOURCES=$(wildcard *.c) ../fortran-compat.c
+SOURCES=$(wildcard *.c) 
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall -Werror -fdiagnostics-color -fPIC -ggdb3 -std=gnu11 -DSTANDALONE -DTRACE_OUTPUT # -DRBTREE -DDEBUG_TRACKING -DTRACE_OUTPUT
