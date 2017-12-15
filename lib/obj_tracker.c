@@ -260,6 +260,29 @@ static void get_real_free(void) {
 }
 
 #if STANDALONE
+void obj_tracker_print_help(void) {
+    fprintf(stderr,
+        "object tracker options: (OBJTRACKER_OPTIONS)\n"
+	"You can chain these options with a semicolon (;)\n"
+	"help               -- Print help.\n"
+	"only_print_calls   -- Only print BLAS calls that use \n"
+	"                      objects. This reduces the output of\n"
+	"                      the tracker. By default, this option\n"
+	"                      is set to 'false'.\n"
+	"blas_libs          -- A comma(,)-separated list of libraries\n"
+	"                      to load, in the order specified. Use \n"
+	"                      this for libraries that are not linked\n"
+	"                      to their dependencies, like Intel MKL.\n");
+
+}
+
+const char my_interp[] __attribute__((section(".interp"))) = "/lib64/ld-linux-x86-64.so.2";
+
+int entry(void) {
+    obj_tracker_print_help();
+    exit(0);
+}
+
 static void obj_tracker_get_options(void) {
     char *options = getenv("OBJTRACKER_OPTIONS");
     char *saveptr = NULL;
@@ -273,17 +296,7 @@ static void obj_tracker_get_options(void) {
     while (option != NULL) {
         if (strcmp(option, "help") == 0) {
             if (!help) {
-                fprintf(stderr,
-                        "object tracker options:\n"
-                        "You can chain these options with a semicolon (;)\n"
-                        "help               -- Print help.\n"
-                        "only_print_calls   -- Only print BLAS calls that use objects.\n"
-                        "                      This reduces the output of the tracker.\n"
-                        "                      By default, this option is false.\n"
-                        "blas_libs          -- A comma(,)-separated list of libraries\n"
-                        "                      to load, in the order specified. Use \n"
-                        "                      this for libraries that are not linked\n"
-                        "                      to their dependencies, like Intel MKL.\n");
+		obj_tracker_print_help();
                 help = true;
             }
         } else if (strcmp(option, "only_print_calls") == 0) {
