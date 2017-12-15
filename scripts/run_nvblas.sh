@@ -15,4 +15,4 @@ if [ -e /bin/optirun ]; then
 fi
 
 echo "running: $optirun env LD_PRELOAD=$CUDA/lib64/libnvblas.so NVBLAS_CONFIG_FILE=$nvblas_conf $program $args"
-$optirun env LD_PRELOAD=$CUDA/lib64/libnvblas.so NVBLAS_CONFIG_FILE=$nvblas_conf $program $args
+$optirun env LD_PRELOAD=$CUDA/lib64/libnvblas.so LD_LIBRARY_PATH=$CUDA/lib64/:/usr/lib NVBLAS_CONFIG_FILE=$nvblas_conf $program $args

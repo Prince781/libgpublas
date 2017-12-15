@@ -62,7 +62,7 @@ for (my $i = $start-1; $i < @{$tests[$level-1]} and $i <= $end; $i++) {
             if (! -e $objtrack_file) {
                 system "cd ../scripts && ./objtrack.sh libmkl_intel_lp64.so ../tests/c/$prog $N --no-print-results 1>/dev/null 2>/dev/null && mv $prog.objtrack ../tests/$objtrack_file";
             }
-            system "cd ../scripts && ./blas2cuda.sh ../tests/$objtrack_file ../tests/c/$prog $N --no-print-results 2>/dev/null | awk '$awk_prog'";
+            system "cd ../scripts && ./blas2cuda_prof.sh ../tests/$objtrack_file ../tests/c/$prog $N --no-print-results 2>/dev/null | awk '$awk_prog'";
         } elsif ($type == 2) {
             system "./c/$prog $N --no-print-results";
         } elsif ($type == 3) {
