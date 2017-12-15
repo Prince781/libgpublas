@@ -828,10 +828,10 @@ void *malloc(size_t request) {
      * to be tracking it.
      */
     if (tracking 
-            && get_callinfo_reqsize(ALLOC_MALLOC, request)
             && (!watchpoints 
                 || 
-                (ci = get_callinfo_and(ALLOC_MALLOC, get_ip_offs(&offs), request)))
+                (get_callinfo_reqsize(ALLOC_MALLOC, request) 
+                 && (ci = get_callinfo_and(ALLOC_MALLOC, get_ip_offs(&offs), request))))
         ) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
@@ -907,10 +907,10 @@ void *calloc(size_t nmemb, size_t size) {
      * to be tracking it.
      */
     if (tracking 
-            && get_callinfo_reqsize(ALLOC_CALLOC, request)
             && (!watchpoints 
                 || 
-                (ci = get_callinfo_and(ALLOC_CALLOC, get_ip_offs(&offs), request)))
+                (get_callinfo_reqsize(ALLOC_CALLOC, request)
+                 && (ci = get_callinfo_and(ALLOC_CALLOC, get_ip_offs(&offs), request))))
         ) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
