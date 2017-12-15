@@ -15,9 +15,9 @@ int prologue(int num) {
     len_x = n * incx;
     len_y = n * incy;
 
-    if (!(x = malloc(len_x * sizeof(*x))))
+    if (!(x = calloc(len_x, sizeof(*x))))
         return -1;
-    if (!(y = malloc(len_y * sizeof(*y)))) {
+    if (!(y = calloc(len_y, sizeof(*y)))) {
         free(x);
         return -1;
     }
