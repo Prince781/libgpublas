@@ -713,6 +713,7 @@ void obj_tracker_print_rbtree(const char *filename) {
 }
 #endif
 
+#if MEMCHECK
 static jmp_buf jump_memcheck;
 
 static void segv_handler(int sig) {
@@ -749,6 +750,9 @@ static bool memcheck(const void *ptr) {
 
     return valid;
 }
+#else
+static bool memcheck(const void *ptr) { return true; }
+#endif
 
 #define WORDS_BEFORE_RBP    4
 

@@ -1,7 +1,7 @@
 SOURCES=$(wildcard *.c) 
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
-CFLAGS=-Wall -Werror -fdiagnostics-color -fPIC -ggdb3 -O3 -e entry -std=gnu11 -DSTANDALONE -DTRACE_OUTPUT # -DRBTREE -DDEBUG_TRACKING -DTRACE_OUTPUT
+CFLAGS=-Wall -Werror -fdiagnostics-color -fPIC -ggdb3 -O3 -e entry -std=gnu11 -DSTANDALONE -DTRACE_OUTPUT # -DRBTREE -DDEBUG_TRACKING -DMEMCHECk
 LDFLAGS=-ldl -lunwind -lunwind-x86_64 -Wl,-init,obj_tracker_init,-fini,obj_tracker_fini
 TESTSOURCES=$(wildcard tests/*.c)
 TESTS=$(TESTSOURCES:%.c=%)
