@@ -55,7 +55,8 @@ my $diffprog = "diff";
 if (-e "/bin/colordiff") {
     $diffprog = "/bin/colordiff";
 }
-$diffprog .= " -y --suppress-common-lines";
+#$diffprog .= " -y --suppress-common-lines";
+$diffprog .= " -q";
 
 for (my $i = $start-1; $i < @{$tests[$level-1]} and $i <= $end; $i++) {
     my $prog = $tests[$level-1][$i-1];
