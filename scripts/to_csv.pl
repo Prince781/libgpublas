@@ -29,12 +29,20 @@ while (my $line = <$datafh>) {
         }
 
         # write header
-        print $csvfh "Matrix Size, Time(s)\n";
+        # print $csvfh "Matrix Size, Time(s)\n";
 
         # read every value 
         while (my ($n, $seconds, $nanoseconds) = 
             <$datafh> =~ m/[\s\w]*\w+\[n=\s*(\d+)\].* (\d+)\s*s\s*\+\s*(\d+)\s*ns/) {
             my $time = $seconds + $nanoseconds / 10e+9;
+
+            printf $csvfh "%d,%lf\n", $n, $time;
+        }
+
+        # for octave results
+        while (my ($n, $seconds, $gflops) =
+            <$datafh> =~ m/[\s\w]*\w+\[n=\s*(\d+)\].* elapsed=(\d+\.\d+)\s*s\s*GFLOPS=\s*(\d+.\d+)\s*/) {
+            my $time = $seconds;
 
             printf $csvfh "%d,%lf\n", $n, $time;
         }
