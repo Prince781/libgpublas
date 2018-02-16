@@ -84,12 +84,14 @@ subdir('lib')
 
 library('blas2cuda', sources + blas_level1_sources +
     blas_level2_sources + blas_level3_sources, 
-  c_args: ['-Wall', '-Werror', '-fPIC', '-O3', '-e entry'],
+  c_args: ['-Wall', '-Werror', '-O3'],
+  link_args: '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry',
   dependencies: [
     libobjtracker_dep,
     libcuda_dep,
     libcudart_dep,
     libcublas_dep,
   ],
-  include_directories: [root_inc, cuda_inc, lib_inc]
+  include_directories: [root_inc, cuda_inc, lib_inc],
+  install: true,
 )
