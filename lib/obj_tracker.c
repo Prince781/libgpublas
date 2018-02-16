@@ -475,7 +475,7 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
                         (int *) &sym, &reqsize, 
                         &offs.off[0], &offs.off[1],
                         &offs.off[2], &offs.off[3])) == 6) {
-            if (sym < 0 || sym > N_ALLOC_SYMS) {
+            if (((int) sym) < 0 || sym > N_ALLOC_SYMS) {
                 fprintf(stderr, "%s: unsupported symbol '%d'\n",
                         filename, sym);
                 continue;
