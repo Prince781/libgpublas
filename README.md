@@ -5,7 +5,7 @@ equivalent on the GPU in a CUDA environment.
 
 ## Compiling
 ```
-$ make -j`nproc`
+meson build && ninja -C build
 ```
 
 ## How it works
