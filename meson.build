@@ -5,14 +5,11 @@ project('blas2cuda', 'c', 'cpp',
     meson_version: '>= 0.42.0')
 
 cc = meson.get_compiler('c')
+root_inc = include_directories('.')
 
 sources = files(
     'blas2cuda.c',
     'entry.c',
-    'lib/blas_tracker.c',
-    'lib/callinfo.c',
-    'lib/fortran-compat.c',
-    'lib/obj_tracker.c',
 )
 
 blas_level1_sources = files(
@@ -70,23 +67,29 @@ blas_level3_sources = files(
     'blas_level3/trsm.cc',
 )
 
+cuda_lib_dirs = ['/usr/lib', '/opt/cuda/lib64', '/opt/cuda/lib64/stubs']
+
 ## dependencies
 libunwind_dep = dependency('libunwind', version: '>= 1.2')
 libunwind_x86_64_dep = cc.find_library('libunwind-x86_64')
 libpthread_dep = cc.find_library('pthread')
 libdl_dep = cc.find_library('dl')
-libcublas_dep = cc.find_library('cublas', dirs: ['/usr/lib', '/opt/cuda/lib64'])
+libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs)
+libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs)
+libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs)
 
 cuda_inc = include_directories('/opt/cuda/include')
 
-library('libblas2cuda.so', sources + blas_level1_sources +
+subdir('lib')
+
+library('blas2cuda', sources + blas_level1_sources +
     blas_level2_sources + blas_level3_sources, 
   c_args: ['-Wall', '-Werror', '-fPIC', '-O3', '-e entry'],
   dependencies: [
-    libunwind_dep, 
-    libunwind_x86_64_dep, 
-    libpthread_dep, 
-    libdl_dep, 
+    libobjtracker_dep,
+    libcuda_dep,
+    libcudart_dep,
     libcublas_dep,
   ],
-  include_directories: [cuda_inc])
+  include_directories: [root_inc, cuda_inc, lib_inc]
+)
