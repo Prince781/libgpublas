@@ -71,7 +71,12 @@ cuda_lib_dirs = ['/usr/lib', '/opt/cuda/lib64', '/opt/cuda/lib64/stubs']
 
 ## dependencies
 libunwind_dep = dependency('libunwind', version: '>= 1.2')
-libunwind_x86_64_dep = cc.find_library('libunwind-x86_64')
+cpu_family = build_machine.cpu_family()
+if cpu_family == 'x86_64' or cpu_family == 'x86'
+  libunwind_arch_dep = cc.find_library('libunwind-'+cpu_family)
+else
+  libunwind_arch_dep = dependency('libunwind-generic')
+endif
 libpthread_dep = cc.find_library('pthread')
 libdl_dep = cc.find_library('dl')
 libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs)
