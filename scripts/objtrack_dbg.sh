@@ -8,7 +8,7 @@ blas_lib=$2
 program=$3
 args=${@:4}
 fname=$(basename $program.objtrack)
-LIBOBJTRACKER=$pardir/../lib/libobjtracker.so
+LIBOBJTRACKER=$pardir/../build/lib/libobjtracker.so
 
 
 if [ -z $debugcmdfile ] || [ -z $blas_lib ] || [ -z $program ]; then
@@ -17,7 +17,8 @@ if [ -z $debugcmdfile ] || [ -z $blas_lib ] || [ -z $program ]; then
 fi
 
 if [ ! -e $LIBOBJTRACKER ]; then
-    make -C $(dirname $LIBOBJTRACKER) $(basename $LIBOBJTRACKER)
+    meson $(dirname $LIBOBJTRACKER)
+    ninja -C $(dirname $LIBOBJTRACKER)
 fi
 
 tempfile=$(mktemp)
@@ -30,5 +31,5 @@ $(cat $debugcmdfile)
 run $args
 EOF
 
-gdb $program -x $tempfile
+cgdb $program -x $tempfile
 rm $tempfile

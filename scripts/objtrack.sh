@@ -12,10 +12,11 @@ if [ -z $1 ] || [ -z $2 ]; then
 fi
 
 fname=$(basename ${2}.objtrack)
-LIBOBJTRACKER=$pardir/../lib/libobjtracker.so
+LIBOBJTRACKER=$pardir/../build/lib/libobjtracker.so
 
 if [ ! -e $LIBOBJTRACKER ]; then
-    make -C $(dirname $LIBOBJTRACKER) $(basename $LIBOBJTRACKER)
+    meson $(dirname $LIBOBJTRACKER)
+    ninja -C $(dirname $LIBOBJTRACKER)
 fi
 
 echo "running: env OBJTRACKER_OPTIONS=\"blas_libs=$1;only_print_calls\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"

@@ -5,7 +5,7 @@
 pardir=$(dirname $(readlink -f $0))
 trackfile=$1
 progname=$2
-BLAS2CUDA=$pardir/../libblas2cuda.so
+BLAS2CUDA=$pardir/../build/libblas2cuda.so
 optirun=
 
 if [ -z $trackfile ] || [ -z $progname ]; then
@@ -14,7 +14,8 @@ if [ -z $trackfile ] || [ -z $progname ]; then
 fi
 
 if [ ! -e $BLAS2CUDA ]; then
-    if ! make -C $(dirname $BLAS2CUDA); then
+    meson $(dirname $BLAS2CUDA)
+    if ! ninja -C $(dirname $BLAS2CUDA); then
         exit 1
     fi
 fi
