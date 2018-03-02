@@ -759,6 +759,7 @@ static bool memcheck(const void *ptr) { return true; }
 static __attribute__((noinline)) 
 struct ip_offs *get_ip_offs(struct ip_offs *offs) 
 {
+#ifdef TRACK_IP_OFFS
     unw_cursor_t cursor; unw_context_t uc;
     unw_word_t offp;
     int retval;
@@ -782,7 +783,20 @@ struct ip_offs *get_ip_offs(struct ip_offs *offs)
         printf("[%10s:0x%0lx] IP = 0x%0lx\n", name, offp, (long) ip);
         */
     }
+#else
+    static short vals[N_IP_OFFS] = {0};
 
+    for (int i=0; ; ++i) {
+        if (vals[i] == (unsigned short)~0 >> 1)
+            vals[i] = 0;
+        else {
+            vals[i]++;
+            break;
+        }
+    }
+
+    memcpy(offs->off, vals, sizeof offs->off);
+#endif
     return offs;
 }
 
