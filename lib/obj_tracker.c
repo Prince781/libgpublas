@@ -11,11 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <dlfcn.h>
-#if RBTREE
-#include "rbtree.h"
-#else
-#include <search.h>
-#endif
+#include <search.h>         /* for red-black tree */
 #include <setjmp.h>
 #include <signal.h>
 #include <unistd.h>
@@ -68,11 +64,7 @@ static bool initialized = false;
 static bool initializing = false;
 static bool destroying = false;
 static pid_t creation_thread = 0;
-#if RBTREE
-static struct rbtree *objects = NULL;
-#else
 static void *objects = NULL;
-#endif
 static unsigned long num_objects = 0;
 
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
@@ -80,7 +72,7 @@ static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 static inline void read_lock(void) {
     int ret;
 
-    writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
+    // writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
             && errno == EAGAIN)
         write_str(STDERR_FILENO, "failed to acquire read lock\n");
@@ -91,7 +83,7 @@ static inline void read_lock(void) {
 }
 
 static inline void write_lock(void) {
-    writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
+    // writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     if (pthread_rwlock_wrlock(&rwlock) < 0) {
         writef(STDERR_FILENO, "Failed to acquire write lock: %s", strerror(errno));
         abort();
@@ -99,7 +91,7 @@ static inline void write_lock(void) {
 }
 
 static inline void unlock(void) {
-    writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
+    // writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     if (pthread_rwlock_unlock(&rwlock) < 0) {
         writef(STDERR_FILENO, "Failed to unlock write lock: %s", strerror(errno));
         abort();
@@ -486,18 +478,8 @@ obj_tracker_objinfo(void *ptr)
     if (!node)
         return NULL;
 
-#if RBTREE
-    return ((struct rbtree *)node)->item;
-#else
     return *(struct objinfo **)node;
-#endif
 }
-
-#if RBTREE
-static void object_destroy(void *o, void *udata) {
-    real_free(o);
-}
-#endif
 
 #if STANDALONE
 __attribute__((destructor))
@@ -511,11 +493,8 @@ void obj_tracker_fini(void) {
             perror("Failed to destroy rwlock");
             abort();
         }
-#if RBTREE
-        rbtree_destroy(&objects, object_destroy, NULL);
-#else
+
         tdestroy(objects, real_free);
-#endif
         objects = NULL;
 
 #if STANDALONE
@@ -532,17 +511,6 @@ static int objects_compare(const void *o1, const void *o2) {
     return ((const struct objinfo *)o1)->ptr - ((const struct objinfo *)o2)->ptr;
 }
 
-#if RBTREE
-static void object_print(const void *o, int n, char buf[n]) {
-    const struct objinfo *oinfo = o;
-
-    if (oinfo)
-        snprintf(buf, n, "label=\"ptr=%p,size=%zu\"", oinfo->ptr, oinfo->size);
-    else
-        snprintf(buf, n, "label=\"(nil)\"");
-}
-#endif
-
 static void *insert_objinfo(struct objinfo *oinfo)
 {
     static bool inside = false;
@@ -554,11 +522,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
         write_lock();
 
     inside = true;
-#if RBTREE
-    node = rbtree_insert(&objects, oinfo, objects_compare);
-#else
     node = tsearch(oinfo, &objects, objects_compare);
-#endif
 
     if (node) {
         ++num_objects;
@@ -617,11 +581,7 @@ static void *find_objinfo(struct objinfo *o)
     if (!already_inside)
         read_lock();
     inside = true;
-#if RBTREE
-    node = rbtree_find(&objects, &o, objects_compare);
-#else
     node = tfind(o, &objects, objects_compare);
-#endif
     if (!already_inside)
         unlock();
     inside = false;
@@ -641,13 +601,8 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     inside = true;
 
-#if RBTREE
-    objinfo = ((struct rbtree *)node)->item;
-    result = rbtree_delete(&objects, node);
-#else
     objinfo = *(struct objinfo **) node;
     result = tdelete(objinfo, &objects, objects_compare);
-#endif
 
     if (!already_inside)
         unlock();
@@ -679,64 +634,6 @@ static void untrack_object(void *ptr, struct objmngr *mngr)
     }
     tracking = true;
 }
-
-#if RBTREE
-void obj_tracker_print_rbtree(const char *filename) {
-    FILE *stream;
-
-    stream = filename ? fopen(filename, "a") : tmpfile();
-
-    if (!stream) {
-        perror("fopen");
-        return;
-    }
-
-    rbtree_print(objects, object_print, stream);
-
-    fclose(stream);
-}
-#endif
-
-#if MEMCHECK
-static jmp_buf jump_memcheck;
-
-static void segv_handler(int sig) {
-    longjmp(jump_memcheck, 1);
-}
-
-/* conditionally access a pointer
- * If we get a segfault, return false
- * Otherwise, return true
- */
-static bool memcheck(const void *ptr) {
-    bool valid = true;
-    __attribute__((unused)) char c;
-    struct sigaction action, old_action;
-
-    action.sa_handler = segv_handler;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = SA_RESTART;
-
-    sigaction(SIGSEGV, &action, &old_action);
-
-    /* setjmp will initially return 0
-     * when we dereference ptr, if
-     * we get a segfault, our segfault handler
-     * will jump back to setjmp and return 1,
-     * and control will go to the other statement
-     * in this conditional */
-    if (!setjmp(jump_memcheck))
-        c = *(const char *)ptr;
-    else
-        valid = false;
-
-    sigaction(SIGSEGV, &old_action, NULL);
-
-    return valid;
-}
-#else
-static bool memcheck(const void *ptr) { return true; }
-#endif
 
 #define WORDS_BEFORE_RBP    4
 
@@ -850,12 +747,6 @@ void *malloc(size_t request) {
     } else
         ptr = real_malloc(request);
 
-    if (ptr && !memcheck(ptr)) {
-        fprintf(stderr, "invalid pointer %p\n", ptr);
-        abort();
-    }
-
-
     inside = false;
     return ptr;
 }
@@ -929,12 +820,6 @@ void *calloc(size_t nmemb, size_t size) {
     } else
         ptr = real_calloc(nmemb, size);
 
-    if (ptr && !memcheck(ptr)) {
-        fprintf(stderr, "invalid pointer %p\n", ptr);
-        abort();
-    }
-
-
     inside = false;
     return ptr;
 }
@@ -968,14 +853,7 @@ void *realloc(void *ptr, size_t size) {
 
 void free(void *ptr) {
     static bool inside = false;
-    static bool reporting = false;
     struct objmngr mngr;
-
-    if (ptr && !memcheck(ptr) && !reporting) {
-        reporting = true;
-        fprintf(stderr, "invalid pointer %p\n", ptr);
-        abort();
-    }
 
     if (inside || destroying || initializing) {
         if (real_free)
