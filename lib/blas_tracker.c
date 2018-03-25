@@ -89,8 +89,7 @@ static void *get_real_blas_fun(const char *name) {
 
 void blas_tracker_init(void) {
     if (objtracker_options.num_blas == 0) {
-        fprintf(stderr, "You must specify at least one BLAS library.\n");
-        abort();
+        fprintf(stderr, "Warning: You must specify at least one BLAS library.\n");
     }
 
     if (!blas_lib_handles) {
