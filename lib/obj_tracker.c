@@ -24,6 +24,7 @@
 #if STANDALONE
 #include "blas_tracker.h"
 #endif
+#include <assert.h>
 
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT    1
@@ -51,25 +52,31 @@ static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 static inline void read_lock(void) {
     int ret;
 
+    int tid = syscall(SYS_gettid);
+    assert (rwlock.__data.__cur_writer != tid);
+
     while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
             && errno == EAGAIN)
-        writef(STDERR_FILENO, "failed to acquire read lock\n");
+        writef(STDERR_FILENO, "objtracker: failed to acquire read lock\n");
     if (ret < 0) {
-        writef(STDERR_FILENO, "Failed to acquire read lock: %s", strerror(errno));
+        writef(STDERR_FILENO, "objtracker: failed to acquire read lock: %s", strerror(errno));
         abort();
     }
 }
 
 static inline void write_lock(void) {
+    int tid = syscall(SYS_gettid);
+    assert (rwlock.__data.__cur_writer != tid);
+
     if (pthread_rwlock_wrlock(&rwlock) < 0) {
-        writef(STDERR_FILENO, "Failed to acquire write lock: %s", strerror(errno));
+        writef(STDERR_FILENO, "objtracker: failed to acquire write lock: %s", strerror(errno));
         abort();
     }
 }
 
 static inline void unlock(void) {
     if (pthread_rwlock_unlock(&rwlock) < 0) {
-        writef(STDERR_FILENO, "Failed to unlock write lock: %s", strerror(errno));
+        writef(STDERR_FILENO, "objtracker: failed to unlock write lock: %s", strerror(errno));
         abort();
     }
 }
