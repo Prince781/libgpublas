@@ -49,6 +49,8 @@ static unsigned long num_objects = 0;
 
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
+static __thread volatile bool grabbed_lock = false;
+
 static inline void read_lock(void) {
     int ret;
 
@@ -454,7 +456,7 @@ void obj_tracker_fini(void) {
         blas_tracker_fini();
 #endif
         tid = syscall(SYS_gettid);
-        writef(STDERR_FILENO, "objtracker: decomissioned on thread %d\n", tid);
+        writef(STDERR_FILENO, "objtracker: decommissioned on thread %d\n", tid);
         initialized = false;
         destroying = false;
     }
@@ -466,25 +468,25 @@ static int objects_compare(const void *o1, const void *o2) {
 
 static void *insert_objinfo(struct objinfo *oinfo)
 {
-    static bool inside = false;
     void *node;
 
-    bool already_inside = inside;
+    bool locked = grabbed_lock;
 
-    if (!already_inside)
+    if (!locked) {
         write_lock();
+        grabbed_lock = true;
+    }
 
-    inside = true;
     node = tsearch(oinfo, &objects, objects_compare);
 
     if (node) {
         ++num_objects;
     }
 
-    if (!already_inside)
+    if (!locked) {
         unlock();
-
-    inside = false;
+        grabbed_lock = false;
+    }
 
     return node;
 }
@@ -526,41 +528,42 @@ static void track_object(void *ptr,
 
 static void *find_objinfo(struct objinfo *o)
 {
-    static bool inside = false;
     void *node;
 
-    bool already_inside = inside;
+    bool locked = grabbed_lock;
 
-    if (!already_inside)
+    if (!locked) {
         read_lock();
-    inside = true;
+        grabbed_lock = true;
+    }
+
     node = tfind(o, &objects, objects_compare);
-    if (!already_inside)
+    if (!locked) {
         unlock();
-    inside = false;
+        grabbed_lock = false;
+    }
     return node;
 }
 
 static void *delete_objinfo(void *node, struct objmngr *mngr)
 {
-    static bool inside = false;
     struct objinfo *objinfo;
     void *result;
 
-    bool already_inside = inside;
+    bool locked = grabbed_lock;
 
-    if (!already_inside)
+    if (!locked) {
         write_lock();
-
-    inside = true;
+        grabbed_lock = true;
+    }
 
     objinfo = *(struct objinfo **) node;
     result = tdelete(objinfo, &objects, objects_compare);
 
-    if (!already_inside)
+    if (!locked) {
         unlock();
-
-    inside = false;
+        grabbed_lock = false;
+    }
 
 #if TRACE_OUTPUT
     obj_tracker_print_info(OBJPRINT_UNTRACK, objinfo);
