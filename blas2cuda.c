@@ -38,7 +38,7 @@ static bool blas2cuda_tracking = false;
 struct options b2c_options = { false, false, false };
 
 void b2c_print_help(void) {
-    fprintf(stderr, 
+    writef(STDERR_FILENO, 
             "blas2cuda options (set BLAS2CUDA_OPTIONS):\n"
             "   You can chain these options with a semicolon (;)\n"
             "   help           -- print help\n"
@@ -76,14 +76,14 @@ static void set_options(void) {
             char *fname = strchr(option, '=');
             if (fname) {
                 fname++;
-                printf("loading %s\n", fname);
+                writef(STDOUT_FILENO, "blas2cuda: loading %s\n", fname);
                 obj_tracker_load(fname, &blas2cuda_manager);
-                printf("loaded %s\n", fname);
+                writef(STDOUT_FILENO, "blas2cuda: loaded %s\n", fname);
                 blas2cuda_tracking = true;
             } else
-                fprintf(stderr, "blas2cuda: you must provide a filename. Set BLAS2CUDA_OPTIONS=help.\n");
+                writef(STDERR_FILENO, "blas2cuda: you must provide a filename. Set BLAS2CUDA_OPTIONS=help.\n");
         } else {
-            fprintf(stderr, "blas2cuda: unknown option '%s'. Set BLAS2CUDA_OPTIONS=help.\n", option);
+            writef(STDERR_FILENO, "blas2cuda: unknown option '%s'. Set BLAS2CUDA_OPTIONS=help.\n", option);
         }
         option = strtok_r(NULL, ";", &saveptr);
     }
@@ -97,14 +97,14 @@ void init_cublas(void) {
             case CUBLAS_STATUS_SUCCESS:
                 {
                     pid_t tid = syscall(SYS_gettid);
-                    printf("blas2cuda: initialized cuBLAS on thread %d\n", tid);
+                    writef(STDOUT_FILENO, "blas2cuda: initialized cuBLAS on thread %d\n", tid);
                 }
                 break;
             case CUBLAS_STATUS_ALLOC_FAILED:
-                fprintf(stderr, "blas2cuda: failed to allocate resources\n");
+                writef(STDERR_FILENO, "blas2cuda: failed to allocate resources\n");
             case CUBLAS_STATUS_NOT_INITIALIZED:
             default:
-                fprintf(stderr, "blas2cuda: failed to initialize cuBLAS\n");
+                writef(STDERR_FILENO, "blas2cuda: failed to initialize cuBLAS\n");
                 abort();
                 break;
         }
@@ -126,7 +126,7 @@ void *b2c_copy_to_gpu(const void *devbuf, size_t size)
     cudaMemcpy(gpubuf, devbuf, size, cudaMemcpyHostToDevice);
 
     if (b2c_options.trace_copy)
-        printf("%s: %zu B : CPU ---> GPU\n", __func__, size);
+        writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : CPU ---> GPU\n", __func__, size);
 
     return gpubuf;
 }
@@ -143,7 +143,7 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
     cudaMemcpy(devbuf, gpubuf, size, cudaMemcpyDeviceToHost);
 
     if (b2c_options.trace_copy)
-        printf("%s: %zu B : GPU ---> CPU\n", __func__, size);
+        writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
 
     return devbuf;
 }
@@ -153,7 +153,7 @@ void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size)
     cudaMemcpy(cpubuf, gpubuf, size, cudaMemcpyDeviceToHost);
 
     if (b2c_options.trace_copy)
-        printf("%s: %zu B : GPU ---> CPU\n", __func__, size);
+        writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
 }
 
 void *b2c_place_on_gpu(void *cpubuf, 
@@ -187,7 +187,7 @@ void *b2c_place_on_gpu(void *cpubuf,
 
         va_end(ap);
 
-        fprintf(stderr, "%s: failed to copy to GPU\n", __func__);
+        writef(STDERR_FILENO, "blas2cuda: %s: failed to copy to GPU\n", __func__);
         b2c_fatal_error(err, __func__);
         return NULL;
     }
@@ -210,7 +210,7 @@ static void *alloc_managed(size_t request)
     cudaMallocManaged(&ptr, sizeof(size_t) + request, cudaMemAttachGlobal);
     if (cudaPeekAtLastError() != cudaSuccess) {
         cudaError_t err = cudaGetLastError();
-        fprintf(stderr, "%s @ %s, line %d: failed to allocate memory: %s - %s\n", 
+        writef(STDERR_FILENO, "blas2cuda: %s @ %s, line %d: failed to allocate memory: %s - %s\n", 
                 __func__, __FILE__, __LINE__, cudaGetErrorName(err), cudaGetErrorString(err));
         abort();
     }
@@ -255,16 +255,14 @@ void blas2cuda_init(void)
     if (!b2c_initialized && !inside) {
         inside = true;
         tid = syscall(SYS_gettid);
-        printf("initializing blas2cuda on thread %d\n", tid);
-        printf("initializing cuBLAS...\n");
+        writef(STDOUT_FILENO, "blas2cuda: initializing on thread %d\n", tid);
+        writef(STDOUT_FILENO, "blas2cuda: initializing cuBLAS...\n");
         init_cublas();
-        printf("initialized cuBLAS\n");
+        writef(STDOUT_FILENO, "blas2cuda: initialized cuBLAS\n");
         obj_tracker_init(false);
-        printf("getting options...\n");
         set_options();
-        printf("got options\n");
         obj_tracker_set_tracking(blas2cuda_tracking);
-        printf("initialized blas2cuda on thread %d\n", tid);
+        writef(STDOUT_FILENO, "blas2cuda: initialized on thread %d\n", tid);
         b2c_initialized = true;
         inside = false;
     }
@@ -280,10 +278,10 @@ void blas2cuda_fini(void)
         inside = true;
         if (cublas_initialized 
                 && cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
-            fprintf(stderr, "blas2cuda: failed to destroy. Not initialized\n");
+            writef(STDERR_FILENO, "blas2cuda: failed to destroy. Not initialized\n");
 
         tid = syscall(SYS_gettid);
-        printf("decommissioned blas2cuda on thread %d\n", tid);
+        writef(STDOUT_FILENO, "blas2cuda: decommissioned on thread %d\n", tid);
         obj_tracker_fini();
         inside = false;
         b2c_initialized = false;

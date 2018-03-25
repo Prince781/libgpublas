@@ -10,6 +10,7 @@
 #include "callinfo.h"
 #include "obj_tracker.h"
 #include "../cblas.h"
+#include "../common.h"
 
 #define CAPACITY (1 << 10)
 
@@ -24,7 +25,7 @@ static void print_objtrack_info(const void *ptr) {
     if ((info = obj_tracker_objinfo((void *) ptr))) {
         obj_tracker_print_info(OBJPRINT_CALL, info);
     } else
-        fprintf(stderr, "no objinfo for %p\n", ptr);
+        writef(STDERR_FILENO, "no objinfo for %p\n", ptr);
 }
 
 static void *get_real_blas_fun_cached(const char *name) {
@@ -34,14 +35,14 @@ static void *get_real_blas_fun_cached(const char *name) {
     if (!fptrs_table) {
         fptrs_table = real_calloc(1, sizeof(*fptrs_table));
         if (hcreate_r(CAPACITY, fptrs_table) < 0) {
-            perror("Failed to create lookup table.");
+            writef(STDERR_FILENO, "Failed to create lookup table: %s", strerror(errno));
             abort();
         }
     }
 
     if (!hsearch_r(item, FIND, &result, fptrs_table)) {
         if (errno != ESRCH) {
-            perror("Failed to execute search operation.");
+            writef(STDERR_FILENO, "BLAS tracker: Failed to execute search operation: %s", strerror(errno));
             abort();
         }
     }
@@ -54,7 +55,7 @@ static void cache_fptr(const char *name, void *fptr) {
     ENTRY *retval;
 
     if (!hsearch_r(item, ENTER, &retval, fptrs_table)) {
-        perror("Failed to enter function pointer in cache");
+        writef(STDERR_FILENO, "BLAS tracker: Failed to enter function pointer in cache: %s", strerror(errno));
         abort();
     }
 }
@@ -66,7 +67,7 @@ static void *get_real_blas_fun(const char *name) {
         return sym;
 
     if (!blas_lib_handles) {
-        fprintf(stderr, "No libraries loaded! Was blas_tracker_init() called?\n");
+        writef(STDERR_FILENO, "BLAS tracker: No libraries loaded! Was blas_tracker_init() called?\n");
         abort();
     }
 
@@ -82,14 +83,14 @@ static void *get_real_blas_fun(const char *name) {
     }
 
     if (!sym)
-        fprintf(stderr, "Failed to get handle to function '%s'\n", name);
+        writef(STDERR_FILENO, "BLAS tracker: Failed to get handle to function '%s'\n", name);
 
     return sym;
 }
 
 void blas_tracker_init(void) {
     if (objtracker_options.num_blas == 0) {
-        fprintf(stderr, "Warning: You must specify at least one BLAS library.\n");
+        writef(STDERR_FILENO, "BLAS tracker: Warning: You must specify at least one BLAS library.\n");
     }
 
     if (!blas_lib_handles) {
@@ -99,10 +100,10 @@ void blas_tracker_init(void) {
             dlerror();
             if (!(blas_lib_handles[i] = 
                         dlopen(objtracker_options.blas_libs[i], RTLD_LAZY | RTLD_GLOBAL))) {
-                fprintf(stderr, "dlopen() : %s\n", dlerror());
+                writef(STDERR_FILENO, "BLAS tracker: dlopen() : %s\n", dlerror());
                 abort();
             } else
-                printf("BLAS tracker: loaded %s\n", objtracker_options.blas_libs[i]);
+                writef(STDOUT_FILENO, "BLAS tracker: loaded %s\n", objtracker_options.blas_libs[i]);
         }
         num_handles = objtracker_options.num_blas;
     }
@@ -111,7 +112,7 @@ void blas_tracker_init(void) {
 void blas_tracker_fini(void) {
     for (int i=0; i<num_handles; ++i) {
         if (dlclose(blas_lib_handles[i]) != 0) {
-            fprintf(stderr, "dlclose() : %s\n", dlerror());
+            writef(STDERR_FILENO, "BLAS tracker: dlclose() : %s\n", dlerror());
             abort();
         }
     }

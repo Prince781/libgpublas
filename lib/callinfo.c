@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <stdint.h> /* intptr_t */
+#include "../common.h"
 
 #define CAPACITY    (1 << 10)
 
@@ -72,7 +73,7 @@ static ENTRY *insert_retval;
     if (!sym->member) {\
         sym->member = real_calloc(1, sizeof(*sym->member));\
         if (hcreate_r(nel, sym->member) < 0) {\
-            perror("Failed to create hash table of allocations");\
+            writef(STDERR_FILENO, "objtracker: Failed to create hash table of allocations: %s", strerror(errno));\
             abort(); \
         }\
     }
@@ -194,8 +195,8 @@ add_callinfo(enum alloc_sym sym,
                 return -1;
             }
         } else {
-            fprintf(stderr, 
-                    "Warning: callinfo (%s) was already present in table!\n",
+            writef(STDERR_FILENO, 
+                    "objtracker: Warning: callinfo (%s) was already present in table!\n",
                     ci_string);
             real_free(ci);
             real_free(ci_string);

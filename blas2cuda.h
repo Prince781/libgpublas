@@ -12,25 +12,27 @@
 #include "lib/callinfo.h"
 #include "lib/obj_tracker.h"
 
+#include "common.h"
+
 #define B2C_ERRORCHECK(name, status) \
 do {\
     if (b2c_options.debug_execfail) {\
         switch (status) {\
             case CUBLAS_STATUS_EXECUTION_FAILED:\
-                fprintf(stderr, "blas2cuda: failed to execute " #name "\n");\
+                writef(STDERR_FILENO, "blas2cuda: failed to execute " #name "\n");\
                 break;\
             case CUBLAS_STATUS_NOT_INITIALIZED:\
-                fprintf(stderr, "blas2cuda: not initialized\n");\
+                writef(STDERR_FILENO, "blas2cuda: not initialized\n");\
                 break;\
             case CUBLAS_STATUS_ARCH_MISMATCH:\
-                fprintf(stderr, "blas2cuda:" #name " not supported\n");\
+                writef(STDERR_FILENO, "blas2cuda:" #name " not supported\n");\
                 break;\
             default:\
                 break;\
         }\
     }\
     if (status == CUBLAS_STATUS_SUCCESS && b2c_options.debug_exec)\
-        fprintf(stderr, "blas2cuda: calling %s()\n", #name);\
+        writef(STDERR_FILENO, "blas2cuda: calling %s()\n", #name);\
 } while (0)
 
 struct options {
@@ -54,7 +56,7 @@ void init_cublas(void);
 static inline void b2c_fatal_error(cudaError_t status, const char *domain)
 {
     if (status != cudaSuccess) {
-        fprintf(stderr, "%s: %s : %s\n", domain, cudaGetErrorName(status), cudaGetErrorString(status));
+        writef(STDERR_FILENO, "%s: %s : %s\n", domain, cudaGetErrorName(status), cudaGetErrorString(status));
         abort();
     }
 }

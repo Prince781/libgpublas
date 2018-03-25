@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "../cblas.h"
 #include "fortran-compat.h"
+#include "../common.h"
 
 static CBLAS_TRANSPOSE c_trans(char c) {
     switch (c) {
@@ -15,7 +16,7 @@ static CBLAS_TRANSPOSE c_trans(char c) {
         case 'c':
             return CblasConjTrans;
         default:
-            fprintf(stderr, "Invalid transpose op '%c'\n", c);
+            writef(STDERR_FILENO, "Invalid transpose op '%c'\n", c);
             abort();
             break;
     }
@@ -30,7 +31,7 @@ static CBLAS_SIDE c_side(char c) {
         case 'r':
             return CblasRight;
         default:
-            fprintf(stderr, "Invalid side op '%c'\n", c);
+            writef(STDERR_FILENO, "Invalid side op '%c'\n", c);
             abort();
             break;
     }
@@ -45,7 +46,7 @@ static CBLAS_UPLO c_uplo(char c) {
         case 'l':
             return CblasLower;
         default:
-            fprintf(stderr, "Invalid uplo op '%c'\n", c);
+            writef(STDERR_FILENO, "Invalid uplo op '%c'\n", c);
             abort();
             break;
     }
@@ -60,7 +61,7 @@ static CBLAS_DIAG c_diag(char c) {
         case 'n':
             return CblasNonUnit;
         default:
-            fprintf(stderr, "Invalid diag op '%c'\n", c);
+            writef(STDERR_FILENO, "Invalid diag op '%c'\n", c);
             abort();
             break;
     }

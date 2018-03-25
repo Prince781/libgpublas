@@ -1,8 +1,7 @@
 /*****
- * obj_tracker.cu
+ * obj_tracker.c
  * Tracks objects.
  */
-// #include "obj_tracker.h"
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +20,7 @@
 #include <pthread.h>        /* for read-write locks */
 #include "callinfo.h"
 #include "obj_tracker.h"
+#include "../common.h"
 #if STANDALONE
 #include "blas_tracker.h"
 #endif
@@ -28,27 +28,6 @@
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT    1
 #endif
-
-#define write_conststr(fd, str) \
-{                                               \
-    int fild = fd;                              \
-    syscall(SYS_write, fild, str, sizeof(str)); \
-}
-
-#define write_str(fd, str)              \
-{                                       \
-    int fild = fd;                      \
-    const char *_str = (str);           \
-    size_t sz = strlen(_str);           \
-    syscall(SYS_write, fild, _str, sz); \
-}
-
-#define writef(fd, fmt, ...)                        \
-{                                                   \
-    char buf[2048];                                 \
-    snprintf(buf, sizeof buf, fmt, __VA_ARGS__);    \
-    write_str(fd, buf);                             \
-}
 
 static void *find_objinfo(struct objinfo *o);
 
@@ -72,10 +51,9 @@ static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 static inline void read_lock(void) {
     int ret;
 
-    // writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
             && errno == EAGAIN)
-        write_str(STDERR_FILENO, "failed to acquire read lock\n");
+        writef(STDERR_FILENO, "failed to acquire read lock\n");
     if (ret < 0) {
         writef(STDERR_FILENO, "Failed to acquire read lock: %s", strerror(errno));
         abort();
@@ -83,7 +61,6 @@ static inline void read_lock(void) {
 }
 
 static inline void write_lock(void) {
-    // writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     if (pthread_rwlock_wrlock(&rwlock) < 0) {
         writef(STDERR_FILENO, "Failed to acquire write lock: %s", strerror(errno));
         abort();
@@ -91,7 +68,6 @@ static inline void write_lock(void) {
 }
 
 static inline void unlock(void) {
-    // writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     if (pthread_rwlock_unlock(&rwlock) < 0) {
         writef(STDERR_FILENO, "Failed to unlock write lock: %s", strerror(errno));
         abort();
@@ -126,17 +102,17 @@ static void get_real_malloc(void) {
         inside = true;
         if (real_malloc == NULL) {
             dlerror();
-            write_str(STDOUT_FILENO, "Reset dlerror\n");
+            writef(STDOUT_FILENO, "Reset dlerror\n");
             real_malloc = (void *(*)(size_t)) dlsym(RTLD_NEXT, "malloc");
             if (real_malloc == NULL) {
-                write_conststr(STDERR_FILENO, "dlsym: ");
-                write_str(STDERR_FILENO, dlerror());
-                write_conststr(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: ");
+                writef(STDERR_FILENO, dlerror());
+                writef(STDERR_FILENO, "\n");
                 abort();
             } else
-                write_str(STDOUT_FILENO, "Got malloc\n");
+                writef(STDOUT_FILENO, "Got malloc\n");
         } else
-            write_str(STDOUT_FILENO, "malloc already found\n");
+            writef(STDOUT_FILENO, "malloc already found\n");
         get_real_free();
         inside = false;
     }
@@ -149,17 +125,17 @@ static void get_real_calloc(void) {
         inside = true;
         if (real_calloc == NULL) {
             dlerror();
-            write_str(STDOUT_FILENO, "Reset dlerror\n");
+            writef(STDOUT_FILENO, "Reset dlerror\n");
             real_calloc = (void *(*)(size_t, size_t)) dlsym(RTLD_NEXT, "calloc");
             if (real_calloc == NULL) {
-                write_conststr(STDERR_FILENO, "dlsym: ");
-                write_str(STDERR_FILENO, dlerror());
-                write_conststr(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: ");
+                writef(STDERR_FILENO, dlerror());
+                writef(STDERR_FILENO, "\n");
                 abort();
             } else
-                write_str(STDOUT_FILENO, "Got calloc\n");
+                writef(STDOUT_FILENO, "Got calloc\n");
         } else
-            write_str(STDOUT_FILENO, "calloc already found\n");
+            writef(STDOUT_FILENO, "calloc already found\n");
         get_real_free();
         inside = false;
     }
@@ -172,17 +148,17 @@ static void get_real_realloc(void) {
         inside = true;
         if (real_realloc == NULL) {
             dlerror();
-            write_str(STDOUT_FILENO, "Reset dlerror\n");
+            writef(STDOUT_FILENO, "Reset dlerror\n");
             real_realloc = (void *(*)(void *, size_t)) dlsym(RTLD_NEXT, "realloc");
             if (real_realloc == NULL) {
-                write_conststr(STDERR_FILENO, "dlsym: ");
-                write_str(STDERR_FILENO, dlerror());
-                write_conststr(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: ");
+                writef(STDERR_FILENO, dlerror());
+                writef(STDERR_FILENO, "\n");
                 abort();
             } else
-                write_str(STDOUT_FILENO, "Got realloc\n");
+                writef(STDOUT_FILENO, "Got realloc\n");
         } else
-            write_str(STDOUT_FILENO, "realloc already found\n");
+            writef(STDOUT_FILENO, "realloc already found\n");
         get_real_free();
         inside = false;
     }
@@ -195,24 +171,24 @@ static void get_real_free(void) {
         inside = true;
         if (real_free == NULL) {
             dlerror();
-            write_str(STDOUT_FILENO, "Reset dlerror\n");
+            writef(STDOUT_FILENO, "Reset dlerror\n");
             real_free = (void (*)(void *)) dlsym(RTLD_NEXT, "free");
             if (real_free == NULL) {
-                write_conststr(STDERR_FILENO, "dlsym: ");
-                write_str(STDERR_FILENO, dlerror());
-                write_conststr(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: ");
+                writef(STDERR_FILENO, dlerror());
+                writef(STDERR_FILENO, "\n");
                 abort();
             } else
-                write_str(STDOUT_FILENO, "Got free\n");
+                writef(STDOUT_FILENO, "Got free\n");
         } else
-            write_str(STDOUT_FILENO, "free already found\n");
+            writef(STDOUT_FILENO, "free already found\n");
         inside = false;
     }
 }
 
 #if STANDALONE
 void obj_tracker_print_help(void) {
-    fprintf(stderr,
+    writef(STDERR_FILENO,
         "object tracker options: (OBJTRACKER_OPTIONS)\n"
 	"You can chain these options with a semicolon (;)\n"
 	"help               -- Print help.\n"
@@ -224,7 +200,6 @@ void obj_tracker_print_help(void) {
 	"                      to load, in the order specified. Use \n"
 	"                      this for libraries that are not linked\n"
 	"                      to their dependencies, like Intel MKL.\n");
-
 }
 
 const char my_interp[] __attribute__((section(".interp"))) = "/lib64/ld-linux-x86-64.so.2";
@@ -252,7 +227,7 @@ static void obj_tracker_get_options(void) {
             }
         } else if (strcmp(option, "only_print_calls") == 0) {
             objtracker_options.only_print_calls = true;
-            printf("object tracker: will only print calls\n");
+            writef(STDERR_FILENO, "object tracker: will only print calls\n");
         } else if (strncmp(option, "blas_libs=", 10) == 0) {
             char *blaslibs = strchr(option, '=');
             char *blas_lib = NULL;
@@ -276,9 +251,9 @@ static void obj_tracker_get_options(void) {
                 objtracker_options.blas_libs = array;
                 objtracker_options.num_blas = n;
             } else
-                fprintf(stderr, "objtracker: you must provide a filename. Set OBJTRACKER_OPTIONS=help.\n");
+                writef(STDERR_FILENO, "objtracker: you must provide a filename. Set OBJTRACKER_OPTIONS=help.\n");
         } else {
-            fprintf(stderr, "objtracker: unknown option '%s'. Set OBJTRACKER_OPTIONS=help.\n", option);
+            writef(STDERR_FILENO, "objtracker: unknown option '%s'. Set OBJTRACKER_OPTIONS=help.\n", option);
         }
         option = strtok_r(NULL, ";", &saveptr);
     }
@@ -341,7 +316,7 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
 #if STANDALONE
     if (!objtracker_options.only_print_calls || type == OBJPRINT_CALL)
 #endif
-        printf("%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d]\n",
+        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d]\n",
                 c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid);
 }
 
@@ -357,37 +332,21 @@ void obj_tracker_init(bool tracking_enabled)
 
         creation_thread = syscall(SYS_gettid);
 
-        write_str(STDOUT_FILENO, "Initializing object tracker...\n");
-        write_str(STDOUT_FILENO, "Initializing lock...\n");
+        writef(STDOUT_FILENO, "objtracker: Initializing...\n");
         if (pthread_rwlock_init(&rwlock, NULL) < 0) {
-            write_str(STDERR_FILENO, "Failed to initialize rwlock");
+            writef(STDERR_FILENO, "Failed to initialize rwlock");
             abort();
         }
-        write_str(STDOUT_FILENO, "Lock initialized ...\n");
 
-        write_str(STDOUT_FILENO, "Getting function pointers...\n");
         obj_tracker_get_fptrs();
-        write_str(STDOUT_FILENO, "Got function pointers...\n");
         initialized = true;
 
-        write_str(STDOUT_FILENO, "Initializing call info...\n");
         init_callinfo();
-        write_str(STDOUT_FILENO, "Initialized call info...\n");
 
 #if STANDALONE
         obj_tracker_get_options();
         blas_tracker_init();
 #endif
-
-        /*
-        printf("initialized object tracker on thread %d\n", creation_thread);
-        printf("segments: {\n"
-               "    .text = %10p\n"
-               "    .data = %10p\n"
-               "    .bss  = %10p\n"
-               "    .heap = %10p\n"
-               "}\n", &etext, &edata, &end, sbrk(0));
-               */
         tracking = tracking_enabled;
         initializing = false;
     }
@@ -408,12 +367,11 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     char *line = NULL;
     size_t line_len = 0;
     const char *symname = NULL;
-    /* char *off_str = NULL; */
     struct ip_offs offs;
     int lineno = 0;
 
     if ((fp = fopen(filename, "r")) == NULL) {
-        perror("fopen");
+        writef(STDERR_FILENO, "fopen: %s\n", strerror(errno));
         abort();
     }
 
@@ -427,38 +385,26 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
                         &offs.off[0], &offs.off[1],
                         &offs.off[2], &offs.off[3])) == 6) {
             if (((int) sym) < 0 || sym > N_ALLOC_SYMS) {
-                fprintf(stderr, "%s: unsupported symbol '%d'\n",
-                        filename, sym);
+                writef(STDERR_FILENO, "%s: unsupported symbol '%d'\n", filename, sym);
                 continue;
             }
             symname = alloc_sym_tostr(sym);
-            /* if (ip_offs_parse(off_str, &offs) != N_IP_OFFS) {
-                fprintf(stderr, "%s: Failed to add watch: could not parse IP offset"
-                            " string '%s' on line %d\n", filename, off_str, lineno);
-            } else */
+            
             if ((ci_res = add_callinfo(sym, mngr, &offs, reqsize)) == 0) {
                 watchpoints = true;
-                printf("W fun=[%s] reqsize=[%zu] ip_offs=[%hx.%hx.%hx.%hx]\n",
+                writef(STDOUT_FILENO, "W fun=[%s] reqsize=[%zu] ip_offs=[%hx.%hx.%hx.%hx]\n",
                         symname, reqsize, 
                         offs.off[0], offs.off[1], offs.off[2], offs.off[3]);
             } else if (ci_res < 0)
-                fprintf(stderr, "Failed to add watch: %s\n", strerror(errno));
+                writef(STDERR_FILENO, "Failed to add watch: %s\n", strerror(errno));
         } else {
-            fprintf(stderr, "%s: Could not parse line %d (matched %d items)\n", 
+            writef(STDERR_FILENO, "%s: Could not parse line %d (matched %d items)\n", 
                     filename, lineno, res);
             if (res > 0)
-                fprintf(stderr, "\tgot fun=%s\n", symname);
+                writef(STDERR_FILENO, "\tgot fun=%s\n", symname);
             if (res > 1)
-                fprintf(stderr, "\tgot reqsize=%zu\n", reqsize);
+                writef(STDERR_FILENO, "\tgot reqsize=%zu\n", reqsize);
         }
-        /*
-        free(symname);
-        symname = NULL;
-        */
-        /*
-        free(off_str);
-        off_str = NULL;
-        */
     }
 
     free(line);
@@ -490,7 +436,7 @@ void obj_tracker_fini(void) {
         destroying = true;
 
         if (pthread_rwlock_destroy(&rwlock) < 0) {
-            perror("Failed to destroy rwlock");
+            writef(STDERR_FILENO, "objtracker: Failed to destroy rwlock: %s", strerror(errno));
             abort();
         }
 
@@ -501,7 +447,7 @@ void obj_tracker_fini(void) {
         blas_tracker_fini();
 #endif
         tid = syscall(SYS_gettid);
-        printf("decommissioned object tracker on thread %d\n", tid);
+        writef(STDERR_FILENO, "objtracker: decomissioned on thread %d\n", tid);
         initialized = false;
         destroying = false;
     }
@@ -697,7 +643,7 @@ void *malloc(size_t request) {
         if (!real_malloc)
             get_real_malloc();
         if (!real_malloc) {
-            write_str(STDOUT_FILENO, "malloc: returning NULL because real_malloc is undefined\n");
+            writef(STDOUT_FILENO, "malloc: returning NULL because real_malloc is undefined\n");
             return NULL;
         }
         return real_malloc(request);
@@ -709,7 +655,7 @@ void *malloc(size_t request) {
     inside = true;
 
     if (real_malloc == NULL) {
-        fprintf(stderr, "error: real_malloc is NULL! Was constructor called?\n");
+        writef(STDERR_FILENO, "error: real_malloc is NULL! Was constructor called?\n");
         abort();
     }
 
@@ -770,7 +716,7 @@ void *calloc(size_t nmemb, size_t size) {
         if (!real_calloc)
             get_real_calloc();
         if (!real_calloc) {
-            write_str(STDOUT_FILENO, "calloc: returning NULL because real_calloc is undefined\n");
+            writef(STDOUT_FILENO, "calloc: returning NULL because real_calloc is undefined\n");
             return NULL;
         }
         return real_calloc(nmemb, size);
@@ -782,7 +728,7 @@ void *calloc(size_t nmemb, size_t size) {
     inside = true;
 
     if (real_calloc == NULL) {
-        fprintf(stderr, "error: real_calloc is NULL! Was constructor called?\n");
+        writef(STDERR_FILENO, "error: real_calloc is NULL! Was constructor called?\n");
         abort();
     }
 
@@ -835,8 +781,7 @@ void *realloc(void *ptr, size_t size) {
         if (!real_realloc)
             get_real_realloc();
         if (!real_realloc) {
-            write_str(STDOUT_FILENO, 
-                    "realloc: returning NULL because real_realloc is undefined\n");
+            writef(STDOUT_FILENO,"realloc: returning NULL because real_realloc is undefined\n");
             return NULL;
         }
         return real_realloc(ptr, size);
@@ -864,7 +809,7 @@ void free(void *ptr) {
     inside = true;
 
     if (real_free == NULL) {
-        fprintf(stderr, "error: real_free is NULL! Was constructor called?\n");
+        writef(STDERR_FILENO, "error: real_free is NULL! Was constructor called?\n");
         abort();
     }
 
