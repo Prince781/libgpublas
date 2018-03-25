@@ -47,6 +47,13 @@
     syscall(SYS_write, fild, _str, sz); \
 }
 
+#define writef(fd, fmt, ...)                        \
+{                                                   \
+    char buf[2048];                                 \
+    snprintf(buf, sizeof buf, fmt, __VA_ARGS__);    \
+    write_str(fd, buf);                             \
+}
+
 static void *find_objinfo(struct objinfo *o);
 
 #if STANDALONE
@@ -55,52 +62,6 @@ struct obj_options objtracker_options = {
     .blas_libs = NULL,
     .num_blas = 0
 };
-#endif
-
-
-#if DEBUG_TRACKING
-static void **pointers;
-static unsigned long num_pointers;
-static unsigned long pnt_len;
-
-/* use from gdb */
-static bool __attribute__((unused)) is_tracked(void *ptr)
-{
-    for (unsigned long i=0; i < num_pointers; ++i)
-        if (pointers[i] == ptr)
-            return true;
-    return false;
-}
-
-static void track(void *ptr)
-{
-    unsigned long newN = num_pointers + 1;
-
-    if (newN > pnt_len) {
-        pnt_len = (pnt_len ? pnt_len : 1) << 1;
-        pointers = reallocarray(pointers, pnt_len, sizeof(*pointers));
-    }
-
-    pointers[num_pointers] = ptr;
-    num_pointers = newN;
-}
-
-static void untrack(void *ptr)
-{
-    unsigned long newN = num_pointers - 1;
-    unsigned long i;
-
-    for (i=0; i<num_pointers && pointers[i] != ptr; ++i)
-        ;
-
-    if (i < num_pointers && pointers[i] == ptr) {
-        pointers[i] = pointers[newN];
-        num_pointers = newN;
-    }
-}
-#else
-static inline void track(void *ptr) { }
-static inline void untrack(void *ptr) { }
 #endif
 
 static bool initialized = false;
@@ -117,34 +78,32 @@ static unsigned long num_objects = 0;
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 static inline void read_lock(void) {
-    /*
     int ret;
+
+    writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
             && errno == EAGAIN)
-        write_str("failed to acquire read lock\n");
+        write_str(STDERR_FILENO, "failed to acquire read lock\n");
     if (ret < 0) {
-        perror("Failed to acquire read lock");
+        writef(STDERR_FILENO, "Failed to acquire read lock: %s", strerror(errno));
         abort();
     }
-    */
 }
 
 static inline void write_lock(void) {
-    /*
+    writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     if (pthread_rwlock_wrlock(&rwlock) < 0) {
-        perror("Failed to acquire write lock");
+        writef(STDERR_FILENO, "Failed to acquire write lock: %s", strerror(errno));
         abort();
     }
-    */
 }
 
 static inline void unlock(void) {
-    /*
+    writef(STDERR_FILENO, "thread %ld: %s()\n", syscall(SYS_gettid), __func__);
     if (pthread_rwlock_unlock(&rwlock) < 0) {
-        perror("Failed to unlock write lock");
+        writef(STDERR_FILENO, "Failed to unlock write lock: %s", strerror(errno));
         abort();
     }
-    */
 }
 
 /* allows us to temporarily disable tracking */
@@ -586,9 +545,15 @@ static void object_print(const void *o, int n, char buf[n]) {
 
 static void *insert_objinfo(struct objinfo *oinfo)
 {
+    static bool inside = false;
     void *node;
 
-    write_lock();
+    bool already_inside = inside;
+
+    if (!already_inside)
+        write_lock();
+
+    inside = true;
 #if RBTREE
     node = rbtree_insert(&objects, oinfo, objects_compare);
 #else
@@ -599,7 +564,10 @@ static void *insert_objinfo(struct objinfo *oinfo)
         ++num_objects;
     }
 
-    unlock();
+    if (!already_inside)
+        unlock();
+
+    inside = false;
 
     return node;
 }
@@ -630,7 +598,6 @@ static void track_object(void *ptr,
 
 #if TRACE_OUTPUT
     if (node) {
-        track(ptr);
         obj_tracker_print_info(OBJPRINT_TRACK, oinfo);
     } else {
         obj_tracker_print_info(OBJPRINT_TRACK_FAIL, oinfo);
@@ -642,24 +609,37 @@ static void track_object(void *ptr,
 
 static void *find_objinfo(struct objinfo *o)
 {
+    static bool inside = false;
     void *node;
 
-    read_lock();
+    bool already_inside = inside;
+
+    if (!already_inside)
+        read_lock();
+    inside = true;
 #if RBTREE
     node = rbtree_find(&objects, &o, objects_compare);
 #else
     node = tfind(o, &objects, objects_compare);
 #endif
-    unlock();
+    if (!already_inside)
+        unlock();
+    inside = false;
     return node;
 }
 
 static void *delete_objinfo(void *node, struct objmngr *mngr)
 {
+    static bool inside = false;
     struct objinfo *objinfo;
     void *result;
 
-    write_lock();
+    bool already_inside = inside;
+
+    if (!already_inside)
+        write_lock();
+
+    inside = true;
 
 #if RBTREE
     objinfo = ((struct rbtree *)node)->item;
@@ -668,10 +648,14 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     objinfo = *(struct objinfo **) node;
     result = tdelete(objinfo, &objects, objects_compare);
 #endif
-    unlock();
+
+    if (!already_inside)
+        unlock();
+
+    inside = false;
+
 #if TRACE_OUTPUT
     obj_tracker_print_info(OBJPRINT_UNTRACK, objinfo);
-    untrack(objinfo->ptr);
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
     real_free(objinfo);
