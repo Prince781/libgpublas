@@ -114,9 +114,7 @@ static void get_real_malloc(void) {
             writef(STDOUT_FILENO, "Reset dlerror\n");
             real_malloc = (void *(*)(size_t)) dlsym(RTLD_NEXT, "malloc");
             if (real_malloc == NULL) {
-                writef(STDERR_FILENO, "dlsym: ");
-                writef(STDERR_FILENO, dlerror());
-                writef(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: %s\n", dlerror());
                 abort();
             } else
                 writef(STDOUT_FILENO, "Got malloc\n");
@@ -137,9 +135,7 @@ static void get_real_calloc(void) {
             writef(STDOUT_FILENO, "Reset dlerror\n");
             real_calloc = (void *(*)(size_t, size_t)) dlsym(RTLD_NEXT, "calloc");
             if (real_calloc == NULL) {
-                writef(STDERR_FILENO, "dlsym: ");
-                writef(STDERR_FILENO, dlerror());
-                writef(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: %s\n", dlerror());
                 abort();
             } else
                 writef(STDOUT_FILENO, "Got calloc\n");
@@ -160,9 +156,7 @@ static void get_real_realloc(void) {
             writef(STDOUT_FILENO, "Reset dlerror\n");
             real_realloc = (void *(*)(void *, size_t)) dlsym(RTLD_NEXT, "realloc");
             if (real_realloc == NULL) {
-                writef(STDERR_FILENO, "dlsym: ");
-                writef(STDERR_FILENO, dlerror());
-                writef(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: %s\n", dlerror());
                 abort();
             } else
                 writef(STDOUT_FILENO, "Got realloc\n");
@@ -183,9 +177,7 @@ static void get_real_free(void) {
             writef(STDOUT_FILENO, "Reset dlerror\n");
             real_free = (void (*)(void *)) dlsym(RTLD_NEXT, "free");
             if (real_free == NULL) {
-                writef(STDERR_FILENO, "dlsym: ");
-                writef(STDERR_FILENO, dlerror());
-                writef(STDERR_FILENO, "\n");
+                writef(STDERR_FILENO, "dlsym: %s\n", dlerror());
                 abort();
             } else
                 writef(STDOUT_FILENO, "Got free\n");
@@ -516,11 +508,7 @@ static void track_object(void *ptr,
     node = insert_objinfo(oinfo);
 
 #if TRACE_OUTPUT
-    if (node) {
-        obj_tracker_print_info(OBJPRINT_TRACK, oinfo);
-    } else {
-        obj_tracker_print_info(OBJPRINT_TRACK_FAIL, oinfo);
-    }
+    obj_tracker_print_info(node ? OBJPRINT_TRACK : OBJPRINT_TRACK_FAIL, oinfo);
 #endif
 
     tracking = true;
