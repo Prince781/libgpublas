@@ -49,13 +49,15 @@ static unsigned long num_objects = 0;
 
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-static __thread volatile bool grabbed_lock = false;
+static __thread bool grabbed_reader_lock = false;
+static __thread bool grabbed_writer_lock = false;
+static __thread bool inside_internal = false;
 
 static inline void read_lock(void) {
     int ret;
 
-    int tid = syscall(SYS_gettid);
-    assert (rwlock.__data.__cur_writer != tid);
+    assert (!grabbed_writer_lock);
+    assert (!grabbed_reader_lock);
 
     while ((ret = pthread_rwlock_rdlock(&rwlock)) < 0
             && errno == EAGAIN)
@@ -67,8 +69,8 @@ static inline void read_lock(void) {
 }
 
 static inline void write_lock(void) {
-    int tid = syscall(SYS_gettid);
-    assert (rwlock.__data.__cur_writer != tid);
+    assert (!grabbed_reader_lock);
+    assert (!grabbed_writer_lock);
 
     if (pthread_rwlock_wrlock(&rwlock) < 0) {
         writef(STDERR_FILENO, "objtracker: failed to acquire write lock: %s", strerror(errno));
@@ -461,13 +463,17 @@ static int objects_compare(const void *o1, const void *o2) {
 static void *insert_objinfo(struct objinfo *oinfo)
 {
     void *node;
+    bool saved_grabbed_reader_lock = grabbed_reader_lock;
+    
+    inside_internal = true;
 
-    bool locked = grabbed_lock;
-
-    if (!locked) {
-        write_lock();
-        grabbed_lock = true;
+    if (grabbed_reader_lock) {
+        unlock();
+        grabbed_reader_lock = false;
     }
+
+    write_lock();
+    grabbed_writer_lock = true;
 
     node = tsearch(oinfo, &objects, objects_compare);
 
@@ -475,10 +481,15 @@ static void *insert_objinfo(struct objinfo *oinfo)
         ++num_objects;
     }
 
-    if (!locked) {
-        unlock();
-        grabbed_lock = false;
+    unlock();
+    grabbed_writer_lock = false;
+
+    if (saved_grabbed_reader_lock) {
+        read_lock();
+        grabbed_reader_lock = true;
     }
+
+    inside_internal = false;
 
     return node;
 }
@@ -518,18 +529,22 @@ static void *find_objinfo(struct objinfo *o)
 {
     void *node;
 
-    bool locked = grabbed_lock;
+    inside_internal = true;
 
-    if (!locked) {
+    if (!grabbed_writer_lock) {
         read_lock();
-        grabbed_lock = true;
+        grabbed_reader_lock = true;
     }
 
     node = tfind(o, &objects, objects_compare);
-    if (!locked) {
+
+    if (!grabbed_writer_lock) {
         unlock();
-        grabbed_lock = false;
+        grabbed_reader_lock = false;
     }
+
+    inside_internal = false;
+
     return node;
 }
 
@@ -538,19 +553,27 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     struct objinfo *objinfo;
     void *result;
 
-    bool locked = grabbed_lock;
+    bool saved_grabbed_reader_lock = grabbed_reader_lock;
 
-    if (!locked) {
-        write_lock();
-        grabbed_lock = true;
+    inside_internal = true;
+
+    if (grabbed_reader_lock) {
+        unlock();
+        grabbed_reader_lock = false;
     }
+
+    write_lock();
+    grabbed_writer_lock = true;
 
     objinfo = *(struct objinfo **) node;
     result = tdelete(objinfo, &objects, objects_compare);
 
-    if (!locked) {
-        unlock();
-        grabbed_lock = false;
+    unlock();
+    grabbed_writer_lock = false;
+
+    if (saved_grabbed_reader_lock) {
+        read_lock();
+        grabbed_reader_lock = true;
     }
 
 #if TRACE_OUTPUT
@@ -558,6 +581,8 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
     real_free(objinfo);
+
+    inside_internal = false;
 
     return result;
 }
@@ -627,7 +652,7 @@ struct ip_offs *get_ip_offs(struct ip_offs *offs)
 
 
 void *malloc(size_t request) {
-    static bool inside = false;
+    static __thread bool inside = false;
     void *ptr;
     /*
     void *fake_ptr;
@@ -637,7 +662,7 @@ void *malloc(size_t request) {
     struct objmngr mngr;
     struct alloc_callinfo *ci;
 
-    if (inside || destroying || initializing || !tracking || !initialized) {
+    if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
         if (!real_malloc)
             get_real_malloc();
         if (!real_malloc) {
@@ -696,7 +721,7 @@ void *malloc(size_t request) {
 }
 
 void *calloc(size_t nmemb, size_t size) {
-    static bool inside = false;
+    static __thread bool inside = false;
     size_t request;
     void *ptr;
     size_t actual_size;
@@ -705,12 +730,12 @@ void *calloc(size_t nmemb, size_t size) {
     struct alloc_callinfo *ci;
 
     request = nmemb * size;
-    if (request / nmemb != size) {
+    if (nmemb != 0 && request / nmemb != size) {
         errno = ERANGE;
         return NULL;
     }
 
-    if (inside || destroying || initializing || !tracking || !initialized) {
+    if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
         if (!real_calloc)
             get_real_calloc();
         if (!real_calloc) {
@@ -769,13 +794,13 @@ void *calloc(size_t nmemb, size_t size) {
 }
 
 void *realloc(void *ptr, size_t size) {
-    static bool inside = false;
+    static __thread bool inside = false;
     void *new_ptr;
     const struct objinfo *ptr_info;
     if (!size)
         return NULL;
 
-    if (inside || destroying || initializing || !tracking || !initialized) {
+    if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
         if (!real_realloc)
             get_real_realloc();
         if (!real_realloc) {
@@ -795,10 +820,10 @@ void *realloc(void *ptr, size_t size) {
 }
 
 void free(void *ptr) {
-    static bool inside = false;
+    static __thread bool inside = false;
     struct objmngr mngr;
 
-    if (inside || destroying || initializing) {
+    if (inside || inside_internal || destroying || initializing) {
         if (real_free)
             real_free(ptr);
         return;
