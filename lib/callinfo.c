@@ -1,6 +1,6 @@
+#define _GNU_SOURCE
 #include "callinfo.h"
 #include "obj_tracker.h"
-#define _GNU_SOURCE
 #include <search.h>
 #include <stdio.h>  /* asprintf */
 #include <stdlib.h>
