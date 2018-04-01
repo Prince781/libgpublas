@@ -319,8 +319,8 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
 #if STANDALONE
     if (!objtracker_options.only_print_calls || type == OBJPRINT_CALL)
 #endif
-        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d]\n",
-                c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid);
+        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d] time=[%ld s + %ld ns]\n",
+                c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid, info->time.tv_sec, info->time.tv_nsec);
 }
 
 #if STANDALONE
@@ -515,6 +515,7 @@ static void track_object(void *ptr,
     oinfo->ci.reqsize = request;
     oinfo->size = size;
     oinfo->ptr = ptr;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &oinfo->time);
 
     node = insert_objinfo(oinfo);
 

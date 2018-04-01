@@ -1,11 +1,12 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stddef.h>
+#include <stdbool.h>
+#include <time.h>
 
 extern void *(*real_malloc)(size_t);
 extern void *(*real_calloc)(size_t, size_t);
@@ -49,8 +50,9 @@ struct alloc_callinfo;
  */
 struct objinfo {
     struct alloc_callinfo ci;
-    size_t size;        /* size of the actual memory object */
-    void *ptr;          /* location of object */
+    size_t size;            /* size of the actual memory object */
+    void *ptr;              /* location of object */
+    struct timespec time;   /* when this object was created */
 };
 
 enum objprint_type {
