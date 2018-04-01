@@ -46,6 +46,7 @@ static bool destroying = false;
 static pid_t creation_thread = 0;
 static void *objects = NULL;
 static unsigned long num_objects = 0;
+static uint64_t next_uid = 0;
 
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
@@ -319,8 +320,9 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
 #if STANDALONE
     if (!objtracker_options.only_print_calls || type == OBJPRINT_CALL)
 #endif
-        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d] time=[%ld s + %ld ns]\n",
-                c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid, info->time.tv_sec, info->time.tv_nsec);
+        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d] time=[%lds+%ldns] uid=[%"PRIu64"]\n",
+                c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid, 
+                info->time.tv_sec, info->time.tv_nsec, info->uid);
 }
 
 #if STANDALONE
@@ -516,6 +518,7 @@ static void track_object(void *ptr,
     oinfo->size = size;
     oinfo->ptr = ptr;
     clock_gettime(CLOCK_MONOTONIC_RAW, &oinfo->time);
+    oinfo->uid = __sync_fetch_and_add(&next_uid, 1);
 
     node = insert_objinfo(oinfo);
 

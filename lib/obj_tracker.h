@@ -7,6 +7,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdint.h>
 
 extern void *(*real_malloc)(size_t);
 extern void *(*real_calloc)(size_t, size_t);
@@ -53,6 +54,7 @@ struct objinfo {
     size_t size;            /* size of the actual memory object */
     void *ptr;              /* location of object */
     struct timespec time;   /* when this object was created */
+    uint64_t uid;           /* unique ID of this object */
 };
 
 enum objprint_type {
