@@ -10,44 +10,66 @@ if len(sys.argv) < 2:
 records = {}
 earliest = None
 events = {}
-numitems = 0
-totalsize = 0
+numitems_host = 0
+totalsize_host = 0
+numitems_dev = 0
+totalsize_dev = 0
 
 class Event(object):
-    def __init__(self, numitems, totalsize):
-        self.numitems = numitems
-        self.totalsize = totalsize
+    def __init__(self, numhost, numdev, sizehost, sizedev):
+        self.numhost = numhost
+        self.numdev = numdev
+        self.sizehost = sizehost
+        self.sizedev = sizedev
 
     def __str__(self):
-        return f'{self.numitems} items at {self.totalsize} B'
+        return f'Host[{self.numhost} items and {self.sizehost} B] Dev[{self.numdev} items and {self.sizedev} B]'
 
 class Record(object):
-    def __init__(self, fun, reqsize, start, uid):
+    def __init__(self, fun, reqsize, start, uid, is_gpu=False):
         self.fun = fun
         self.reqsize = reqsize
         self.alive = (start, None)
         self.uid = uid
+        self.is_gpu=is_gpu
 
     def __str__(self):
-        return f'fun=[{self.fun}] reqsize=[{self.reqsize}] alive={self.alive} uid=[{self.uid}]'
+        return f'{"D" if self.is_gpu else "H"} {self.uid} fun=[{self.fun}] reqsize=[{self.reqsize}] alive={self.alive}'
 
 for line in gzip.open(sys.argv[1], 'rt'):
-    m = re.match(r'([TU]) fun=\[(\w+)\] reqsize=\[(\d+)\] ip_offs=\[(.*)\] time=\[(\d+)s\+(\d+)ns\] uid=\[(\d+)\]', line)
+    m = re.match(r'([TUC]) fun=\[(\w+)\] reqsize=\[(\d+)\] ip_offs=\[(.*)\] time=\[(\d+)s\+(\d+)ns\] uid=\[(\d+)\]', line)
     if m:
         tp, fun, reqsize, time_s, time_ns, uid = m.group(1,2,3,5,6,7)
         time = int(time_s) * 10e9 + int(time_ns)
         if tp == 'T':
-            numitems += 1
-            totalsize += int(reqsize)
+            numitems_host += 1
+            totalsize_host += int(reqsize)
             records[int(uid)] = Record(fun, int(reqsize), time, int(uid))
-            events[time] = Event(numitems, totalsize)
+            events[time] = Event(numitems_host, numitems_dev, totalsize_host, totalsize_dev)
             if not earliest or time < earliest:
                 earliest = time
         elif tp == 'U':
-            numitems -= 1
-            totalsize -= int(reqsize)
+            if records[int(uid)].is_gpu:
+                numitems_dev -= 1
+                totalsize_dev -= int(reqsize)
+            else:
+                numitems_host -= 1
+                totalsize_host -= int(reqsize)
             records[int(uid)].alive = (records[int(uid)].alive[0], time)
-            events[time] = Event(numitems, totalsize)
+            events[time] = Event(numitems_host, numitems_dev, totalsize_host, totalsize_dev)
+        elif tp == 'C':
+            if not records[int(uid)].is_gpu:
+                records[int(uid)].is_gpu = True
+                numitems_host -= 1
+                totalsize_host -= int(reqsize)
+                numitems_dev += 1
+                totalsize_dev += int(reqsize)
+                for key in events:
+                    if key >= records[int(uid)].alive[0]:
+                        events[key].numhost -= 1
+                        events[key].numdev += 1
+                        events[key].sizehost -= records[int(uid)].reqsize
+                        events[key].sizedev += records[int(uid)].reqsize
 
 for key in records:
     start, end = records[key].alive
@@ -61,4 +83,4 @@ with open('trace.txt', 'w') as f:
 
 with open('events.txt', 'w') as f:
     for key, value in events.items():
-        f.write(f'{value} at t={int(key)}ns\n')
+        f.write(f't={int(key)}ns: {value}\n')
