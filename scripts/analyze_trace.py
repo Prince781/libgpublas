@@ -40,7 +40,7 @@ for line in gzip.open(sys.argv[1], 'rt'):
     m = re.match(r'([TUC]) fun=\[(\w+)\] reqsize=\[(\d+)\] ip_offs=\[(.*)\] time=\[(\d+)s\+(\d+)ns\] uid=\[(\d+)\]', line)
     if m:
         tp, fun, reqsize, time_s, time_ns, uid = m.group(1,2,3,5,6,7)
-        time = int(time_s) * 10e9 + int(time_ns)
+        time = int(int(time_s) * 10e9 + int(time_ns))
         if tp == 'T':
             numitems_host += 1
             totalsize_host += int(reqsize)
@@ -77,10 +77,10 @@ for key in records:
 
 events = dict([(int(key) - int(earliest), val) for key,val in events.items()])
 
-with open('trace.txt', 'w') as f:
+with gzip.open('trace.txt.gz', 'wt') as f:
     for key, value in records.items():
         f.write(f'{value}\n')
 
-with open('events.txt', 'w') as f:
+with gzip.open('events.txt.gz', 'wt') as f:
     for key, value in events.items():
         f.write(f't={int(key)}ns: {value}\n')
