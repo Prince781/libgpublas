@@ -317,12 +317,17 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
 
     tid = syscall(SYS_gettid);
 
+    struct timespec tm = info->time;
+
+    if (type != OBJPRINT_TRACK)
+        clock_gettime(CLOCK_MONOTONIC_RAW, &tm);
+
 #if STANDALONE
     if (!objtracker_options.only_print_calls || type == OBJPRINT_CALL)
 #endif
         writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d] time=[%lds+%ldns] uid=[%"PRIu64"]\n",
                 c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid, 
-                info->time.tv_sec, info->time.tv_nsec, info->uid);
+                tm.tv_sec, tm.tv_nsec, info->uid);
 }
 
 #if STANDALONE
