@@ -1,4 +1,4 @@
-SOURCES=$(wildcard *.c) 
+SOURCES=blas_tracker.c callinfo.c obj_tracker.c
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall -Werror -fdiagnostics-color -fPIC -ggdb3 -O3 -e entry -std=gnu11 -DSTANDALONE -DTRACE_OUTPUT -DMEMCHECK # -DRBTREE -DDEBUG_TRACKING

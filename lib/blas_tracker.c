@@ -11,6 +11,7 @@
 #include "obj_tracker.h"
 #include "../cblas.h"
 #include "../common.h"
+#include "fortran-compat.h"
 
 #define CAPACITY (1 << 10)
 
@@ -974,3 +975,138 @@ TRSM_TRACK(d, double)
 TRSM_TRACK(c, float _Complex)
 TRSM_TRACK(z, double _Complex)
 
+/* Fortran */
+
+/* TODO: Level 1 and Level 2 */
+
+/* Level 3 */
+#define TRACK_F77_gemm(prefix, T)                                   \
+F77_gemm(prefix, T) {                                               \
+    typeof(prefix##gemm_) *fun;                                     \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(b);                                         \
+    print_objtrack_info(c);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(transa,                                                 \
+            transb,                                                 \
+            m, n, k,                                                \
+            alpha,                                                  \
+            a, lda,                                                 \
+            b, ldb,                                                 \
+            beta,                                                   \
+            c, ldc);                                                \
+}
+
+TRACK_F77_gemm(s, float)
+TRACK_F77_gemm(d, double)
+TRACK_F77_gemm(c, float _Complex)
+TRACK_F77_gemm(z, double _Complex)
+
+#define TRACK_F77_hemm(prefix, T)                                    \
+F77_hemm(prefix, T) {                                               \
+    typeof(prefix##hemm_) *fun;                                     \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(b);                                         \
+    print_objtrack_info(c);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(side, uplo, m, n, alpha, a, lda, b, ldb, beta, c, ldc); \
+}
+
+TRACK_F77_hemm(c, float _Complex)
+TRACK_F77_hemm(z, double _Complex)
+
+#define TRACK_F77_herk(prefix, S, T)                                 \
+F77_herk(prefix, S, T) {                                            \
+    typeof(prefix##herk_) *fun;                                     \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(c);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(uplo, trans, n, k, alpha, a, lda, beta, c, ldc);        \
+}
+
+TRACK_F77_herk(c, float, float _Complex)
+TRACK_F77_herk(z, double, double _Complex)
+
+#define TRACK_F77_her2k(prefix, S, T)                               \
+F77_her2k(prefix, S, T) {                                           \
+    typeof(prefix##her2k_) *fun;                                    \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(b);                                         \
+    print_objtrack_info(c);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(uplo, trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc);\
+}
+
+TRACK_F77_her2k(c, float, float _Complex)
+TRACK_F77_her2k(z, double, double _Complex)
+
+#define TRACK_F77_symm(prefix, T)                                   \
+F77_symm(prefix, T) {                                               \
+    typeof(prefix##symm_) *fun;                                     \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(b);                                         \
+    print_objtrack_info(c);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(side, uplo, m, n, alpha, a, lda, b, ldb, beta, c, ldc); \
+}
+
+TRACK_F77_symm(s, float)
+TRACK_F77_symm(d, double)
+TRACK_F77_symm(c, float _Complex)
+TRACK_F77_symm(z, double _Complex)
+
+#define TRACK_F77_syrk(prefix, T)                                   \
+F77_syrk(prefix, T) {                                               \
+    typeof(prefix##syrk_) *fun;                                     \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(c);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(uplo, trans, n, k, alpha, a, lda, beta, c, ldc);        \
+}
+
+TRACK_F77_syrk(s, float)
+TRACK_F77_syrk(d, double)
+TRACK_F77_syrk(c, float _Complex)
+TRACK_F77_syrk(z, double _Complex)
+
+#define TRACK_F77_syr2k(prefix, T)                                  \
+F77_syr2k(prefix, T) {                                              \
+    typeof(prefix##syr2k_) *fun;                                    \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(b);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(uplo, trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc);\
+}
+
+TRACK_F77_syr2k(s, float)
+TRACK_F77_syr2k(d, double)
+TRACK_F77_syr2k(c, float _Complex)
+TRACK_F77_syr2k(z, double _Complex)
+
+#define TRACK_F77_trmm(prefix, T)                                   \
+F77_trmm(prefix, T) {                                               \
+    typeof(prefix##trmm_) *fun;                                     \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(b);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb); \
+}
+
+TRACK_F77_trmm(s, float)
+TRACK_F77_trmm(d, double)
+TRACK_F77_trmm(c, float _Complex)
+TRACK_F77_trmm(z, double _Complex)
+
+#define TRACK_F77_trsm(prefix, T)                                   \
+F77_trsm(prefix, T) {                                               \
+    typeof(prefix##trsm_) *fun;                                     \
+    print_objtrack_info(a);                                         \
+    print_objtrack_info(b);                                         \
+    if ((fun = get_real_blas_fun(__func__)))                        \
+        fun(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb); \
+}
+
+TRACK_F77_trsm(s, float)
+TRACK_F77_trsm(d, double)
+TRACK_F77_trsm(c, float _Complex)
+TRACK_F77_trsm(z, double _Complex)

@@ -25,7 +25,6 @@ shared_library('objtracker',
     sources: [
       'blas_tracker.c',
       'callinfo.c',
-      'fortran-compat.c',
       'obj_tracker.c',
     ],
     include_directories: [root_inc],
