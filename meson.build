@@ -67,15 +67,16 @@ blas_level3_sources = files(
     'blas_level3/trsm.cc',
 )
 
-cuda_lib_dirs = ['/usr/lib', '/opt/cuda/lib64', '/opt/cuda/lib64/stubs']
+cudadir = get_option('CUDA')
+cuda_lib_dirs = [cudadir + '/lib64']
 
 ## dependencies
-libunwind_dep = dependency('libunwind', version: '>= 1.2')
+libunwind_dep = cc.find_library('unwind', version: '>= 1.2')
 cpu_family = build_machine.cpu_family()
 if cpu_family == 'x86_64' or cpu_family == 'x86'
-  libunwind_arch_dep = cc.find_library('libunwind-'+cpu_family)
+  libunwind_arch_dep = cc.find_library('unwind-'+cpu_family)
 else
-  libunwind_arch_dep = dependency('libunwind-generic')
+  libunwind_arch_dep = dependency('unwind-generic')
 endif
 libpthread_dep = cc.find_library('pthread')
 libdl_dep = cc.find_library('dl')
@@ -83,7 +84,7 @@ libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs)
 libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs)
 libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs)
 
-cuda_inc = include_directories('/opt/cuda/include')
+cuda_inc = include_directories(cudadir + '/include')
 
 subdir('lib')
 

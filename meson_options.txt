@@ -1,0 +1,1 @@
+option('CUDA', type: 'string', value: '/opt/cuda', description: 'Path to CUDA libraries and headers')
