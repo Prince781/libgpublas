@@ -21,7 +21,7 @@ fi
 
 echo "running: env OBJTRACKER_OPTIONS=\"blas_libs=$1\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
 
-cat < <(env OBJTRACKER_OPTIONS="blas_libs=$1" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} | awk '/[CUT] \[0x[0-9a-f]+\].*fun=\[\w+\] reqsize=\[[0-9a-f]+\] ip_offs=\[[0-9a-f\.]+\]/{print $1,$3,$4,$5,$7,$8}') | tee $fname
+cat < <(env OBJTRACKER_OPTIONS="blas_libs=$1" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} | awk '/[CUT] \[0x[0-9a-f]+\].*fun=\[\w+\] reqsize=\[[0-9a-f]+\]/{print $1,$3,$4,$5,$7,$8}') | tee $fname
 
 gzip -f $fname
 printf "Saved to $fname.gz\n"

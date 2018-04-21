@@ -25,12 +25,6 @@ static inline const char *alloc_sym_tostr(enum alloc_sym sym) {
     }
 }
 
-#define N_IP_OFFS   4
-
-struct ip_offs {
-    short off[N_IP_OFFS];
-};
-
 struct objmngr {
     void *(*ctor)(size_t);
     void *(*cctor)(size_t, size_t);
@@ -42,18 +36,8 @@ struct objmngr {
 struct alloc_callinfo {
     struct objmngr mngr;
     enum alloc_sym alloc;
-    struct ip_offs offs;
     size_t reqsize;
 };
-
-char *
-ip_offs_tostr(const struct ip_offs *offs, char buf[1 + N_IP_OFFS * 8]);
-
-/**
- * Returns number of offsets parsed.
- */
-int
-ip_offs_parse(const char *str, struct ip_offs *offs);
 
 void
 init_callinfo(void);
@@ -64,8 +48,6 @@ init_callinfo(void);
  * {mngr}       - The manager to use for objects allocated
  *                at this call. If NULL, glibc's malloc()
  *                and free() will be used.
- * {offs}       - An array of offsets of each function within
- *                its parent in the call chain.
  * {reqsize}    - Requested size.
  * Returns: negative on error, 0 on success, and positive if 
  *          callinfo wasn't added because it already exists.
@@ -73,7 +55,6 @@ init_callinfo(void);
 int
 add_callinfo(enum alloc_sym sym, 
              const struct objmngr *mngr,
-             const struct ip_offs *offs,
              size_t reqsize);
 
 /**
@@ -90,16 +71,14 @@ get_callinfo_reqsize(enum alloc_sym sym, size_t reqsize);
  */
 struct alloc_callinfo *
 get_callinfo_or(enum alloc_sym sym, 
-                const struct ip_offs *offs,
                 size_t reqsize);
 
 /**
- * Queries by both IP and reqsize.
+ * Queries by reqsize and unique ID.
  * returns NULL if not found
  */
 struct alloc_callinfo *
 get_callinfo_and(enum alloc_sym sym, 
-                 const struct ip_offs *offs,
                  size_t reqsize);
 
 

@@ -15,7 +15,6 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/syscall.h>
-#include <libunwind.h>
 #include <errno.h>
 #include <pthread.h>        /* for read-write locks */
 #include "callinfo.h"
@@ -280,7 +279,6 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
 {
     char c;
     const char *fun_name;
-    char ip_offs_str[1 + N_IP_OFFS * 8];
     pid_t tid;
 
     switch (type) {
@@ -313,8 +311,6 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
             break;
     }
 
-    ip_offs_tostr(&info->ci.offs, ip_offs_str);
-
     tid = syscall(SYS_gettid);
 
     struct timespec tm = info->time;
@@ -325,8 +321,8 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
 #if STANDALONE
     if (!objtracker_options.only_print_calls || type == OBJPRINT_CALL)
 #endif
-        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] ip_offs=[%s] tid=[%d] time=[%lds+%ldns] uid=[%"PRIu64"]\n",
-                c, info->ptr, fun_name, info->ci.reqsize, ip_offs_str, tid, 
+        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] tid=[%d] time=[%lds+%ldns] uid=[%lu]\n",
+                c, info->ptr, fun_name, info->ci.reqsize, tid, 
                 tm.tv_sec, tm.tv_nsec, info->uid);
 }
 
@@ -377,7 +373,6 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     char *line = NULL;
     size_t line_len = 0;
     const char *symname = NULL;
-    struct ip_offs offs;
     int lineno = 0;
 
     if ((fp = fopen(filename, "r")) == NULL) {
@@ -390,21 +385,17 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
         if ((nl = strchr(line, '\n')))
             *nl = '\0';
         ++lineno;
-        if ((res = sscanf(line, "fun=[%d] reqsize=[%zu] ip_offs=[%hx.%hx.%hx.%hx]\n", 
-                        (int *) &sym, &reqsize, 
-                        &offs.off[0], &offs.off[1],
-                        &offs.off[2], &offs.off[3])) == 6) {
+        if ((res = sscanf(line, "fun=[%d] reqsize=[%zu]\n", 
+                        (int *) &sym, &reqsize) == 6)) {
             if (((int) sym) < 0 || sym > N_ALLOC_SYMS) {
                 writef(STDERR_FILENO, "%s: unsupported symbol '%d'\n", filename, sym);
                 continue;
             }
             symname = alloc_sym_tostr(sym);
             
-            if ((ci_res = add_callinfo(sym, mngr, &offs, reqsize)) == 0) {
+            if ((ci_res = add_callinfo(sym, mngr, reqsize)) == 0) {
                 watchpoints = true;
-                writef(STDOUT_FILENO, "W fun=[%s] reqsize=[%zu] ip_offs=[%hx.%hx.%hx.%hx]\n",
-                        symname, reqsize, 
-                        offs.off[0], offs.off[1], offs.off[2], offs.off[3]);
+                writef(STDOUT_FILENO, "W fun=[%s] reqsize=[%zu]\n", symname, reqsize);
             } else if (ci_res < 0)
                 writef(STDERR_FILENO, "Failed to add watch: %s\n", strerror(errno));
         } else {
@@ -420,7 +411,6 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     free(line);
     line = NULL;
     line_len = 0;
-
 
     return fclose(fp);
 }
@@ -503,8 +493,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
 
 static void track_object(void *ptr, 
         enum alloc_sym sym,
-        struct objmngr *mngr, size_t request, size_t size,
-        const struct ip_offs *offs)
+        struct objmngr *mngr, size_t request, size_t size)
 {
     struct objinfo *oinfo;
 #if TRACE_OUTPUT
@@ -518,7 +507,6 @@ static void track_object(void *ptr,
     oinfo = real_malloc(sizeof(*oinfo));
     memcpy(&oinfo->ci.mngr, mngr, sizeof(*mngr));
     oinfo->ci.alloc = sym;
-    oinfo->ci.offs = *offs;
     oinfo->ci.reqsize = request;
     oinfo->size = size;
     oinfo->ptr = ptr;
@@ -613,53 +601,6 @@ static void untrack_object(void *ptr, struct objmngr *mngr)
     tracking = true;
 }
 
-#define WORDS_BEFORE_RBP    4
-
-static __attribute__((noinline)) 
-struct ip_offs *get_ip_offs(struct ip_offs *offs) 
-{
-#ifdef TRACK_IP_OFFS
-    unw_cursor_t cursor; unw_context_t uc;
-    unw_word_t offp;
-    int retval;
-    char buf[2];
-
-    unw_getcontext(&uc);
-    unw_init_local(&cursor, &uc);
-
-    /**
-     * [function that called ?alloc()   ]
-     * [?alloc()                        ]
-     * [this function                   ]
-     */
-    for (int i=0; i<N_IP_OFFS && unw_step(&cursor) > 0; ++i) {
-        retval = unw_get_proc_name(&cursor, buf, 0, &offp);
-        if (retval != -UNW_EUNSPEC && retval != -UNW_ENOINFO)
-            offs->off[i] = offp;
-        /*
-        if (retval == -UNW_EUNSPEC || retval == -UNW_ENOINFO)
-            snprintf(name, sizeof(name), "%s", "??");
-        printf("[%10s:0x%0lx] IP = 0x%0lx\n", name, offp, (long) ip);
-        */
-    }
-#else
-    static short vals[N_IP_OFFS] = {0};
-
-    for (int i=0; ; ++i) {
-        if (vals[i] == (unsigned short)~0 >> 1)
-            vals[i] = 0;
-        else {
-            vals[i]++;
-            break;
-        }
-    }
-
-    memcpy(offs->off, vals, sizeof offs->off);
-#endif
-    return offs;
-}
-
-
 void *malloc(size_t request) {
     static __thread bool inside = false;
     void *ptr;
@@ -667,7 +608,6 @@ void *malloc(size_t request) {
     void *fake_ptr;
     */
     size_t actual_size;
-    struct ip_offs offs;
     struct objmngr mngr;
     struct alloc_callinfo *ci;
 
@@ -698,7 +638,7 @@ void *malloc(size_t request) {
             && (!watchpoints 
                 || 
                 (get_callinfo_reqsize(ALLOC_MALLOC, request) 
-                 && (ci = get_callinfo_and(ALLOC_MALLOC, get_ip_offs(&offs), request))))
+                 && (ci = get_callinfo_and(ALLOC_MALLOC, request))))
         ) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
@@ -706,7 +646,6 @@ void *malloc(size_t request) {
             mngr.realloc = real_realloc;
             mngr.dtor = real_free;
             mngr.get_size = malloc_usable_size;
-            get_ip_offs(&offs);
         } else /* ci is non-NULL */ {
             memcpy(&mngr, &ci->mngr, sizeof(mngr));
         }
@@ -721,7 +660,7 @@ void *malloc(size_t request) {
         } else
             ptr = real_malloc(request);
         actual_size = mngr.get_size(ptr);
-        track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size, &offs);
+        track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size);
     } else
         ptr = real_malloc(request);
 
@@ -734,7 +673,6 @@ void *calloc(size_t nmemb, size_t size) {
     size_t request;
     void *ptr;
     size_t actual_size;
-    struct ip_offs offs;
     struct objmngr mngr;
     struct alloc_callinfo *ci;
 
@@ -771,7 +709,7 @@ void *calloc(size_t nmemb, size_t size) {
             && (!watchpoints 
                 || 
                 (get_callinfo_reqsize(ALLOC_CALLOC, request)
-                 && (ci = get_callinfo_and(ALLOC_CALLOC, get_ip_offs(&offs), request))))
+                 && (ci = get_callinfo_and(ALLOC_CALLOC, request))))
         ) {
         if (!watchpoints) {
             mngr.ctor = real_malloc;
@@ -779,7 +717,6 @@ void *calloc(size_t nmemb, size_t size) {
             mngr.realloc = real_realloc;
             mngr.dtor = real_free;
             mngr.get_size = malloc_usable_size;
-            get_ip_offs(&offs);
         } else /* ci is non-NULL */ {
             memcpy(&mngr, &ci->mngr, sizeof(mngr));
         }
@@ -794,7 +731,7 @@ void *calloc(size_t nmemb, size_t size) {
         } else
             ptr = real_calloc(nmemb, size);
         actual_size = mngr.get_size(ptr);
-        track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size, &offs);
+        track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size);
     } else
         ptr = real_calloc(nmemb, size);
 
