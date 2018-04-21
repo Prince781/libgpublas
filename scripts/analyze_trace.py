@@ -49,6 +49,8 @@ for line in gzip.open(sys.argv[1], 'rt'):
             if not earliest or time < earliest:
                 earliest = time
         elif tp == 'U':
+            if not int(uid) in records:
+                continue
             if records[int(uid)].is_gpu:
                 numitems_dev -= 1
                 totalsize_dev -= int(reqsize)
@@ -58,6 +60,8 @@ for line in gzip.open(sys.argv[1], 'rt'):
             records[int(uid)].alive = (records[int(uid)].alive[0], time)
             events[time] = Event(numitems_host, numitems_dev, totalsize_host, totalsize_dev)
         elif tp == 'C':
+            if not int(uid) in records:
+                continue
             if not records[int(uid)].is_gpu:
                 records[int(uid)].is_gpu = True
                 numitems_host -= 1
@@ -81,6 +85,9 @@ with gzip.open('trace.txt.gz', 'wt') as f:
     for key, value in records.items():
         f.write(f'{value}\n')
 
-with gzip.open('events.txt.gz', 'wt') as f:
-    for key, value in events.items():
-        f.write(f't={int(key)}ns: {value}\n')
+with gzip.open('events.csv.gz', 'wt') as csv:
+    with gzip.open('events.txt.gz', 'wt') as f:
+        csv.write('Time (ns), Host Items, Host Size (B), Dev Items, Dev Size (B)\n')
+        for key, value in events.items():
+            f.write(f't={int(key)}ns: {value}\n')
+            csv.write(f'{int(key)}, {value.numhost}, {value.sizehost}, {value.numdev}, {value.sizedev}\n')
