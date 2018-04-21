@@ -5,7 +5,8 @@ equivalent on the GPU in a CUDA environment.
 
 ## Compiling
 ```
-meson build && ninja -C build
+$ export CUDA=...
+$ meson -DCUDA=$CUDA build && ninja -C build
 ```
 
 ## How it works
