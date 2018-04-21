@@ -9,17 +9,11 @@
 
 static bool cublas_initialized = false;
 
-#if __cplusplus
-extern "C" {
-#endif
 static void *alloc_managed(size_t request);
 static void *calloc_managed(size_t nmemb, size_t size);
 static void *realloc_managed(void *managed_ptr, size_t request);
 static void free_managed(void *managed_ptr);
 static size_t get_size_managed(void *managed_ptr);
-#if __cplusplus
-};
-#endif
 
 static bool b2c_initialized = false;
 
