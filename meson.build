@@ -68,7 +68,7 @@ blas_level3_sources = files(
 )
 
 cudadir = get_option('CUDA')
-cuda_lib_dirs = [cudadir + '/lib64']
+cuda_lib_dirs = [cudadir + '/lib64', cudadir + '/lib64/stubs']
 
 ## dependencies
 libunwind_dep = cc.find_library('unwind', version: '>= 1.2')
