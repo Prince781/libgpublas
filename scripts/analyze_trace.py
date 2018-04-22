@@ -80,11 +80,10 @@ for line in gzip.open(sys.argv[1], 'rt'):
     else:
         failed_to_match.append(lineno)
 
-if failed_to_match:
-    with gzip.open('failed-to-match.txt.gz', 'wt') as f:
-        f.write(f'Failed to match {len(failed_to_match)} items from {sys.argv[1]}. Below are their line numbers:\n')
-        for lno in failed_to_match:
-            f.write(f'{lno}\n')
+with gzip.open('failed-to-match.txt.gz', 'wt') as f:
+    f.write(f'Failed to match {len(failed_to_match)} items from {sys.argv[1]}. Below are their line numbers:\n')
+    for lno in failed_to_match:
+        f.write(f'{lno}\n')
 
 for key in records:
     start, end = records[key].alive
