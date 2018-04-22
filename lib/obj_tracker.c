@@ -201,17 +201,17 @@ bool obj_tracker_should_alloc_managed_ptr(void) {
 #if STANDALONE
 void obj_tracker_print_help(void) {
     writef(STDERR_FILENO,
-        "object tracker options: (OBJTRACKER_OPTIONS)\n"
-	"You can chain these options with a semicolon (;)\n"
-	"help               -- Print help.\n"
-	"only_print_calls   -- Only print BLAS calls that use \n"
-	"                      objects. This reduces the output of\n"
-	"                      the tracker. By default, this option\n"
-	"                      is set to 'false'.\n"
-	"blas_libs          -- A comma(,)-separated list of libraries\n"
-	"                      to load, in the order specified. Use \n"
-	"                      this for libraries that are not linked\n"
-	"                      to their dependencies, like Intel MKL.\n");
+        "object tracker options: (set OBJTRACKER_OPTIONS)\n"
+	"   You can chain these options with a semicolon (;)\n"
+	"   help               -- Print help.\n"
+	"   only_print_calls   -- Only print BLAS calls that use \n"
+	"                         objects. This reduces the output of\n"
+	"                         the tracker. By default, this option\n"
+	"                         is set to 'false'.\n"
+	"   blas_libs          -- A comma(,)-separated list of libraries\n"
+	"                         to load, in the order specified. Use \n"
+	"                         this for libraries that are not linked\n"
+	"                         to their dependencies, like Intel MKL.\n");
 }
 
 const char my_interp[] __attribute__((section(".interp"))) = "/lib64/ld-linux-x86-64.so.2";
