@@ -17,13 +17,13 @@
 #include <sys/syscall.h>
 #include <errno.h>
 #include <pthread.h>        /* for read-write locks */
-#include "callinfo.h"
 #include "obj_tracker.h"
 #include "../common.h"
 #if STANDALONE
 #include "blas_tracker.h"
 #endif
 #include <assert.h>
+#include <err.h>
 
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT    1
@@ -37,6 +37,10 @@ struct obj_options objtracker_options = {
     .blas_libs = NULL,
     .num_blas = 0
 };
+#endif
+
+#ifndef STANDALONE
+extern struct objmngr blas2cuda_manager;
 #endif
 
 static bool initialized = false;
@@ -91,8 +95,6 @@ static bool tracking = true;    /* initial value */
 #else
 static bool tracking = false;
 #endif
-/* whether the user has specified any watchpoints */
-static bool watchpoints = false;
 
 void *__libc_malloc(size_t);
 void *__libc_calloc(size_t, size_t);
@@ -103,6 +105,8 @@ void *(*real_malloc)(size_t);
 void *(*real_calloc)(size_t, size_t);
 void *(*real_realloc)(void *, size_t);
 void (*real_free)(void *);
+
+struct objmngr glibc_manager;
 
 static void get_real_free(void);
 
@@ -189,6 +193,11 @@ static void get_real_free(void) {
     }
 }
 
+bool obj_tracker_should_alloc_managed_ptr(void) {
+    // TODO
+    return false;
+}
+
 #if STANDALONE
 void obj_tracker_print_help(void) {
     writef(STDERR_FILENO,
@@ -271,6 +280,13 @@ static void obj_tracker_get_fptrs(void) {
         get_real_calloc();
         get_real_realloc();
         get_real_free();
+        glibc_manager = (struct objmngr) {
+            .ctor = real_malloc,
+            .cctor = real_calloc,
+            .realloc = real_realloc,
+            .dtor = real_free,
+            .get_size = malloc_usable_size
+        };
         success = true;
     }
 }
@@ -347,8 +363,6 @@ void obj_tracker_init(bool tracking_enabled)
         obj_tracker_get_fptrs();
         initialized = true;
 
-        init_callinfo();
-
 #if STANDALONE
         obj_tracker_get_options();
         blas_tracker_init();
@@ -365,54 +379,8 @@ void obj_tracker_set_tracking(bool enabled)
 
 int obj_tracker_load(const char *filename, struct objmngr *mngr)
 {
-    FILE *fp = NULL;
-    enum alloc_sym sym;
-    size_t reqsize;
-    int res = 0;
-    int ci_res = 0;
-    char *line = NULL;
-    size_t line_len = 0;
-    const char *symname = NULL;
-    int lineno = 0;
-
-    if ((fp = fopen(filename, "r")) == NULL) {
-        writef(STDERR_FILENO, "fopen: %s\n", strerror(errno));
-        abort();
-    }
-
-    while ((res = getline(&line, &line_len, fp)) != EOF) {
-        char *nl;
-        if ((nl = strchr(line, '\n')))
-            *nl = '\0';
-        ++lineno;
-        if ((res = sscanf(line, "fun=[%d] reqsize=[%zu]\n", 
-                        (int *) &sym, &reqsize) == 6)) {
-            if (((int) sym) < 0 || sym > N_ALLOC_SYMS) {
-                writef(STDERR_FILENO, "%s: unsupported symbol '%d'\n", filename, sym);
-                continue;
-            }
-            symname = alloc_sym_tostr(sym);
-            
-            if ((ci_res = add_callinfo(sym, mngr, reqsize)) == 0) {
-                watchpoints = true;
-                writef(STDOUT_FILENO, "W fun=[%s] reqsize=[%zu]\n", symname, reqsize);
-            } else if (ci_res < 0)
-                writef(STDERR_FILENO, "Failed to add watch: %s\n", strerror(errno));
-        } else {
-            writef(STDERR_FILENO, "%s: Could not parse line %d (matched %d items)\n", 
-                    filename, lineno, res);
-            if (res > 0)
-                writef(STDERR_FILENO, "\tgot fun=%s\n", symname);
-            if (res > 1)
-                writef(STDERR_FILENO, "\tgot reqsize=%zu\n", reqsize);
-        }
-    }
-
-    free(line);
-    line = NULL;
-    line_len = 0;
-
-    return fclose(fp);
+    warn("unimplemented");
+    return 0;
 }
 
 const struct objinfo *
@@ -604,12 +572,8 @@ static void untrack_object(void *ptr, struct objmngr *mngr)
 void *malloc(size_t request) {
     static __thread bool inside = false;
     void *ptr;
-    /*
-    void *fake_ptr;
-    */
     size_t actual_size;
     struct objmngr mngr;
-    struct alloc_callinfo *ci;
 
     if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
         if (!real_malloc)
@@ -631,34 +595,18 @@ void *malloc(size_t request) {
         abort();
     }
 
-    /* Only track the object if we are supposed
-     * to be tracking it.
-     */
-    if (tracking 
-            && (!watchpoints 
-                || 
-                (get_callinfo_reqsize(ALLOC_MALLOC, request) 
-                 && (ci = get_callinfo_and(ALLOC_MALLOC, request))))
-        ) {
-        if (!watchpoints) {
-            mngr.ctor = real_malloc;
-            mngr.cctor = real_calloc;
-            mngr.realloc = real_realloc;
-            mngr.dtor = real_free;
-            mngr.get_size = malloc_usable_size;
-        } else /* ci is non-NULL */ {
-            memcpy(&mngr, &ci->mngr, sizeof(mngr));
+    if (tracking) {
+#if STANDALONE
+        mngr = glibc_manager;
+#else
+        if (obj_tracker_should_alloc_managed_ptr()) {
+            mngr = blas2cuda_manager;
+        } else {
+            mngr = glibc_manager;
         }
+#endif
 
-        /*
-         * If our memory manager constructor is
-         * not libc's malloc(), then we free this
-         * memory and use the manager's constructor.
-         */
-        if (mngr.ctor != real_malloc) {
-            ptr = mngr.ctor(request);
-        } else
-            ptr = real_malloc(request);
+        ptr = mngr.ctor(request);
         actual_size = mngr.get_size(ptr);
         track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size);
     } else
@@ -674,7 +622,6 @@ void *calloc(size_t nmemb, size_t size) {
     void *ptr;
     size_t actual_size;
     struct objmngr mngr;
-    struct alloc_callinfo *ci;
 
     request = nmemb * size;
     if (nmemb != 0 && request / nmemb != size) {
@@ -702,34 +649,18 @@ void *calloc(size_t nmemb, size_t size) {
         abort();
     }
 
-    /* Only track the object if we are supposed
-     * to be tracking it.
-     */
-    if (tracking 
-            && (!watchpoints 
-                || 
-                (get_callinfo_reqsize(ALLOC_CALLOC, request)
-                 && (ci = get_callinfo_and(ALLOC_CALLOC, request))))
-        ) {
-        if (!watchpoints) {
-            mngr.ctor = real_malloc;
-            mngr.cctor = real_calloc;
-            mngr.realloc = real_realloc;
-            mngr.dtor = real_free;
-            mngr.get_size = malloc_usable_size;
-        } else /* ci is non-NULL */ {
-            memcpy(&mngr, &ci->mngr, sizeof(mngr));
+    if (tracking) {
+#if STANDALONE
+        mngr = glibc_manager;
+#else
+        if (obj_tracker_should_alloc_managed_ptr()) {
+            mngr = blas2cuda_manager;
+        } else {
+            mngr = glibc_manager;
         }
+#endif
 
-        /*
-         * If our memory manager constructor is
-         * not libc's calloc(), then we free this
-         * memory and use the manager's constructor.
-         */
-        if (mngr.cctor != real_calloc) {
-            ptr = mngr.cctor(nmemb, size);
-        } else
-            ptr = real_calloc(nmemb, size);
+        ptr = mngr.cctor(nmemb, size);
         actual_size = mngr.get_size(ptr);
         track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size);
     } else
@@ -769,7 +700,7 @@ void free(void *ptr) {
     static __thread bool inside = false;
     struct objmngr mngr;
 
-    if (inside || inside_internal || destroying || initializing) {
+    if (inside || inside_internal || destroying || initializing || !initialized) {
         if (real_free)
             real_free(ptr);
         return;
@@ -788,14 +719,12 @@ void free(void *ptr) {
          * Set our defaults in case we
          * fail to set mngr.
          */
-        mngr.ctor = real_malloc;
-        mngr.cctor = real_calloc;
-        mngr.realloc = real_realloc;
-        mngr.dtor = real_free;
+        mngr = glibc_manager;
         untrack_object(ptr, &mngr);
         /*
          * mngr may be something else now
          */
+        assert(mngr.dtor != NULL);
         mngr.dtor(ptr);
     } else
         real_free(ptr);

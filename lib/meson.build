@@ -2,7 +2,6 @@ lib_inc = include_directories('.')
 
 libobjtracker = static_library('objtracker',
     sources: [
-      'callinfo.c',
       'fortran-compat.c',
       'obj_tracker.c',
     ],
@@ -24,7 +23,6 @@ libobjtracker_dep = declare_dependency(
 shared_library('objtracker',
     sources: [
       'blas_tracker.c',
-      'callinfo.c',
       'obj_tracker.c',
     ],
     include_directories: [root_inc],

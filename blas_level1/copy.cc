@@ -1,6 +1,4 @@
 #include "level1.h"
-#include "../lib/callinfo.h"
-#include "../lib/obj_tracker.h"
 
 template <typename T>
 static void _cblas_copy (const int n,

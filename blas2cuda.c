@@ -1,6 +1,4 @@
 #include "blas2cuda.h"
-#include "lib/callinfo.h"
-#include "lib/obj_tracker.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

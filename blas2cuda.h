@@ -9,7 +9,6 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 
-#include "lib/callinfo.h"
 #include "lib/obj_tracker.h"
 
 #include "common.h"

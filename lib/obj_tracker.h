@@ -43,8 +43,37 @@ struct obj_options {
 extern struct obj_options objtracker_options;
 #endif
 
-/* include callinfo.h */
-struct alloc_callinfo;
+enum alloc_sym {
+    ALLOC_MALLOC,
+    ALLOC_CALLOC,
+    N_ALLOC_SYMS,
+    ALLOC_UNKNWN
+};
+
+static inline const char *alloc_sym_tostr(enum alloc_sym sym) {
+    switch (sym) {
+        case ALLOC_MALLOC:
+            return "malloc";
+        case ALLOC_CALLOC:
+            return "calloc";
+        default:
+            return "??";
+    }
+}
+
+struct objmngr {
+    void *(*ctor)(size_t);
+    void *(*cctor)(size_t, size_t);
+    void *(*realloc)(void *, size_t);
+    void (*dtor)(void *);
+    size_t (*get_size)(void *);
+};
+
+struct alloc_callinfo {
+    struct objmngr mngr;
+    enum alloc_sym alloc;
+    size_t reqsize;
+};
 
 /**
  * Information about objects.
