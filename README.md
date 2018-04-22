@@ -50,13 +50,5 @@ TODO: expand this section
 - Instead of explicit copying, a [page faulting mechanism is used to move data
   between the CPU and GPU](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#um-data-migration).
 
-### Creating an object allocation-tracking definition
-`./objtrack.sh <program>`
-
-### Running a program with `libblas2cuda`
+### (Outdated) Running a program
 `./blas2cuda.sh <objtrackfile> <program>`
-
-## Caveats/TODO
-- Currently only works with ASLR disabled, since it relies on IP, SP, etc not
-  being randomized.
-- Needs more testing.
