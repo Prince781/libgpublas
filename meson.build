@@ -90,7 +90,8 @@ subdir('lib')
 
 library('blas2cuda', sources + blas_level1_sources +
     blas_level2_sources + blas_level3_sources, 
-  c_args: ['-Wall', '-Werror', '-O3'],
+  c_args: ['-Wall', '-Werror', '-O3', '-fdump-rtl-expand'],
+  cpp_args: ['-Wall', '-Werror', '-O3', '-fdump-rtl-expand'],
   link_args: '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry',
   dependencies: [
     libobjtracker_dep,

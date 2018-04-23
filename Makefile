@@ -11,8 +11,8 @@ OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 LIBDIR=lib
 COMPFLAGS = -Wall -Werror -fPIC -fdiagnostics-color -ggdb3 -O3 -e entry -I$(CUDA)/include
-CFLAGS += $(COMPFLAGS) -std=gnu11
-CXXFLAGS += $(COMPFLAGS) -std=gnu++11
+CFLAGS += $(COMPFLAGS) -std=gnu11 -fdump-rtl-expand
+CXXFLAGS += $(COMPFLAGS) -std=gnu++11 -fdump-rtl-expand
 NVCFLAGS=$(subst $(space),$(comma),$(CFLAGS))
 NVCXXFLAGS=$(subst $(space),$(comma),$(CXXFLAGS))
 LDFLAGS += -shared -L$(CUDA)/lib64 -lcublas -L$(LIBDIR) -ldl -lpthread -init blas2cuda_init -fini blas2cuda_fini

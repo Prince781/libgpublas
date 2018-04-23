@@ -12,6 +12,7 @@ libobjtracker = static_library('objtracker',
       libunwind_arch_dep,
       libdl_dep,
     ],
+    c_args: ['-Wall', '-Werror', '-fdump-rtl-expand'],
     install: false,
 )
 
