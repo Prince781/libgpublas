@@ -101,9 +101,6 @@ void obj_tracker_init(bool tracking_enabled);
 
 void obj_tracker_set_tracking(bool enabled);
 
-/* users of this library must include callinfo.h */
-struct objmngr;
-
 /**
  * Loads a definition from a file.
  * See obj_tracker_print_obj() for file format.
