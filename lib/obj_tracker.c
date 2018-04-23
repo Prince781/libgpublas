@@ -24,6 +24,7 @@
 #endif
 #include <assert.h>
 #include <err.h>
+#include <limits.h>
 
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT    1
@@ -41,6 +42,14 @@ struct obj_options objtracker_options = {
 
 #ifndef STANDALONE
 extern struct objmngr blas2cuda_manager;
+
+enum heuristic {
+    H_RANDOM,
+    H_TRUE,
+    H_FALSE
+};
+
+enum heuristic hfunc = H_RANDOM;
 #endif
 
 static bool initialized = false;
@@ -193,10 +202,20 @@ static void get_real_free(void) {
     }
 }
 
+#ifndef STANDALONE
 bool obj_tracker_should_alloc_managed_ptr(void) {
-    // TODO
-    return false;
+    switch (hfunc) {
+        case H_TRUE:
+            return true;
+        case H_FALSE:
+            return false;
+        case H_RANDOM:
+            return (long double) random() / LONG_MAX > 0.5;
+        default:
+            return false;
+    }
 }
+#endif
 
 #if STANDALONE
 void obj_tracker_print_help(void) {
