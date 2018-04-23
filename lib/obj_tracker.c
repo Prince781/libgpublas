@@ -233,12 +233,14 @@ void obj_tracker_print_help(void) {
 	"                         to their dependencies, like Intel MKL.\n");
 }
 
+#if STANDALONE
 const char my_interp[] __attribute__((section(".interp"))) = "/lib64/ld-linux-x86-64.so.2";
 
 int entry(void) {
     obj_tracker_print_help();
     exit(0);
 }
+#endif
 
 static void obj_tracker_get_options(void) {
     char *options = getenv("OBJTRACKER_OPTIONS");
