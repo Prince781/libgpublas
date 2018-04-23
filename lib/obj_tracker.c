@@ -30,6 +30,8 @@
 #define TRACE_OUTPUT    1
 #endif
 
+#define OBJTRACKER_OPTIONS  "OBJTRACKER_OPTIONS"
+
 static void *find_objinfo(struct objinfo *o);
 
 #if STANDALONE
@@ -220,7 +222,7 @@ bool obj_tracker_should_alloc_managed_ptr(void) {
 #if STANDALONE
 void obj_tracker_print_help(void) {
     writef(STDERR_FILENO,
-        "object tracker options: (set OBJTRACKER_OPTIONS)\n"
+        "object tracker options: (set "OBJTRACKER_OPTIONS")\n"
 	"   You can chain these options with a semicolon (;)\n"
 	"   help               -- Print help.\n"
 	"   only_print_calls   -- Only print BLAS calls that use \n"
@@ -243,7 +245,7 @@ int entry(void) {
 #endif
 
 static void obj_tracker_get_options(void) {
-    char *options = getenv("OBJTRACKER_OPTIONS");
+    char *options = getenv(OBJTRACKER_OPTIONS);
     char *saveptr = NULL;
     char *option = NULL;
     bool help = false;
@@ -284,9 +286,9 @@ static void obj_tracker_get_options(void) {
                 objtracker_options.blas_libs = array;
                 objtracker_options.num_blas = n;
             } else
-                writef(STDERR_FILENO, "objtracker: you must provide a filename. Set OBJTRACKER_OPTIONS=help.\n");
+                writef(STDERR_FILENO, "objtracker: you must provide a filename. Set "OBJTRACKER_OPTIONS"=help.\n");
         } else {
-            writef(STDERR_FILENO, "objtracker: unknown option '%s'. Set OBJTRACKER_OPTIONS=help.\n", option);
+            writef(STDERR_FILENO, "objtracker: unknown option '%s'. Set "OBJTRACKER_OPTIONS"=help.\n", option);
         }
         option = strtok_r(NULL, ";", &saveptr);
     }

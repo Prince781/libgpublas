@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 
+#define BLAS2CUDA_OPTIONS "BLAS2CUDA_OPTIONS"
+
 static bool cublas_initialized = false;
 
 static void *alloc_managed(size_t request);
@@ -31,7 +33,7 @@ struct options b2c_options = { false, false, false };
 
 void b2c_print_help(void) {
     writef(STDERR_FILENO, 
-            "blas2cuda options (set BLAS2CUDA_OPTIONS):\n"
+            "blas2cuda options (set "BLAS2CUDA_OPTIONS"):\n"
             "   You can chain these options with a semicolon (;)\n"
             "   help           -- print help\n"
             "   debug_execfail -- debug kernel failures\n"
@@ -42,7 +44,7 @@ void b2c_print_help(void) {
 
 static void set_options(void) {
     /* TODO: use secure_getenv() ? */
-    char *options = getenv("BLAS2CUDA_OPTIONS");
+    char *options = getenv(BLAS2CUDA_OPTIONS);
     char *saveptr = NULL;
     char *option = NULL;
     bool help = false;
@@ -73,9 +75,9 @@ static void set_options(void) {
                 writef(STDOUT_FILENO, "blas2cuda: loaded %s\n", fname);
                 blas2cuda_tracking = true;
             } else
-                writef(STDERR_FILENO, "blas2cuda: you must provide a filename. Set BLAS2CUDA_OPTIONS=help.\n");
+                writef(STDERR_FILENO, "blas2cuda: you must provide a filename. Set "BLAS2CUDA_OPTIONS"=help.\n");
         } else {
-            writef(STDERR_FILENO, "blas2cuda: unknown option '%s'. Set BLAS2CUDA_OPTIONS=help.\n", option);
+            writef(STDERR_FILENO, "blas2cuda: unknown option '%s'. Set "BLAS2CUDA_OPTIONS"=help.\n", option);
         }
         option = strtok_r(NULL, ";", &saveptr);
     }
