@@ -1,8 +1,8 @@
-SOURCES=blas_tracker.c callinfo.c obj_tracker.c
+SOURCES=blas_tracker.c obj_tracker.c
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 CFLAGS=-Wall -Werror -fdiagnostics-color -fPIC -ggdb3 -O3 -e entry -std=gnu11 -DSTANDALONE -DTRACE_OUTPUT -DMEMCHECK # -DRBTREE -DDEBUG_TRACKING
-LDFLAGS=-ldl -lunwind -lunwind-x86_64 -Wl,-init,obj_tracker_init,-fini,obj_tracker_fini
+LDFLAGS=-ldl -Wl,-init,obj_tracker_init,-fini,obj_tracker_fini
 TESTSOURCES=$(wildcard tests/*.c)
 TESTS=$(TESTSOURCES:%.c=%)
 

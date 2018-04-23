@@ -15,7 +15,7 @@ CFLAGS += $(COMPFLAGS) -std=gnu11
 CXXFLAGS += $(COMPFLAGS) -std=gnu++11
 NVCFLAGS=$(subst $(space),$(comma),$(CFLAGS))
 NVCXXFLAGS=$(subst $(space),$(comma),$(CXXFLAGS))
-LDFLAGS += -shared -L$(CUDA)/lib64 -lcublas -L$(LIBDIR) -ldl -lunwind -lunwind-x86_64 -lpthread -init blas2cuda_init -fini blas2cuda_fini
+LDFLAGS += -shared -L$(CUDA)/lib64 -lcublas -L$(LIBDIR) -ldl -lpthread -init blas2cuda_init -fini blas2cuda_fini
 NVLDFLAGS=$(subst $(space),$(comma),$(LDFLAGS))
 INCLUDES=#$(wildcard *.h)
 
