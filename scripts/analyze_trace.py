@@ -40,9 +40,9 @@ class Record:
 
 for line in gzip.open(sys.argv[1], 'rt'):
     lineno = lineno + 1
-    m = re.match(r'([TUC]).*fun=\[(\w+)\] reqsize=\[(\d+)\] tid=\[(\d+)\] time=\[(\d+)s\+(\d+)ns\] uid=\[(\d+)\]', line)
+    m = re.match(r'([TUC]).*fun=\[(\w+)\] reqsize=\[(\d+)\].*time=\[(\d+)s\+(\d+)ns\] uid=\[(\d+)\]', line)
     if m:
-        tp, fun, reqsize, time_s, time_ns, uid = m.group(1,2,3,5,6,7)
+        tp, fun, reqsize, time_s, time_ns, uid = m.group(1,2,3,4,5,6)
         time = int(int(time_s) * 10e9 + int(time_ns))
         if tp == 'T':
             numitems_host += 1
