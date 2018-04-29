@@ -84,3 +84,14 @@ DECLARE_CBLAS__HERK(c, float, float _Complex) {
             &cublasCherk,
             &cublasCgeam);
 }
+
+DECLARE_CBLAS__HERK(z, double, double _Complex) {
+    _cblas_herk(Layout, uplo, trans,
+            n, k,
+            alpha,
+            (cuDoubleComplex *) a, lda,
+            beta,
+            (cuDoubleComplex *) c, ldc,
+            &cublasZherk,
+            &cublasZgeam);
+}

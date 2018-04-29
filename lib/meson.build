@@ -2,7 +2,6 @@ lib_inc = include_directories('.')
 
 libobjtracker = static_library('objtracker',
     sources: [
-      'fortran-compat.c',
       'obj_tracker.c',
     ],
     include_directories: [root_inc],

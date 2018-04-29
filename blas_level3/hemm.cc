@@ -108,3 +108,16 @@ DECLARE_CBLAS__HEMM(c, float _Complex) {
             &cublasChemm,
             &cublasCgeam);
 }
+
+DECLARE_CBLAS__HEMM(z, double _Complex) {
+    _cblas_hemm(Layout,
+            side, uplo,
+            m, n, 
+            cu(*(typeof(*a) *)alpha),
+            (cuDoubleComplex *)a, lda,
+            (cuDoubleComplex *)b, ldb,
+            cu(*(typeof(*a) *)beta),
+            (cuDoubleComplex *)c, ldc,
+            &cublasZhemm,
+            &cublasZgeam);
+}

@@ -8,6 +8,7 @@ cc = meson.get_compiler('c')
 root_inc = include_directories('.')
 
 sources = files(
+    'lib/fortran-compat.c',
     'blas2cuda.c',
     'entry.c',
 )
