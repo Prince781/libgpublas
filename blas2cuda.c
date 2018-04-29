@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #define BLAS2CUDA_OPTIONS "BLAS2CUDA_OPTIONS"
 
@@ -31,19 +32,17 @@ static size_t misses = 0;
 
 cublasHandle_t b2c_handle;
 
-static bool blas2cuda_tracking = false;
-
 struct options b2c_options = { false, false, false };
 
 void b2c_print_help(void) {
     writef(STDERR_FILENO, 
             "blas2cuda options (set "BLAS2CUDA_OPTIONS"):\n"
             "   You can chain these options with a semicolon (;)\n"
-            "   help           -- print help\n"
-            "   debug_execfail -- debug kernel failures\n"
-            "   debug_exec     -- debug kernel invocations\n"
-            "   trace_copy     -- trace copies between CPU and GPU\n"
-            "   track=<file>   -- use an object tracking definition\n");
+            "   help            -- print help\n"
+            "   debug_execfail  -- debug kernel failures\n"
+            "   debug_exec      -- debug kernel invocations\n"
+            "   trace_copy      -- trace copies between CPU and GPU\n"
+            "   heuristic=<val> -- one of: 'random', 'true', 'false'\n");
 }
 
 static void set_options(void) {
@@ -70,16 +69,29 @@ static void set_options(void) {
             b2c_options.debug_exec = true;
         else if (strcmp(option, "trace_copy") == 0)
             b2c_options.trace_copy = true;
-        else if (strncmp(option, "track=", 6) == 0) {
-            char *fname = strchr(option, '=');
-            if (fname) {
-                fname++;
-                writef(STDOUT_FILENO, "blas2cuda: loading %s\n", fname);
-                obj_tracker_load(fname, &blas2cuda_manager);
-                writef(STDOUT_FILENO, "blas2cuda: loaded %s\n", fname);
-                blas2cuda_tracking = true;
-            } else
-                writef(STDERR_FILENO, "blas2cuda: you must provide a filename. Set "BLAS2CUDA_OPTIONS"=help.\n");
+        else if (strncmp(option, "heuristic=", 10) == 0) {
+            char *hnum = strchr(option, '=');
+            if (hnum) {
+                bool set = false;
+
+                hnum++;
+                if (strncmp(hnum, "random", sizeof("random") - 1) == 0) {
+                    hfunc = H_RANDOM;
+                    set = true;
+                } else if (strncmp(hnum, "true", sizeof("true") - 1) == 0) {
+                    hfunc = H_TRUE;
+                    set = true;
+                } else if (strncmp(hnum, "false", sizeof("false") - 1) == 0) {
+                    hfunc = H_FALSE;
+                    set = true;
+                }
+
+                if (set) {
+                    writef(STDERR_FILENO, "blas2cuda: selecting heuristic %s\n", hnum);
+                } else {
+                    writef(STDERR_FILENO, "blas2cuda: unsupported heuristic '%s'\n", hnum);
+                }
+            }
         } else {
             writef(STDERR_FILENO, "blas2cuda: unknown option '%s'. Set "BLAS2CUDA_OPTIONS"=help.\n", option);
         }
@@ -262,7 +274,7 @@ void blas2cuda_init(void)
         writef(STDOUT_FILENO, "blas2cuda: initialized cuBLAS\n");
         obj_tracker_init(false);
         set_options();
-        obj_tracker_set_tracking(blas2cuda_tracking);
+        obj_tracker_set_tracking(true);
         writef(STDOUT_FILENO, "blas2cuda: initialized on thread %d\n", tid);
         b2c_initialized = true;
         inside = false;
@@ -287,11 +299,13 @@ void blas2cuda_fini(void)
         inside = false;
         b2c_initialized = false;
 
-        int fd = open("statistics.csv", O_RDWR);
+        int fd = open("statistics.csv", O_RDWR | O_CREAT);
         if (fd > -1) {
             writef(fd, "Hits, Misses\n");
             writef(fd, "%zu, %zu", hits, misses);
             close(fd);
+        } else {
+            writef(STDERR_FILENO, "blas2cuda: failed to write to statistics file: %s\n", strerror(errno));
         }
     }
 }

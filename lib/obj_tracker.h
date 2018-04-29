@@ -43,6 +43,14 @@ struct obj_options {
 extern struct obj_options objtracker_options;
 #endif
 
+enum heuristic {
+    H_RANDOM,
+    H_TRUE,
+    H_FALSE
+};
+
+extern enum heuristic hfunc;
+
 enum alloc_sym {
     ALLOC_MALLOC,
     ALLOC_CALLOC,

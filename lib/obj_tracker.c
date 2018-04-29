@@ -38,18 +38,12 @@ static void *find_objinfo(struct objinfo *o);
 struct obj_options objtracker_options = {
     .only_print_calls = false,
     .blas_libs = NULL,
-    .num_blas = 0
+    .num_blas = 0,
 };
 #endif
 
 #ifndef STANDALONE
 extern struct objmngr blas2cuda_manager;
-
-enum heuristic {
-    H_RANDOM,
-    H_TRUE,
-    H_FALSE
-};
 
 enum heuristic hfunc = H_RANDOM;
 #endif

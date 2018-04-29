@@ -3,14 +3,14 @@
 
 pardir=$(dirname $(readlink -f $0))
 debugcmdfile=$1
-trackfile=$2
+heuristic=$2
 progname=$3
 BLAS2CUDA=$pardir/../build/libblas2cuda.so
 optirun=
 tempfile=
 
-if [ -z $debugcmdfile ] || [ -z $trackfile ] || [ -z $progname ]; then
-    echo "Usage: $0 <debugcmdfile> <objtrackfile> <command> [ARGS...]"
+if [ -z $debugcmdfile ] || [ -z $heuristic ] || [ -z $progname ]; then
+    echo "Usage: $0 <debugcmdfile> <heuristic> <command> [ARGS...]"
     exit 1
 fi
 
@@ -28,7 +28,7 @@ fi
 tempfile=$(mktemp)
 echo "creating $tempfile"
 cat >$tempfile <<EOF
-set exec-wrapper $optirun env 'LD_PRELOAD=$pardir/../libblas2cuda.so' 'BLAS2CUDA_OPTIONS=track=$trackfile'
+set exec-wrapper $optirun env 'LD_PRELOAD=$BLAS2CUDA' 'BLAS2CUDA_OPTIONS=heuristic=$heuristic'
 run ${@:4}
 $(cat $debugcmdfile)
 run ${@:4}
