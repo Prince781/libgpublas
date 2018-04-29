@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <fcntl.h>
 
 #define BLAS2CUDA_OPTIONS "BLAS2CUDA_OPTIONS"
 
@@ -24,6 +25,9 @@ struct objmngr blas2cuda_manager = {
     .dtor = free_managed,
     .get_size = get_size_managed
 };
+
+static size_t hits = 0;
+static size_t misses = 0;
 
 cublasHandle_t b2c_handle;
 
@@ -163,8 +167,11 @@ void *b2c_place_on_gpu(void *cpubuf,
         cudaMalloc(&gpubuf, size);
     } else if ((*info_in = obj_tracker_objinfo(cpubuf))) {
         gpubuf = cpubuf;
-    } else
+        hits++;
+    } else {
         gpubuf = b2c_copy_to_gpu(cpubuf, size);
+        misses++;
+    }
 
     if (!gpubuf || cudaPeekAtLastError() != cudaSuccess) {
         va_list ap;
@@ -279,5 +286,12 @@ void blas2cuda_fini(void)
         obj_tracker_fini();
         inside = false;
         b2c_initialized = false;
+
+        int fd = open("statistics.csv", O_RDWR);
+        if (fd > -1) {
+            writef(fd, "Hits, Misses\n");
+            writef(fd, "%zu, %zu", hits, misses);
+            close(fd);
+        }
     }
 }
