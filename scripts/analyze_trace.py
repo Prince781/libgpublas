@@ -95,6 +95,11 @@ with gzip.open('trace.txt.gz', 'wt') as f:
     for key, value in records.items():
         f.write(f'{value}\n')
 
+with gzip.open('trace.csv.gz', 'wt') as csv:
+    csv.write('Created (ns), Destroyed (ns), Host, Size (B)\n')
+    for key, value in records.items():
+        csv.write(f'{value.alive[0]}, {value.alive[1]}, {not value.is_gpu}, {value.reqsize}\n')
+
 with gzip.open('events.csv.gz', 'wt') as csv:
     with gzip.open('events.txt.gz', 'wt') as f:
         csv.write('Time (ns), Host Items, Host Size (B), Dev Items, Dev Size (B)\n')
