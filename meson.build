@@ -7,6 +7,16 @@ project('blas2cuda', 'c', 'cpp',
 cc = meson.get_compiler('c')
 root_inc = include_directories('.')
 
+c_args = [
+  '-Wall', 
+  '-Wextra',
+  '-Wformat=2',
+  '-Werror', 
+  '-Wno-unused-parameter',
+  '-Winit-self',
+  '-O3'
+]
+
 sources = files(
     'lib/fortran-compat.c',
     'blas2cuda.c',
@@ -84,8 +94,8 @@ subdir('lib')
 
 library('blas2cuda', sources + blas_level1_sources +
     blas_level2_sources + blas_level3_sources, 
-  c_args: ['-Wall', '-Werror', '-O3', '-fdump-rtl-expand'],
-  cpp_args: ['-Wall', '-Werror', '-O3', '-fdump-rtl-expand'],
+  c_args: c_args,
+  cpp_args: c_args,
   link_args: '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry',
   dependencies: [
     libobjtracker_dep,

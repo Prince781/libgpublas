@@ -9,7 +9,7 @@ libobjtracker = static_library('objtracker',
       libpthread_dep, 
       libdl_dep,
     ],
-    c_args: ['-Wall', '-Werror', '-fdump-rtl-expand'],
+    c_args: c_args,
     install: false,
 )
 
@@ -28,7 +28,7 @@ shared_library('objtracker',
       libpthread_dep, 
       libdl_dep,
     ],
-    c_args: ['-Wall', '-Werror', '-DSTANDALONE', '-DTRACE_OUTPUT'],
+    c_args: c_args + ['-DSTANDALONE', '-DTRACE_OUTPUT'],
     link_args: '-Wl,-init,obj_tracker_init,-fini,obj_tracker_fini,-eentry',
     install: true,
 )
