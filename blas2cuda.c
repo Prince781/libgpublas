@@ -112,6 +112,7 @@ void init_cublas(void) {
                 break;
             case CUBLAS_STATUS_ALLOC_FAILED:
                 writef(STDERR_FILENO, "blas2cuda: failed to allocate resources\n");
+                break;
             case CUBLAS_STATUS_NOT_INITIALIZED:
             default:
                 writef(STDERR_FILENO, "blas2cuda: failed to initialize cuBLAS\n");
