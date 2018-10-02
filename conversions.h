@@ -156,9 +156,9 @@ void transpose_in(T *gpu_a, int size_a, int *rows_a, int *cols_a, int lda, geam_
     temp = *cols_a;
     *cols_a = *rows_a;
     *rows_a = temp;
-    */
 
     return gpu_a;
+    */
 }
 
 #endif
