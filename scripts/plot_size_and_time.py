@@ -38,5 +38,5 @@ ax.set_ylabel(r'size (B)')
 ax.set_title('objects')
 
 fig.tight_layout()
-fig.savefig("test.svg")
+fig.savefig("plot_size_and_time.svg")
 plt.show()

@@ -36,5 +36,5 @@ ax3.set(xlabel='time (s)', ylabel='device size (B)', title='device memory')
 ax3.grid()
 
 fig.tight_layout()
-fig.savefig("test.svg")
+fig.savefig("plot_over_time.svg")
 plt.show()
