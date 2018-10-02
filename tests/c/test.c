@@ -23,7 +23,7 @@ void run_test(int num,
         struct timespec start, end;
         struct timespec ts_diff;
         if (prologue(i) < 0) {
-            fprintf(stderr, "sub-test %d failed\n", i+1);
+            fprintf(stderr, "sub-test %d failed: %m\n", i+1);
             continue;
         }
         if (clock_gettime(CLOCK_MONOTONIC_RAW, &start) == -1) {
