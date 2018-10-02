@@ -1,6 +1,6 @@
 TEST_SOURCES=$(filter-out test.c,$(wildcard *.c))
 BINARIES=$(TEST_SOURCES:%.c=%)
-CFLAGS=-std=gnu11 -Wall -Werror $(DEBUG)
+CFLAGS=-std=gnu11 -Wall -Werror -g -ggdb3 $(DEBUG)
 LDFLAGS=-lm
 
 ifeq ($(USE_MKL), y)
