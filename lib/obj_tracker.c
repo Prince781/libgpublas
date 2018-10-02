@@ -308,7 +308,7 @@ static void obj_tracker_get_fptrs(void) {
     }
 }
 
-void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
+void obj_tracker_print_info(enum objprint_type type, const char *fname, const struct objinfo *info)
 {
     char c;
     const char *fun_name;
@@ -332,17 +332,22 @@ void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info)
             break;
     }
 
-    switch (info->ci.alloc) {
-        case ALLOC_MALLOC:
-            fun_name = (type != OBJPRINT_CALL) ? "malloc" : "0";
-            break;
-        case ALLOC_CALLOC:
-            fun_name = (type != OBJPRINT_CALL) ? "calloc" : "1";
-            break;
-        default:
-            fun_name = "?";
-            break;
-    }
+    if (type == OBJPRINT_TRACK || type == OBJPRINT_TRACK_FAIL) {
+        switch (info->ci.alloc) {
+            case ALLOC_MALLOC:
+                fun_name = "malloc";
+                break;
+            case ALLOC_CALLOC:
+                fun_name = "calloc";
+                break;
+            default:
+                fun_name = "??";
+                break;
+        }
+    } else if (type == OBJPRINT_UNTRACK)
+        fun_name = "free";
+    else
+        fun_name = fname;
 
     tid = syscall(SYS_gettid);
 
@@ -501,7 +506,7 @@ static void track_object(void *ptr,
     node = insert_objinfo(oinfo);
 
 #if TRACE_OUTPUT
-    obj_tracker_print_info(node ? OBJPRINT_TRACK : OBJPRINT_TRACK_FAIL, oinfo);
+    obj_tracker_print_info(node ? OBJPRINT_TRACK : OBJPRINT_TRACK_FAIL, "", oinfo);
 #endif
 
     tracking = true;
@@ -559,7 +564,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     }
 
 #if TRACE_OUTPUT
-    obj_tracker_print_info(OBJPRINT_UNTRACK, objinfo);
+    obj_tracker_print_info(OBJPRINT_UNTRACK, "free", objinfo);
 #endif
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
     real_free(objinfo);

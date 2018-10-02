@@ -14,16 +14,18 @@
 
 #define CAPACITY (1 << 10)
 
+#define print_objtrack_info(x) print_objtrack_info_real(__func__, (x))
+
 void **blas_lib_handles;
 int num_handles;
 
 static struct hsearch_data *fptrs_table;
 
-static void print_objtrack_info(const void *ptr) {
+static void print_objtrack_info_real(const char *fname, const void *ptr) {
     const struct objinfo *info;
 
     if ((info = obj_tracker_objinfo((void *) ptr))) {
-        obj_tracker_print_info(OBJPRINT_CALL, info);
+        obj_tracker_print_info(OBJPRINT_CALL, fname, info);
     } else
         writef(STDERR_FILENO, "no objinfo for %p\n", ptr);
 }

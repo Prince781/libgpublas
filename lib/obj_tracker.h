@@ -101,7 +101,7 @@ enum objprint_type {
     OBJPRINT_CALL
 };
 
-void obj_tracker_print_info(enum objprint_type type, const struct objinfo *info);
+void obj_tracker_print_info(enum objprint_type type, const char *fname, const struct objinfo *info);
 
 
 /* Initialize the object tracker. */
