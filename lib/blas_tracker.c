@@ -64,6 +64,7 @@ static void cache_fptr(const char *name, void *fptr) {
 
 static void *get_real_blas_fun(const char *name) {
     void *sym = NULL;
+    const char *err = NULL;
 
     if ((sym = get_real_blas_fun_cached(name)))
         return sym;
@@ -82,10 +83,11 @@ static void *get_real_blas_fun(const char *name) {
             cache_fptr(name, sym);
             break;
         }
+        err = dlerror();
     }
 
     if (!sym)
-        writef(STDERR_FILENO, "BLAS tracker: Failed to get handle to function '%s'\n", name);
+        writef(STDERR_FILENO, "BLAS tracker: Failed to get handle to function '%s': %s\n", name, err);
 
     return sym;
 }
