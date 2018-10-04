@@ -144,6 +144,8 @@ DECLARE_CBLAS__AXPY(prefix, T) {                \
     print_objtrack_info(y);                     \
     if ((fun = get_real_blas_fun(__func__)))    \
         fun(n, a, x, incx, y, incy);            \
+    else                                        \
+        abort();                                \
 }
 
 AXPY_TRACK(s, float)
@@ -156,9 +158,10 @@ DECLARE_CBLAS__COPY(prefix, type) {             \
     typeof(cblas_##prefix##copy) *fun;          \
     print_objtrack_info(x);                     \
     print_objtrack_info(y);                     \
-    if ((fun = get_real_blas_fun(__func__))) {  \
+    if ((fun = get_real_blas_fun(__func__)))    \
         fun(n, x, incx, y, incy);               \
-    }                                           \
+    else                                        \
+        abort();                                \
 }
 
 COPY_TRACK(s, float)
@@ -184,9 +187,10 @@ DECLARE_CBLAS__DOTC(prefix, T) {                \
     typeof(cblas_##prefix##dotc_sub) *fun;      \
     print_objtrack_info(x);                     \
     print_objtrack_info(y);                     \
-    if ((fun = get_real_blas_fun(__func__))) {  \
+    if ((fun = get_real_blas_fun(__func__)))    \
         fun(n, x, incx, y, incy, dotc);         \
-    }                                           \
+    else                                        \
+        abort();                                \
 }
 
 DOTC_TRACK(c, float _Complex)
@@ -199,6 +203,8 @@ DECLARE_CBLAS__DOTU(prefix, T) {                \
     print_objtrack_info(y);                     \
     if ((fun = get_real_blas_fun(__func__)))    \
         fun(n, x, incx, y, incy, dotu);         \
+    else                                        \
+        abort();                                \
 }
 
 DOTU_TRACK(c, float _Complex)
@@ -225,6 +231,8 @@ DECLARE_CBLAS__ROT(prefix, S, T) {              \
     print_objtrack_info(y);                     \
     if ((fun = get_real_blas_fun(__func__)))    \
         fun(n, x, incx, y, incy, c, s);         \
+    else                                        \
+        abort();                                \
 }
 
 ROT_TRACK(s, float, float)
@@ -254,6 +262,8 @@ void cblas_drotm (const int n,
     print_objtrack_info(y);
     if ((fun = get_real_blas_fun(__func__)))
         fun(n, x, incx, y, incy, param);
+    else
+        abort();
 }
 
 /* NOTE: rotmg omitted */
@@ -263,6 +273,8 @@ DECLARE_CBLAS__SCAL(prefix, S, T) {             \
     print_objtrack_info(x);                     \
     if ((fun = get_real_blas_fun(__func__)))    \
         fun(n, a, x, incx);                     \
+    else                                        \
+        abort();                                \
 }
 
 SCAL_TRACK(s, float, float)
@@ -279,6 +291,8 @@ DECLARE_CBLAS__SWAP(prefix, T) {                \
     print_objtrack_info(y);                     \
     if ((fun = get_real_blas_fun(__func__)))    \
         fun(n, x, incx, y, incy);               \
+    else                                        \
+        abort();                                \
 }
 
 SWAP_TRACK(s, float)
@@ -331,6 +345,8 @@ DECLARE_CBLAS__GBMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 GBMV_TRACK(s, float)
@@ -352,6 +368,8 @@ DECLARE_CBLAS__GEMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 GEMV_TRACK(s, float)
@@ -371,6 +389,8 @@ DECLARE_CBLAS__GER(prefix, T) {                 \
                 x, incx,                        \
                 y, incy,                        \
                 a, lda);                        \
+    else                                        \
+        abort();                                \
 }
 
 GER_TRACK(s, float)
@@ -389,6 +409,8 @@ DECLARE_CBLAS__GERC(prefix, T) {                \
                 x, incx,                        \
                 y, incy,                        \
                 a, lda);                        \
+    else                                        \
+        abort();                                \
 }
 
 GERC_TRACK(c, float _Complex)
@@ -407,6 +429,8 @@ DECLARE_CBLAS__GERU(prefix, T) {                \
                 x, incx,                        \
                 y, incy,                        \
                 a, lda);                        \
+    else                                        \
+        abort();                                \
 }
 
 GERU_TRACK(c, float _Complex)
@@ -427,6 +451,8 @@ DECLARE_CBLAS__HBMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 HBMV_TRACK(c, float _Complex)
@@ -447,6 +473,8 @@ DECLARE_CBLAS__HEMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 HEMV_TRACK(c, float _Complex)
@@ -464,6 +492,8 @@ DECLARE_CBLAS__HER(prefix, S, T) {              \
                 alpha,                          \
                 x, incx,                        \
                 a, lda);                        \
+    else                                        \
+        abort();                                \
 }
 
 HER_TRACK(c, float, float _Complex)
@@ -483,6 +513,8 @@ DECLARE_CBLAS__HER2(prefix, T) {                \
                 x, incx,                        \
                 y, incy,                        \
                 a, lda);                        \
+    else                                        \
+        abort();                                \
 }
 
 HER2_TRACK(c, float _Complex)
@@ -503,6 +535,8 @@ DECLARE_CBLAS__HPMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 HPMV_TRACK(c, float _Complex)
@@ -520,6 +554,8 @@ DECLARE_CBLAS__HPR(prefix, S, T) {              \
                 alpha,                          \
                 x, incx,                        \
                 ap);                            \
+    else                                        \
+        abort();                                \
 }
 
 HPR_TRACK(c, float, float _Complex)
@@ -539,6 +575,8 @@ DECLARE_CBLAS__HPR2(prefix, T) {                \
                 x, incx,                        \
                 y, incy,                        \
                 ap);                            \
+    else                                        \
+        abort();                                \
 }
 
 HPR2_TRACK(c, float _Complex)
@@ -559,6 +597,8 @@ DECLARE_CBLAS__SBMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 SBMV_TRACK(s, float)
@@ -579,6 +619,8 @@ DECLARE_CBLAS__SPMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 SPMV_TRACK(s, float)
@@ -596,6 +638,8 @@ DECLARE_CBLAS__SPR(prefix, T) {                 \
                 alpha,                          \
                 x, incx,                        \
                 ap);                            \
+    else                                        \
+        abort();                                \
 }
 
 SPR_TRACK(s, float)
@@ -615,6 +659,8 @@ DECLARE_CBLAS__SPR2(prefix, T) {                \
                 x, incx,                        \
                 y, incy,                        \
                 ap);                            \
+    else                                        \
+        abort();                                \
 }
 
 SPR2_TRACK(s, float)
@@ -635,6 +681,8 @@ DECLARE_CBLAS__SYMV(prefix, T) {                \
                 x, incx,                        \
                 beta,                           \
                 y, incy);                       \
+    else                                        \
+        abort();                                \
 }
 
 SYMV_TRACK(s, float)
@@ -652,6 +700,8 @@ DECLARE_CBLAS__SYR(prefix, T) {                 \
                 alpha,                          \
                 x, incx,                        \
                 a, lda);                        \
+    else                                        \
+        abort();                                \
 }
 
 SYR_TRACK(s, float)
@@ -671,6 +721,8 @@ DECLARE_CBLAS__SYR2(prefix, T) {                \
                 x, incx,                        \
                 y, incy,                        \
                 a, lda);                        \
+    else                                        \
+        abort();                                \
 }
 
 SYR2_TRACK(s, float)
@@ -689,6 +741,8 @@ DECLARE_CBLAS__TBMV(prefix, T) {                \
                 n, k,                           \
                 a, lda,                         \
                 x, incx);                       \
+    else                                        \
+        abort();                                \
 }
 
 TBMV_TRACK(s, float)
@@ -709,6 +763,8 @@ DECLARE_CBLAS__TBSV(prefix, T) {                \
                 n, k,                           \
                 a, lda,                         \
                 x, incx);                       \
+    else                                        \
+        abort();                                \
 }
 
 TBSV_TRACK(s, float)
@@ -729,6 +785,8 @@ DECLARE_CBLAS__TPMV(prefix, T) {                \
                 n, k,                           \
                 ap,                             \
                 x, incx);                       \
+    else                                        \
+        abort();                                \
 }
 
 TPMV_TRACK(s, float)
@@ -749,6 +807,8 @@ DECLARE_CBLAS__TPSV(prefix, T) {                \
                 n,                              \
                 ap,                             \
                 x, incx);                       \
+    else                                        \
+        abort();                                \
 }
 
 TPSV_TRACK(s, float)
@@ -769,6 +829,8 @@ DECLARE_CBLAS__TRMV(prefix, T) {                \
                 n,                              \
                 a, lda,                         \
                 x, incx);                       \
+    else                                        \
+        abort();                                \
 }
 
 TRMV_TRACK(s, float)
@@ -789,6 +851,8 @@ DECLARE_CBLAS__TRSV(prefix, T) {                \
                 n,                              \
                 a, lda,                         \
                 x, incx);                       \
+    else                                        \
+        abort();                                \
 }
 
 TRSV_TRACK(s, float)
@@ -813,6 +877,8 @@ DECLARE_CBLAS__GEMM(prefix, T) {                \
                 b, ldb,                         \
                 beta,                           \
                 c, ldc);                        \
+    else                                        \
+        abort();                                \
 }
 
 GEMM_TRACK(s, float)
@@ -834,6 +900,8 @@ DECLARE_CBLAS__HEMM(prefix, T) {                \
                 b, ldb,                         \
                 beta,                           \
                 c, ldc);                        \
+    else                                        \
+        abort();                                \
 }
 
 HEMM_TRACK(s, float)
@@ -853,6 +921,8 @@ DECLARE_CBLAS__HERK(prefix, S, T) {             \
                 a, lda,                         \
                 beta,                           \
                 c, ldc);                        \
+    else                                        \
+        abort();                                \
 }
 
 HERK_TRACK(c, float, float _Complex)
@@ -872,6 +942,8 @@ DECLARE_CBLAS__HER2K(prefix, S, T) {            \
                 b, ldb,                         \
                 beta,                           \
                 c, ldc);                        \
+    else                                        \
+        abort();                                \
 }
 
 HER2K_TRACK(c, float, float _Complex)
@@ -891,6 +963,8 @@ DECLARE_CBLAS__SYMM(prefix, T) {                \
                 b, ldb,                         \
                 beta,                           \
                 c, ldc);                        \
+    else                                        \
+        abort();                                \
 }
 
 SYMM_TRACK(s, float)
@@ -911,6 +985,8 @@ DECLARE_CBLAS__SYRK(prefix, T) {                \
                 a, lda,                         \
                 beta,                           \
                 c, ldc);                        \
+    else                                        \
+        abort();                                \
 }
 
 SYRK_TRACK(s, float)
@@ -933,6 +1009,8 @@ DECLARE_CBLAS__SYR2K(prefix, T) {               \
                 b, ldb,                         \
                 beta,                           \
                 c, ldc);                        \
+    else                                        \
+        abort();                                \
 }
 
 SYR2K_TRACK(s, float)
@@ -952,6 +1030,8 @@ DECLARE_CBLAS__TRMM(prefix, T) {                \
                 alpha,                          \
                 a, lda,                         \
                 b, ldb);                        \
+    else                                        \
+        abort();                                \
 }
 
 TRMM_TRACK(s, float)
@@ -971,6 +1051,8 @@ DECLARE_CBLAS__TRSM(prefix, T) {                \
                 alpha,                          \
                 a, lda,                         \
                 b, ldb);                        \
+    else                                        \
+        abort();                                \
 }
 
 TRSM_TRACK(s, float)
@@ -998,6 +1080,8 @@ F77_gemm(prefix, T) {                                               \
             b, ldb,                                                 \
             beta,                                                   \
             c, ldc);                                                \
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_gemm(s, float)
@@ -1005,7 +1089,7 @@ TRACK_F77_gemm(d, double)
 TRACK_F77_gemm(c, float _Complex)
 TRACK_F77_gemm(z, double _Complex)
 
-#define TRACK_F77_hemm(prefix, T)                                    \
+#define TRACK_F77_hemm(prefix, T)                                   \
 F77_hemm(prefix, T) {                                               \
     typeof(prefix##hemm_) *fun;                                     \
     print_objtrack_info(a);                                         \
@@ -1013,6 +1097,8 @@ F77_hemm(prefix, T) {                                               \
     print_objtrack_info(c);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(side, uplo, m, n, alpha, a, lda, b, ldb, beta, c, ldc); \
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_hemm(c, float _Complex)
@@ -1025,6 +1111,8 @@ F77_herk(prefix, S, T) {                                            \
     print_objtrack_info(c);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(uplo, trans, n, k, alpha, a, lda, beta, c, ldc);        \
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_herk(c, float, float _Complex)
@@ -1038,6 +1126,8 @@ F77_her2k(prefix, S, T) {                                           \
     print_objtrack_info(c);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(uplo, trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc);\
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_her2k(c, float, float _Complex)
@@ -1051,6 +1141,8 @@ F77_symm(prefix, T) {                                               \
     print_objtrack_info(c);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(side, uplo, m, n, alpha, a, lda, b, ldb, beta, c, ldc); \
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_symm(s, float)
@@ -1065,6 +1157,8 @@ F77_syrk(prefix, T) {                                               \
     print_objtrack_info(c);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(uplo, trans, n, k, alpha, a, lda, beta, c, ldc);        \
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_syrk(s, float)
@@ -1079,6 +1173,8 @@ F77_syr2k(prefix, T) {                                              \
     print_objtrack_info(b);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(uplo, trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc);\
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_syr2k(s, float)
@@ -1093,6 +1189,8 @@ F77_trmm(prefix, T) {                                               \
     print_objtrack_info(b);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb); \
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_trmm(s, float)
@@ -1107,6 +1205,8 @@ F77_trsm(prefix, T) {                                               \
     print_objtrack_info(b);                                         \
     if ((fun = get_real_blas_fun(__func__)))                        \
         fun(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb); \
+    else                                                            \
+        abort();                                                    \
 }
 
 TRACK_F77_trsm(s, float)
