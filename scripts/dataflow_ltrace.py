@@ -98,12 +98,18 @@ def parse_input(filename):
                 outgoing[ptr].update({sym: nodes[sym]})
 
     for sym, node in nodes.items():
-        oup.write(f'\t{sym};\n')
+        edges = []
 
         for in_ptr in node.inputs:
             if in_ptr in outgoing:
                 for psym, parent in outgoing[in_ptr].items():
-                    oup.write(f'\t{psym} -> {sym} [label="{in_ptr}"];\n')
+                    edges.append(f'\t{psym} -> {sym} [label="{in_ptr}"];\n')
+
+        if not edges:
+            continue
+
+        oup.write(f'\t{sym};\n')
+        oup.writelines(edges)
 
     oup.write('}\n')
     inp.close()
