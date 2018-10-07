@@ -537,8 +537,10 @@ if __name__ == "__main__":
             ]
 
     try:
-        tree = Parser(Tokenizer(open(sys.argv[1], 'rt')), 'decl_list', grammar, combiners).parse()
+        f = sys.stdin if sys.argv[1] == '-' else open(sys.argv[1], 'rt')
+        tree = Parser(Tokenizer(f), 'decl_list', grammar, combiners).parse()
         print(tree)
+        f.close()
     except ParseError as e:
         print(f'syntax error: {e}')
     except Exception as e:
