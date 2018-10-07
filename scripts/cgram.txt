@@ -1,0 +1,28 @@
+<decl_list> -> ε | <decl> <decl_list>
+<decls> -> ε | <decl> <decls>
+<decl> -> <fun_decl> ; | <extern_decl> | <typedef_decl> ; | <enum_decl> ; | <struct_decl> ;
+<extern_decl> -> extern <extern_decl_tail>
+<extern_decl_tail> -> <type> <ident> ; | "C" { <decls> }
+<fun_decl> -> <type> <ident?> ( <param_list> )
+<qualifier> -> const | ε
+<type> -> <qualifier> <ident> <type_id_list> <type_tail>
+<type_tail> -> ε | * <qualifier> <type_tail>
+<type_ident> -> (?!(alternate all non-type C keywords ...)$)[A-Za-z_]+\w+
+<type_id_list> -> ε | <type_ident> <type_id_list>
+<ident> -> (?!(alternate all C keywords ...)$)[A-Za-z_]+\w+
+<ident?> -> ε | <ident>
+<enum_elem> -> <ident> = <integer>
+<enum_elem_list> -> ε | , <enum_elem> <enum_elem_list>
+<enum_decl_named> -> enum <ident> { <enum_elem> <enum_elem_list> }
+<enum_decl_anon> -> enum { <enum_elem> <enum_elem_list> }
+<enum_decl> -> enum <ident?> { <enum_elem> <enum_elem_list> } 
+<typedef_decl> -> typedef <typedef_type>
+<typedef_type> -> <enum_decl_anon> <ident> | <struct_decl_anon> <ident> | <type>
+<struct_elem> -> <type> <ident?> ;
+<struct_elem_list> -> ε | <struct_elem> <struct_elem_list>
+<struct_decl_anon> -> struct { <struct_elem> <struct_elem_list> }
+<struct_decl> -> struct <ident?> { <struct_elem> <struct_elem_list> }
+<param_list_nonempty> -> <type> <ident?> <param_tail>
+<param_list> -> ε | <param_list_nonempty>
+<param_tail> -> ε | , <param_tail_list_or_varargs>
+<param_tail_list_or_varargs> -> <param_list_nonempty> | ...
