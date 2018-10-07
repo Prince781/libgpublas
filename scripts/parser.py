@@ -11,7 +11,7 @@ def foldl(func, acc, xs):
 # tokenizer = Tokenizer(file)
 # 
 class Tokenizer:
-    def __init__(self, iostream):
+    def __init__(self, iostream, debug=None):
         assert isinstance(iostream, io.TextIOBase)
 
         self.iostream = iostream
@@ -19,6 +19,7 @@ class Tokenizer:
         self.line = 0
         self.char = 0
         self.line_lengths = {}
+        self.debug = (lambda x: print(f'scanner: {x}')) if debug else (lambda x: ())
 
     def position(self):
         return (self.line + 1, self.char + 1)
@@ -76,21 +77,21 @@ class Tokenizer:
                     notspace = True
                     break
                 if c == '\r' or c == '\n':
-                    print(f'scanner: skipping line {line}')
+                    self.debug(f'skipping line {line}')
                 notspace = False
 
             line, pos = self.position()
-            # print(f'{line}:{pos}: c = {c}')
+            # self.debug(f'{line}:{pos}: c = {c}')
 
             # skip over meta symbols
             if not c == '#':
                 notmeta = True
             else:
-                # print(f'{line}:{pos}: skipping over meta')
+                # self.debug(f'{line}:{pos}: skipping over meta')
                 while not (c == '\r' or c == '\n'):
                     c = self.next_char()
                 line, pos = self.position()
-                # print(f'{line}:{pos}: c = {c}')
+                # self.debug(f'{line}:{pos}: c = {c}')
                 notmeta = True
                 notspace = False
 
@@ -280,7 +281,7 @@ class ParseError(Exception):
 
 # A table-driver parser
 class Parser:
-    def __init__(self, tokenizer, init_prod, grammar, combiners):
+    def __init__(self, tokenizer, init_prod, grammar, combiners, debug=None):
         """
             tokenizer = A Tokenizer object
             init_prod = a string
@@ -301,6 +302,7 @@ class Parser:
                 ('type_ident', re.compile(fr'(?!({self.nontype_kw_re})$){self.word_re}')),\
                 ('string', list('"')),\
                 ])
+        self.debug = (lambda x: print(f'parser: {x}')) if debug else (lambda x: ())
 
         # quick check
         for prod in self.grammar:
@@ -344,7 +346,7 @@ class Parser:
 
     # rule = list of productions [[]] initially
     def first(self, rule):
-        print(f'parser: computing first({rule})')
+        self.debug(f'computing first({rule})')
         if isinstance(rule, list):
             # empty list?
             if not rule:
@@ -357,7 +359,7 @@ class Parser:
                 first_set = self.first(rule[0])
                 for i in range(1, len(rule)):
                     if self.eps(rule[i-1]):
-                        print(f'parser: {rule[i-1]} has epsilon, adding next')
+                        self.debug(f'parser: {rule[i-1]} has epsilon, adding next')
                         first_set += self.first(rule[i])
                     else:
                         break
@@ -449,11 +451,11 @@ class Parser:
                     for i in range(0, len(two)):        # alternative production
                         alt = two[i]
                         first_set = self.first(alt)
-                        print(f'parser: peek = {peek}, first({alt}) = {first_set}')
+                        self.debug(f'peek = {peek}, first({alt}) = {first_set}')
                         if contains(first_set, peek) or not alt:
                             found = alt
                             found_i = i
-                            print(f'parser: selected {alt}')
+                            self.debug(f'selected {alt}')
                             break
 
                     if found == None:

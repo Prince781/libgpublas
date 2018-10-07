@@ -18,7 +18,10 @@
 <enum_decl> -> enum <ident?> { <enum_elem> <enum_elem_list> } 
 <typedef_decl> -> typedef <typedef_type>
 <typedef_type> -> <enum_decl_anon> <ident> | <struct_decl_anon> <ident> | <type>
-<struct_elem> -> <type> <ident?> ;
+<array_idx> -> <integer> | <ident>
+<array_decl> -> [ <array_idx> ]
+<array_decl?> -> ε | <array_decl>
+<struct_elem> -> <type> <ident?> <array_decl?> ;
 <struct_elem_list> -> ε | <struct_elem> <struct_elem_list>
 <struct_decl_anon> -> struct { <struct_elem> <struct_elem_list> }
 <struct_decl> -> struct <ident?> { <struct_elem> <struct_elem_list> }

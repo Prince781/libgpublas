@@ -21,7 +21,10 @@ grammar = [\
             ('enum_decl_anon', [['enum', '{', 'enum_elem', 'enum_elem_list', '}']]),\
             ('enum_decl', [['enum', 'ident?', '{', 'enum_elem', 'enum_elem_list', '}']]),\
             ('typedef_decl', [['typedef', 'typedef_type']]),\
-            ('typedef_type', [['enum_decl_anon', 'ident'], ['type']]),\
+            ('typedef_type', [['enum_decl_anon', 'ident'], ['struct_decl_anon', 'ident'], ['type']]),\
+            ('array_idx', [['integer'], ['ident']]),\
+            ('array_decl', [['[', 'array_idx', ']']]),\
+            ('array_decl?', [['array_decl'], []]),\
             ('struct_elem', [['type', 'ident?']]),\
             ('struct_elem_list', [['struct_elem', 'struct_elem_list'], []]),\
             ('struct_decl_anon', [['struct', '{', 'struct_elem', 'struct_elem_list', '}']]),\
@@ -49,7 +52,10 @@ combiners = [\
             ('enum_decl_anon', [[2, 3]]),\
             ('enum_decl', [[1, 3, 4]]),\
             ('typedef_decl', [[1]]),\
-            ('typedef_type', [[0, 1], [0]]),\
+            ('typedef_type', [[0, 1], [0, 1], [0]]),\
+            ('array_idx', [[0], [0]]),\
+            ('array_decl', [[1]]),\
+            ('array_decl?', [[0], []]),\
             ('struct_elem', [[0, 1]]),\
             ('struct_elem_list', [[0, 1], []]),\
             ('struct_decl_anon', [[2, 3]]),\
@@ -63,16 +69,22 @@ combiners = [\
 
 if __name__ == "__main__":
     import sys
+    from argparse import *
 
-    if len(sys.argv) != 2:
-        sys.exit(f"Usage: {sys.argv[0]} c-header")
+    aparser = ArgumentParser()
+    aparser.add_argument('c_header')
+    aparser.add_argument('-v', '--verbose', action='store_true', help='Print all messages')
+    aparser.add_argument('-s', '--debug-scanner', action='store_true', help='Debug only scanner')
+    aparser.add_argument('-p', '--debug-parser', action='store_true', help='Debug only parser')
 
     try:
-        f = sys.stdin if sys.argv[1] == '-' else open(sys.argv[1], 'rt')
-        tree = Parser(Tokenizer(f), 'decl_list', grammar, combiners).parse()
+        args = aparser.parse_args()
+        f = sys.stdin if args.c_header == '-' else open(args.c_header, 'rt')
+        tk = Tokenizer(f, debug=args.verbose or args.debug_scanner)
+        tree = Parser(tk, 'decl_list', grammar, combiners, debug=args.verbose or args.debug_parser).parse()
         print(tree)
         f.close()
     except ParseError as e:
         print(f'syntax error: {e}')
-    except Exception as e:
+    except OSError as e:
         print(e)
