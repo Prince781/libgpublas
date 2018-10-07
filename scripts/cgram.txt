@@ -2,7 +2,7 @@
 <decls> -> ε | <decl> <decls>
 <decl> -> <fun_decl> ; | <extern_decl> | <typedef_decl> ; | <enum_decl> ; | <struct_decl> ;
 <extern_decl> -> extern <extern_decl_tail>
-<extern_decl_tail> -> <type> <ident> ; | "C" { <decls> }
+<extern_decl_tail> -> <type> <ident?> <array_decl?> ; | "C" { <decls> }
 <fun_decl> -> <type> <ident?> ( <param_list> )
 <qualifier> -> const | ε
 <type> -> <qualifier> <ident> <type_id_list> <type_tail>

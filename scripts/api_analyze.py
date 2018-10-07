@@ -8,7 +8,7 @@ grammar = [\
             ('decls', [['decl', 'decls'], []]),\
             ('decl', [['fun_decl', ';'], ['extern_decl'], ['typedef_decl', ';'], ['enum_decl', ';'], ['struct_decl', ';']]),\
             ('extern_decl', [['extern', 'extern_decl_tail']]),\
-            ('extern_decl_tail', [['type', 'ident', ';'], ['"C"', '{', 'decls', '}']]),\
+            ('extern_decl_tail', [['type', 'ident?', 'array_decl?', ';'], ['"C"', '{', 'decls', '}']]),\
             ('fun_decl', [['type', 'ident?', '(', 'param_list', ')']]),\
             ('qualifier', [['const'], []]),\
             ('type', [['qualifier', 'type_ident', 'type_id_list', 'type_tail']]),\
@@ -39,7 +39,7 @@ combiners = [\
             ('decls', [[0, 1], []]),\
             ('decl', [[0], [0], [0], [0], [0]]),\
             ('extern_decl', [[1]]),\
-            ('extern_decl_tail', [[0, 1], [2]]),\
+            ('extern_decl_tail', [[0, 1, 2], [2]]),\
             ('fun_decl', [[0, 1, 3]]),\
             ('qualifier', [[0], []]),\
             ('type', [[0, 1, 2, 3]]),\
