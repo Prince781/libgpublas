@@ -1,3 +1,6 @@
+# parser.py
+# Princeton Ferro, Oct 2018
+# Tokenizer for C-like language and table-driven parser.
 import io
 import re
 import functools
