@@ -284,12 +284,13 @@ class ParseError(Exception):
 
 # A table-driver parser
 class Parser:
-    def __init__(self, tokenizer, init_prod, grammar, combiners, debug=None):
+    def __init__(self, tokenizer, init_prod, grammar, combiners, actions, debug=None):
         """
             tokenizer = A Tokenizer object
             init_prod = a string
             grammar = an array of tuples, (prod:string, array(prods))
             combiners = an array of tuples, (prod:string, array(int))
+            actions = an array of tuples, (prod:string, fun(lhs:{},rhs:{}) -> None)
         """
         self.tokenizer = tokenizer
         self.init_prod = init_prod          # first production to expand
@@ -305,7 +306,8 @@ class Parser:
                 ('type_ident', re.compile(fr'(?!({self.nontype_kw_re})$){self.word_re}')),\
                 ('string', list('"')),\
                 ])
-        self.debug = (lambda x: print(f'parser: {x}')) if debug else (lambda x: ())
+        self.debug = (lambda x: print(f'parser: {x}')) if debug else (lambda x: None)
+        self.actions = dict(actions)
 
         # quick check
         for prod in self.grammar:
@@ -318,6 +320,11 @@ class Parser:
                             raise Exception(f'{prod}\'s #{i} rule is {len(self.grammar[prod][i])} but that combiner is {len(self.combiners[prod][i])}')
             else:
                 raise Exception(f'{prod} doesn\'t have a combiner')
+
+            if not prod in self.actions:
+                self.actions[prod] = lambda lhs,rhs,init: None
+            elif self.actions[prod].__code__.co_argcount != 3:
+                raise Exception(f'{prod} action routine must be of the form function(lhs, rhs, init)')
 
     def eps(self, symbol):
         if isinstance(symbol, list):
@@ -392,17 +399,17 @@ class Parser:
                         return True
             return False
 
-        stack = [self.init_prod]    # [each element is str or [[]] or (PROD, ALTNUM)]
-        nodes = []                  # the computed nodes of the parse tree
+        stack = [(self.init_prod, {})]  # [each element is str or [[]] or (PROD, ALTNUM)]
+        nodes = []                      # the computed nodes of the parse tree
 
         while stack:
-            prod = stack[0]
+            prod, obj = stack[0]
             stack = stack[1:]
 
             if isinstance(prod, str):
                 # non-terminal?
                 if prod in self.grammar:
-                    stack = [(prod, self.grammar[prod])] + stack
+                    stack = [((prod, self.grammar[prod]), obj)] + stack
                 # terminal
                 else:
                     if prod == 'number':
@@ -410,31 +417,36 @@ class Parser:
                         if tk == None:
                             line, char = self.tokenizer.position()
                             raise ParseError(f'Expected number at line {line}, char {char}')
-                        nodes.append(tk)
+                        obj['val'] = tk
+                        nodes.append(((prod, tk), obj))
                     elif prod == 'integer':
                         tk = self.tokenizer.next_number()
                         if tk == None or not isinstance(tk, int):
                             line, char = self.tokenizer.position()
                             raise ParseError(f'Expected an integer at line {line}, char {char}')
-                        nodes.append(tk)
+                        obj['val'] = tk
+                        nodes.append(((prod, tk), obj))
                     elif prod == 'ident' or prod == 'type_ident':
                         tk = self.tokenizer.next_ident()
                         if tk == None:
                             line, char = self.tokenizer.position()
                             raise ParseError(f'Expected {prod} at line {line}, char {char}')
-                        nodes.append(tk)
+                        obj['val'] = tk
+                        nodes.append(((prod, tk), obj))
                     elif prod == 'string':
                         tk = self.tokenizer.next_string()
                         if tk == None:
                             line, char = self.tokenizer.position()
                             raise ParseError(f'Unexpected token \'{self.tokenizer.peek_token()}\' at line {line}, char {char}. Expected a string.')
-                        nodes.append(tk)
+                        obj['val'] = tk
+                        nodes.append(((prod, tk), obj))
                     elif prod != '':
                         tk = self.tokenizer.next_token(len(prod))
                         if not tk or tk != prod:
                             line, char = self.tokenizer.position()
                             raise ParseError(f'Expected token \'{prod}\' at line {line}, char {char}')
-                        nodes.append(tk)
+                        obj['val'] = tk
+                        nodes.append(((prod, tk), obj))
 
             elif isinstance(prod, tuple):
                 one, two = prod
@@ -443,8 +455,17 @@ class Parser:
                     comb_name = one
                     alt_num = two
                     amt_skip = len(self.grammar[comb_name][alt_num])
-                    c = (comb_name, [nodes[len(nodes)-amt_skip + i] for i in self.combiners[comb_name][alt_num]])
-                    nodes = nodes[0:len(nodes)-amt_skip] + [c]
+                    c = (comb_name, [nodes[len(nodes)-amt_skip + i][0] for i in self.combiners[comb_name][alt_num]])
+                    # call action routine (again) with RHS finalized
+                    rhs = dict(list(map(lambda x: (x[0][0], x[1]), nodes[-amt_skip:])))
+                    try:
+                        self.actions[comb_name](obj, rhs, False) # call action with LHS, RHS
+                    except:
+                        print(nodes[-amt_skip:])
+                        print(alt_num)
+                        print(rhs)
+                        raise
+                    nodes = nodes[0:len(nodes)-amt_skip] + [(c, obj)]
                 elif isinstance(two, list):
                     # one is str
                     assert two and isinstance(two[0], list) # two is [[]]
@@ -467,7 +488,10 @@ class Parser:
                         raise ParseError(f'Unexpected token \'{peek}\' at line {line}, char {char} while resolving {pname}')
 
                     # found could be empty, indicating EPS
-                    stack = ([''] if not found else found) + [(one, found_i)] + stack
+                    tmp_nodes = list(map(lambda x: (x, {}), [''] if not found else found))
+                    # call action routine with RHS initialized
+                    self.actions[one](obj, dict(list(map(lambda x: (x[0][0], x[1]), tmp_nodes))) if found else {}, True)
+                    stack = tmp_nodes + [((one, found_i), obj)] + stack
                 else:
                     raise ParseError(f'Unexpected item {prod}')
             else:

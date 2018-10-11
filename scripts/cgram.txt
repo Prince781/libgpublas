@@ -1,3 +1,5 @@
+grammar:
+
 <decl_list> -> ε | <decl> <decl_list>
 <decls> -> ε | <decl> <decls>
 <decl> -> <fun_decl> ; | <extern_decl> | <typedef_decl> ; | <enum_decl> ; | <struct_decl> ;
@@ -16,8 +18,7 @@
 <enum_decl_named> -> enum <ident> { <enum_elem> <enum_elem_list> }
 <enum_decl_anon> -> enum { <enum_elem> <enum_elem_list> }
 <enum_decl> -> enum <ident?> { <enum_elem> <enum_elem_list> } 
-<typedef_decl> -> typedef <typedef_type>
-<typedef_type> -> <enum_decl_anon> <ident> | <struct_decl_anon> <ident> | <type>
+<typedef_decl> -> typedef <typedef_type> <typedef_type> -> <enum_decl_anon> <ident> | <struct_decl_anon> <ident> | <type>
 <array_idx> -> <integer> | <ident>
 <array_decl> -> [ <array_idx> ]
 <array_decl?> -> ε | <array_decl>
@@ -29,3 +30,105 @@
 <param_list> -> ε | <param_list_nonempty>
 <param_tail> -> ε | , <param_tail_list_or_varargs>
 <param_tail_list_or_varargs> -> <param_list_nonempty> | ...
+
+attribute grammar:
+
+types:
+- type { name: string, const: True | False }
+ |- typedef { name: string, inner: type }
+ |- ref = { const: True | False, deref: type }
+ |- function { name: string, args: [type], ret: type }
+ |- struct { name: string?, members: [(string, type)] }
+ |- enum { name: string?, members: [(string, int)] }
+- scope { funs: [function], types: [string] => [type] }
+
+<decl_list>_1 -> <decl> <decl_list>_2
+    <decl_list>_1.scope = <decl>.scope + <decl_list>_2.scope
+<decl_list> -> ε
+    <decl_list>.scope = []
+
+<decls>_1 -> <decl> <decls>_2
+    <decls>_1.scope = <decl>.scope + <decls>_2.scope
+
+<decl> -> <fun_decl> ;
+    <decl>.scope.funs += <fun_decl>.func
+<decl> -> <typedef_decl> ;
+    <decl>.scope.types += <typedef_decl>.type
+<decl> -> <enum_decl> ;
+    <decl>.scope.types += <enum_decl>.enum
+<decl> -> <struct_decl> ;
+    <decl>.scope.types += <struct_decl>.struct
+
+<fun_decl> -> <type> <ident?> ( <param_list> )
+    <fun_decl>.func = function { name: <ident?>.val || <type>.last_ident, args: <param_list>.args, ret: make_ref(<type>.ref, <type>.idents, <ident?>.val) }
+
+<type> -> <qualifier> <ident> <type_id_list> <type_tail>
+    <type>.idents = <ident>.val + <type_id_list>.idents
+    <type>.last_ident = <type>.idents.last()
+    <type>.const = <qualifier>.const
+    <type>.ref = <type_tail>.ref
+
+<type_id_list>_1 -> <type_ident> <type_id_list>_2
+    <type_id_list>_1.idents += <type_ident>.val + <type_id_list>_2.idents
+<type_id_list> -> ε
+    <type_id_list>.idents = []
+
+<type_tail>_1 -> * <qualifier> <type_tail>_2
+    <type_tail>_2.ref = ref { const: <qualifier>.const, deref: <type_tail>_1.ref }
+    <type_tail>_1.ref = <type_tail>_2.ref
+<type_tail> -> ε
+    // do nothing
+
+<param_list> -> <param_list_nonempty>
+    <param_list>.args = <param_list_nonempty>.args
+<param_list> -> ε
+    <param_list>.args = []
+
+<param_list_nonempty> -> <type> <ident?> <param_tail>
+    <param_list_nonempty>.args += make_ref(<type>.ref, <type>.idents, <ident?>.val) + <param_tail>.args
+
+<param_tail> -> , <param_tail_list_or_varargs>
+    <param_tail>.args += <param_tail_list_or_varargs>.args
+<param_tail> -> ε
+    <param_tail>.args = []
+
+<param_tail_list_or_varargs> -> <param_list_nonempty>
+    <param_tail_list_or_varargs>.args += <param_list_nonempty>.args
+<param_tail_list_or_varargs> -> ...
+    <param_tail_list_or_varargs>.args = []      // ignore varargs functions
+
+<enum_decl> -> enum <ident?> { <enum_elem> <enum_elem_list> } 
+    <enum_decl>.enum = enum { name: <ident?>.val, members: <enum_elem>.elem + <enum_elem_list>.elems }
+
+<enum_elem> -> <ident> = <integer>
+    <enum_elem>.elem = (<ident>.val, <integer>.val)
+
+<enum_elem_list>_1 -> , <enum_elem> <enum_elem_list>_2
+    <enum_elem_list>_1.elems += <enum_elem>.elem + <enum_elem_list>_2.elems
+<enum_elem_list> -> ε
+    <enum_elem_list>.elems = []
+
+<typedef_decl> -> typedef <typedef_type>
+    <typedef_decl>.type = <typedef_type>.type
+
+<typedef_type> -> <enum_decl_anon> <ident>
+    <typedef_type>.type = typedef { name: <ident>.val, inner: <enum_decl_anon>.enum }
+
+<typedef_type> -> <struct_decl_anon> <ident>
+    <typedef_type>.type = typedef { name: <ident>.val, inner: <struct_decl_anon>.struct }
+
+<typedef_type> -> <type>
+    <typedef_type>.type = typedef { name: <type>.last_ident, inner: make_ref(<type>.ref, <type>.idents, null) }
+
+<struct_decl> -> struct <ident?> { <struct_elem> <struct_elem_list> }
+    <struct_decl>.struct = struct { name: <ident?>.val, members: <struct_elem>.elem + <struct_elem_list>.elems }
+
+<struct_elem> -> <type> <ident?> <array_decl?> ;
+    <struct_elem>.elem = (<ident?>.val || <type>.last_ident, make_ref(<type>.ref, <type>.idents, <ident?>.val))
+    // currently array_elem is ignored
+
+<struct_elem_list> -> <struct_elem> <struct_elem_list>
+    <struct_elem_list>.elems += <struct_elem>.elem + <struct_elem_list>.elems
+
+<struct_elem_list> -> ε
+    <struct_elem_list>.elems = []
