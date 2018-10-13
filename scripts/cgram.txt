@@ -18,7 +18,8 @@ grammar:
 <enum_decl_named> -> enum <ident> { <enum_elem> <enum_elem_list> }
 <enum_decl_anon> -> enum { <enum_elem> <enum_elem_list> }
 <enum_decl> -> enum <ident?> { <enum_elem> <enum_elem_list> } 
-<typedef_decl> -> typedef <typedef_type> <typedef_type> -> <enum_decl_anon> <ident> | <struct_decl_anon> <ident> | <type>
+<typedef_decl> -> typedef <typedef_type>
+<typedef_type> -> <enum_decl_anon> <ident> | <struct_decl_anon> <ident> | <type>
 <array_idx> -> <integer> | <ident>
 <array_decl> -> [ <array_idx> ]
 <array_decl?> -> ε | <array_decl>
@@ -119,6 +120,9 @@ types:
 
 <typedef_type> -> <type>
     <typedef_type>.type = typedef { name: <type>.last_ident, inner: make_ref(<type>.ref, <type>.idents, null) }
+
+<enum_decl_anon> -> enum { <enum_elem> <enum_elem_list> }
+    <enum_decl_anon>.enum = enum { name: null, members: <enum_elem>.elem + <enum_elem_list>.elems }
 
 <struct_decl> -> struct <ident?> { <struct_elem> <struct_elem_list> }
     <struct_decl>.struct = struct { name: <ident?>.val, members: <struct_elem>.elem + <struct_elem_list>.elems }

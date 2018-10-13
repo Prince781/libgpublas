@@ -65,13 +65,13 @@ def prod__decl(lhs, rhs, init):
         lhs.update(scope={'funs': [], 'types': []})
         return
     if 'fun_decl' in rhs:
-        lhs['scope']['funs'] += rhs['fun_decl']['func']
+        lhs['scope']['funs'] += [rhs['fun_decl']['func']]
     elif 'typedef_decl' in rhs:
-        lhs['scope']['types'] += rhs['typedef_decl']['type']
+        lhs['scope']['types'] += [rhs['typedef_decl']['type']]
     elif 'enum_decl' in rhs:
-        lhs['scope']['types'] += rhs['enum_decl']['enum']
+        lhs['scope']['types'] += [rhs['enum_decl']['enum']]
     elif 'struct_decl' in rhs:
-        lhs['scope']['types'] += rhs['struct_decl']['struct']
+        lhs['scope']['types'] += [rhs['struct_decl']['struct']]
 
 def prod__fun_decl(lhs, rhs, init):
     if init:
@@ -101,12 +101,12 @@ def prod__type_id_list(lhs, rhs, init):
         return
     if not rhs:
         return
-    lhs['idents'] += rhs['type_ident']['val'] + rhs['type_id_list']['idents']
+    lhs['idents'] += [rhs['type_ident']['val']] + rhs['type_id_list']['idents']
 
 def prod__type_tail(lhs, rhs, init):
     if init:
         lhs.update(ref=None)
-        rhs['type_tail']['ref'] = c_ref(rhs['qualifier']['const'], rhs['deref']['ref'])
+        rhs['type_tail']['ref'] = c_ref(rhs['qualifier']['const'], lhs['ref'])
     if not rhs:
         return
     lhs['ref'] = rhs['type_tail']['ref']
@@ -168,7 +168,7 @@ def prod__enum_elem_list(lhs, rhs, init):
         return
     if not rhs:
         return
-    lhs['elems'] += [rhs['enum_elem']['elem']] +rhs['enum_elem_list']['elems']
+    lhs['elems'] += [rhs['enum_elem']['elem']] + rhs['enum_elem_list']['elems']
 
 def prod__typedef_decl(lhs, rhs, init):
     if init:
@@ -186,6 +186,12 @@ def prod__typedef_type(lhs, rhs, init):
         lhs['type'] = c_typedef(rhs['ident']['val'], rhs['struct_decl_anon']['struct'])
     elif 'type' in rhs:
         lhs['type'] = c_typedef(rhs['type']['last_ident'], make_ref(rhs['type']['ref'], rhs['type']['idents'], None))
+
+def prod__enum_decl_anon(lhs, rhs, init):
+    if init:
+        lhs.update(enum=None)
+        return
+    lhs['enum'] = c_enum(None, [rhs['enum_elem']['elem']] + rhs['enum_elem_list']['elems'])
 
 def prod__struct_decl(lhs, rhs, init):
     if init:
@@ -281,6 +287,7 @@ actions = [\
             ('ident?', prod__ident_q),\
             ('enum_elem', prod__enum_elem),\
             ('enum_elem_list', prod__enum_elem_list),\
+            ('enum_decl_anon', prod__enum_decl_anon),\
             ('enum_decl', prod__enum_decl),\
             ('typedef_decl', prod__typedef_decl),\
             ('typedef_type', prod__typedef_type),\

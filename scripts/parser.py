@@ -457,13 +457,14 @@ class Parser:
                     amt_skip = len(self.grammar[comb_name][alt_num])
                     c = (comb_name, [nodes[len(nodes)-amt_skip + i][0] for i in self.combiners[comb_name][alt_num]])
                     # call action routine (again) with RHS finalized
-                    rhs = dict(list(map(lambda x: (x[0][0], x[1]), nodes[-amt_skip:])))
+                    rhs = dict(list(map(lambda x: (x[0][0], x[1]), nodes[-amt_skip:]))) if amt_skip else {}
                     try:
                         self.actions[comb_name](obj, rhs, False) # call action with LHS, RHS
                     except:
-                        print(nodes[-amt_skip:])
                         print(alt_num)
+                        print(amt_skip)
                         print(rhs)
+                        print(c)
                         raise
                     nodes = nodes[0:len(nodes)-amt_skip] + [(c, obj)]
                 elif isinstance(two, list):
