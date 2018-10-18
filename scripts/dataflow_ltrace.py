@@ -5,16 +5,42 @@ import sys
 import re
 import gzip
 
+arg_parsers = {\
+        'sgemm_': [ {'ptr': 6, 'nrows': 2, 'ncols': 4}, {'ptr': 8, 'nrows': 4, 'ncols': 3}, {'ptr': 11, 'nrows': 2, 'ncols': 3} ],
+        'dgemm_': [ {'ptr': 6, 'nrows': 2, 'ncols': 4}, {'ptr': 8, 'nrows': 4, 'ncols': 3}, {'ptr': 11, 'nrows': 2, 'ncols': 3} ],
+        }
+
 class Node:
-    def __init__(self, name, inputs, outputs):
+    def __init__(self, name, inputs, outputs, optable):
         self.name = name        # function/symbol name
         self.inputs = inputs    # list of pointers/arguments going in
-        self.outputs = outputs   # pointer coming out
+        self.outputs = outputs  # pointer coming out
+        self.optable = optable  # in-flight operands
 
     # combine two nodes with the same name
     def __add__(self, other_node):
         assert other_node.name == self.name
-        return Node(self.name, self.inputs.union(other_node.inputs), self.outputs.union(other_node.outputs))
+        return Node(self.name, self.inputs.union(other_node.inputs), \
+                self.outputs.union(other_node.outputs), \
+                self.optable)
+
+# immutable
+class OperandTable:
+    def __init__(self, ops=None):
+        self.ops = {} if ops == None else ops
+
+    def __add__(self, other):
+        assert 'ptr' in other
+        assert 'nrows' in other
+        assert 'ncols' in other
+        newop = {k:other[k] for k in other if k != 'ptr'}
+        if other['ptr'] in self.ops:
+            ops = self.ops.copy()
+            ops[other['ptr']] = newop
+            return OperandTable(ops)
+        else:
+            self.ops[other['ptr']] = newop
+        return self
 
 def parse_input(filename):
     try:
@@ -33,8 +59,11 @@ def parse_input(filename):
 
     nodes = {}      # [sym] = node
     outgoing = {}   # [ptr] = [node] means node outputs ptr
-
     unfinished = {} # when we see an 'end', we combine it with this and put it in nodes
+
+    # 1. keep optable for each node
+    # 2. update optable 
+    optable = OperandTable()    # in-flight operands
 
     oup.write('digraph ltrace {\n')
 
@@ -55,13 +84,25 @@ def parse_input(filename):
             args_str = match.group(2)
             ret = match.group(3)
 
-            inputs = set(re.findall(pointer_re, args_str))
+            inputs = [] # set(re.findall(pointer_re, args_str))
+            args = args_str.split(',')
+
+            if sym in arg_parsers:
+                for arg_desc in arg_parsers[sym]:
+                    arg = {key: args[idx] for key,idx in arg_desc.items()}
+                    inputs.append(arg['ptr'])
+                    optable += arg
+            else:
+                inputs = set(re.findall(pointer_re, args_str))
+                for x in inputs:
+                    optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
+
             outputs = set(re.findall(pointer_re, ret))
 
             if not sym in nodes:
-                nodes[sym] = Node(sym, inputs, outputs)
+                nodes[sym] = Node(sym, inputs, outputs, optable)
             else:
-                nodes[sym] += Node(sym, inputs, outputs)
+                nodes[sym] += Node(sym, inputs, outputs, optable)
 
             for ptr in outputs:
                 if not ptr in outgoing:
@@ -71,11 +112,23 @@ def parse_input(filename):
         elif mtype == 'begin':
             sym = match.group(1)
             args_str = match.group(2)
-            inputs = set(re.findall(pointer_re, args_str))
+            inputs = []
+
+            args = args_str.split(',')
+
+            if sym in arg_parsers:
+                for arg_desc in arg_parsers[sym]:
+                    arg = {key: args[idx] for key,idx in arg_desc.items()}
+                    inputs.append(arg['ptr'])
+                    optable += arg
+            else:
+                inputs = set(re.findall(pointer_re, args_str))
+#                for x in inputs:
+#                    optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
 
             if not sym in unfinished:
                 unfinished[sym] = []
-            unfinished[sym].append(Node(sym, inputs, set()))
+            unfinished[sym].append(Node(sym, inputs, set(), optable))
 
         else:   # 'end'
             sym = match.group(1)
@@ -88,9 +141,9 @@ def parse_input(filename):
 
             node = unfinished[sym].pop()
             if not sym in nodes:
-                nodes[sym] = node + Node(sym, set(), outputs)
+                nodes[sym] = node + Node(sym, set(), outputs, optable)
             else:
-                nodes[sym] += node + Node(sym, set(), outputs)
+                nodes[sym] += node + Node(sym, set(), outputs, optable)
 
             for ptr in outputs:
                 if not ptr in outgoing:
@@ -99,11 +152,14 @@ def parse_input(filename):
 
     for sym, node in nodes.items():
         edges = []
+        tbl = node.optable.ops
 
         for in_ptr in node.inputs:
+            nrows = tbl[in_ptr]['nrows']
+            ncols = tbl[in_ptr]['ncols']
             if in_ptr in outgoing:
                 for psym, parent in outgoing[in_ptr].items():
-                    edges.append(f'\t{psym} -> {sym} [label="{in_ptr}"];\n')
+                    edges.append(f'\t{psym} -> {sym} [label="{in_ptr}[{nrows}x{ncols}]"];\n')
 
         if not edges:
             continue
