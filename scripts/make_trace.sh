@@ -11,9 +11,10 @@ fi
 funcs=()
 
 tempfile=$(mktemp gdb-cmds.XXXXXXXX --tmpdir)
-echo "creating $tempfile ..."
+tempfile2=$(mktemp)
+echo "creating $tempfile and $tempfile2 ..."
 
-if [ ! -e $tempfile ]; then
+if [ ! -e $tempfile ] || [ ! -e $tempfile2 ]; then
     echo "Failed"
     exit 1
 fi
@@ -23,14 +24,25 @@ set logging on
 set confirm off
 EOF
 
-nm "$exe" | grep -E ' [TW] ' | awk '{print "break", $3}' >> $tempfile
+cat >$tempfile2 <<EOF
+command
+silent
+backtrace 1
+continue
+end
+EOF
+
+nm "$exe" | grep -E ' [TW] ' | awk '{print "break", $3}' | cat - $tempfile2 >> $tempfile
 
 for lib in ${libs[@]}; do
-    nm "$lib" | grep -E ' [TW] ' | awk '{print "break", $3}' >> $tempfile
+    nm "$lib" | grep -E ' [TW] ' | awk '{print "break", $3}' | \
+    while read line; do
+        echo $line | cat - $tempfile2 >> $tempfile
+    done
 done
 
 read -p "Delete temp file? ($tempfile) [y/[n]]: " delete_temp_file
 if [[ $delete_temp_file == y ]]; then
     rm -f $tempfile
 fi
-
+rm -f $tempfile2
