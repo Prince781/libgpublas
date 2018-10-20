@@ -5,9 +5,13 @@ import sys
 import re
 import gzip
 
+num_nodes = 0
+
 arg_parsers = {\
-        'sgemm_': [ {'ptr': 6, 'nrows': 2, 'ncols': 4}, {'ptr': 8, 'nrows': 4, 'ncols': 3}, {'ptr': 11, 'nrows': 2, 'ncols': 3} ],
-        'dgemm_': [ {'ptr': 6, 'nrows': 2, 'ncols': 4}, {'ptr': 8, 'nrows': 4, 'ncols': 3}, {'ptr': 11, 'nrows': 2, 'ncols': 3} ],
+        'sgemm_': [ {'ptr': 6, 'nrows': 2, 'ncols': 4}, {'ptr': 8, 'nrows': 4, 'ncols': 3}, {'ptr': 11, 'nrows': 2, 'ncols': 3, 'output': True} ],
+        'cblas_sgemm': [ {'ptr': 7, 'nrows': 3, 'ncols': 5}, {'ptr': 9, 'nrows': 5, 'ncols': 4}, {'ptr': 12, 'nrows': 3, 'ncols': 4, 'output': True} ],
+        'dgemm_': [ {'ptr': 6, 'nrows': 2, 'ncols': 4}, {'ptr': 8, 'nrows': 4, 'ncols': 3}, {'ptr': 11, 'nrows': 2, 'ncols': 3, 'output': True} ],
+        'cblas_dgemm': [ {'ptr': 7, 'nrows': 3, 'ncols': 5}, {'ptr': 9, 'nrows': 5, 'ncols': 4}, {'ptr': 12, 'nrows': 3, 'ncols': 4, 'output': True} ],
         }
 
 class Node:
@@ -16,13 +20,16 @@ class Node:
         self.inputs = inputs    # list of pointers/arguments going in
         self.outputs = outputs  # pointer coming out
         self.optable = optable  # in-flight operands
+        global num_nodes
+        num_nodes += 1
+        self.id = num_nodes
 
     # combine two nodes with the same name
     def __add__(self, other_node):
         assert other_node.name == self.name
         return Node(self.name, self.inputs.union(other_node.inputs), \
                 self.outputs.union(other_node.outputs), \
-                self.optable)
+                other_node.optable)
 
 # immutable
 class OperandTable:
@@ -42,6 +49,27 @@ class OperandTable:
             self.ops[other['ptr']] = newop
         return self
 
+    def contains(self, ptr):
+        return ptr in self.ops
+
+def print_node(oup, sym, node, outgoing):
+    edges = []
+    tbl = node.optable.ops
+
+    for in_ptr in node.inputs:
+        nrows = tbl[in_ptr]['nrows']# if in_ptr in tbl else 0
+        ncols = tbl[in_ptr]['ncols']# if in_ptr in tbl else 0
+        if in_ptr in outgoing:
+            parent = outgoing[in_ptr]
+            psym = parent.name
+            if parent == node:
+                continue
+            edges.append(f'\t{psym}_{parent.id} -> {sym}_{node.id} [label="{in_ptr}[{nrows}x{ncols}]"];\n')
+
+    oup.write(f'\t{sym}_{node.id} [label="{sym}"];\n')
+    oup.writelines(edges)
+
+
 def parse_input(filename):
     try:
         inp = gzip.open(filename, 'rt') if filename != '-' else sys.stdin
@@ -58,7 +86,7 @@ def parse_input(filename):
     resumed_re = re.compile(fr'<... ({symbol_re}) resumed>\s+=\s+(.*)')
 
     nodes = {}      # [sym] = node
-    outgoing = {}   # [ptr] = [node] means node outputs ptr
+    outgoing = {}   # [ptr] = node means node outputs ptr
     unfinished = {} # when we see an 'end', we combine it with this and put it in nodes
 
     # 1. keep optable for each node
@@ -84,51 +112,59 @@ def parse_input(filename):
             args_str = match.group(2)
             ret = match.group(3)
 
-            inputs = [] # set(re.findall(pointer_re, args_str))
-            args = args_str.split(',')
+            inputs = set()
+            args = [x.strip() for x in args_str.split(',')]
+            outputs = set(re.findall(pointer_re, ret))
 
             if sym in arg_parsers:
                 for arg_desc in arg_parsers[sym]:
                     arg = {key: args[idx] for key,idx in arg_desc.items()}
-                    inputs.append(arg['ptr'])
+                    arg['nrows'] = int(arg['nrows'])
+                    arg['ncols'] = int(arg['ncols'])
+                    inputs.add(arg['ptr'])
                     optable += arg
+                    if 'output' in arg and arg['output']:
+                        outputs.add(arg['ptr'])
             else:
                 inputs = set(re.findall(pointer_re, args_str))
                 for x in inputs:
-                    optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
+                    if not optable.contains(x):
+                        optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
 
-            outputs = set(re.findall(pointer_re, ret))
 
-            if not sym in nodes:
-                nodes[sym] = Node(sym, inputs, outputs, optable)
-            else:
-                nodes[sym] += Node(sym, inputs, outputs, optable)
+            nodes[sym] = Node(sym, inputs, outputs, optable)
+
+            print_node(oup, sym, nodes[sym], outgoing)
 
             for ptr in outputs:
-                if not ptr in outgoing:
-                    outgoing[ptr] = {}
-                outgoing[ptr].update({sym: nodes[sym]})
+                outgoing[ptr] = nodes[sym]
                     
         elif mtype == 'begin':
             sym = match.group(1)
             args_str = match.group(2)
-            inputs = []
+            inputs = set()
 
-            args = args_str.split(',')
+            args = [x.strip() for x in args_str.split(',')]
+            outputs = set()
 
             if sym in arg_parsers:
                 for arg_desc in arg_parsers[sym]:
                     arg = {key: args[idx] for key,idx in arg_desc.items()}
-                    inputs.append(arg['ptr'])
+                    arg['nrows'] = int(arg['nrows'])
+                    arg['ncols'] = int(arg['ncols'])
+                    inputs.add(arg['ptr'])
                     optable += arg
+                    if 'output' in arg and arg['output']:
+                        outputs.add(arg['ptr'])
             else:
                 inputs = set(re.findall(pointer_re, args_str))
-#                for x in inputs:
-#                    optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
+                for x in inputs:
+                    if not optable.contains(x):
+                        optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
 
             if not sym in unfinished:
                 unfinished[sym] = []
-            unfinished[sym].append(Node(sym, inputs, set(), optable))
+            unfinished[sym].append(Node(sym, inputs, outputs, optable))
 
         else:   # 'end'
             sym = match.group(1)
@@ -140,32 +176,13 @@ def parse_input(filename):
             outputs = set(re.findall(pointer_re, ret))
 
             node = unfinished[sym].pop()
-            if not sym in nodes:
-                nodes[sym] = node + Node(sym, set(), outputs, optable)
-            else:
-                nodes[sym] += node + Node(sym, set(), outputs, optable)
+            nodes[sym] = node + Node(sym, set(), outputs, optable)
+
+            print_node(oup, sym, nodes[sym], outgoing)
 
             for ptr in outputs:
-                if not ptr in outgoing:
-                    outgoing[ptr] = {}
-                outgoing[ptr].update({sym: nodes[sym]})
+                outgoing[ptr] = nodes[sym]
 
-    for sym, node in nodes.items():
-        edges = []
-        tbl = node.optable.ops
-
-        for in_ptr in node.inputs:
-            nrows = tbl[in_ptr]['nrows']
-            ncols = tbl[in_ptr]['ncols']
-            if in_ptr in outgoing:
-                for psym, parent in outgoing[in_ptr].items():
-                    edges.append(f'\t{psym} -> {sym} [label="{in_ptr}[{nrows}x{ncols}]"];\n')
-
-        if not edges:
-            continue
-
-        oup.write(f'\t{sym};\n')
-        oup.writelines(edges)
 
     oup.write('}\n')
     inp.close()
