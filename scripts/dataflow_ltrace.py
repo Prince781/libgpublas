@@ -6,6 +6,7 @@ import re
 import gzip
 
 num_nodes = 0
+node_nums = []
 
 arg_parsers = {\
         'sgemm_': [ {'ptr': 6, 'nrows': 2, 'ncols': 4}, {'ptr': 8, 'nrows': 4, 'ncols': 3}, {'ptr': 11, 'nrows': 2, 'ncols': 3, 'output': True} ],
@@ -64,11 +65,14 @@ def print_node(oup, sym, node, outgoing):
             psym = parent.name
             if parent == node:
                 continue
-            edges.append(f'\t{psym}_{parent.id} -> {sym}_{node.id} [label="{in_ptr}[{nrows}x{ncols}]"];\n')
+            dims = ''
+            if nrows != 0 or ncols != 0:
+                dims = f'[{nrows}x{ncols}]'
+            edges.append(f'\t{psym}_{parent.id} -> {sym}_{node.id} [label="{in_ptr}{dims}"];\n')
 
-    oup.write(f'\t{sym}_{node.id} [label="{sym}"];\n')
+    oup.write(f'\t{{ rank=same; "{node.id}"; {sym}_{node.id} [label="{sym}", shape="box", font="monospace"]; }};\n')
     oup.writelines(edges)
-
+    node_nums.append(node.id)
 
 def parse_input(filename):
     try:
@@ -93,7 +97,8 @@ def parse_input(filename):
     # 2. update optable 
     optable = OperandTable()    # in-flight operands
 
-    oup.write('digraph ltrace {\n')
+    oup.write('digraph thread1 {\n')
+    oup.write('\tnode [shape=plaintext, fontsize=16];')
 
     for line in inp:
         match = atomic_re.match(line)
@@ -183,6 +188,13 @@ def parse_input(filename):
             for ptr in outputs:
                 outgoing[ptr] = nodes[sym]
 
+    oup.write(f'\t{{')
+    for i in range(0, len(node_nums)):
+        if i == len(node_nums) - 1:
+            oup.write(f'\t\t"{node_nums[i]}";\n')
+        else:
+            oup.write(f'\t\t"{node_nums[i]}" ->\n')
+    oup.write(f'\t}}\n')
 
     oup.write('}\n')
     inp.close()
