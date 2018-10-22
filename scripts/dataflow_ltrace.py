@@ -98,7 +98,7 @@ def parse_input(filename):
     optable = OperandTable()    # in-flight operands
 
     oup.write('digraph thread1 {\n')
-    oup.write('\tnode [shape=plaintext, fontsize=16];')
+    oup.write('\tnode [shape=plaintext, fontsize=16];\n')
 
     for line in inp:
         match = atomic_re.match(line)
