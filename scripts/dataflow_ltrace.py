@@ -189,11 +189,13 @@ def parse_input(filename):
                 outgoing[ptr] = nodes[sym]
 
     oup.write(f'\t{{')
+    if len(node_nums) > 0:
+        oup.write('\t\t')
     for i in range(0, len(node_nums)):
         if i == len(node_nums) - 1:
-            oup.write(f'\t\t"{node_nums[i]}";\n')
+            oup.write(f'"{node_nums[i]}";\n')
         else:
-            oup.write(f'\t\t"{node_nums[i]}" ->\n')
+            oup.write(f'"{node_nums[i]}" -> ')
     oup.write(f'\t}}\n')
 
     oup.write('}\n')
