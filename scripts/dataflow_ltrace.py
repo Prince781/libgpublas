@@ -32,7 +32,6 @@ class Node:
                 self.outputs.union(other_node.outputs), \
                 other_node.optable)
 
-# immutable
 class OperandTable:
     def __init__(self, ops=None):
         self.ops = {} if ops == None else ops
