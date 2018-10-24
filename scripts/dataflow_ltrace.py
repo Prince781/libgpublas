@@ -16,7 +16,7 @@ arg_parsers = {\
         }
 
 class Node:
-    def __init__(self, name, inputs, outputs, optable):
+    def __init__(self, name, inputs, outputs, optable, parents, on_blas_path):
         self.name = name        # function/symbol name
         self.inputs = inputs    # list of pointers/arguments going in
         self.outputs = outputs  # pointer coming out
@@ -24,13 +24,16 @@ class Node:
         global num_nodes
         num_nodes += 1
         self.id = num_nodes
+        self.parents = parents
+        self.on_blas_path = on_blas_path
 
     # combine two nodes with the same name
     def __add__(self, other_node):
         assert other_node.name == self.name
         return Node(self.name, self.inputs.union(other_node.inputs), \
                 self.outputs.union(other_node.outputs), \
-                other_node.optable)
+                other_node.optable, dict(list(self.parents.items()) + list(other_node.parents.items())), \
+                self.on_blas_path or other_node.on_blas_path)
 
 class OperandTable:
     def __init__(self, ops=None):
@@ -52,15 +55,16 @@ class OperandTable:
     def contains(self, ptr):
         return ptr in self.ops
 
-def print_node(oup, sym, node, outgoing):
+def print_node(oup, node):
     edges = []
+    sym = node.name
     tbl = node.optable.ops
 
     for in_ptr in node.inputs:
         nrows = tbl[in_ptr]['nrows']# if in_ptr in tbl else 0
         ncols = tbl[in_ptr]['ncols']# if in_ptr in tbl else 0
-        if in_ptr in outgoing:
-            parent = outgoing[in_ptr]
+        if in_ptr in node.parents:
+            parent = node.parents[in_ptr]
             psym = parent.name
             if parent == node:
                 continue
@@ -69,16 +73,18 @@ def print_node(oup, sym, node, outgoing):
                 dims = f'[{nrows}x{ncols}]'
             edges.append(f'\t{psym}_{parent.id} -> {sym}_{node.id} [label="{in_ptr}{dims}"];\n')
 
-    oup.write(f'\t{{ rank=same; "{node.id}"; {sym}_{node.id} [label="{sym}", shape="box", font="monospace"]; }};\n')
+    oup.write(f'\t{{ rank=same; "{node.id}"; {sym}_{node.id} [label="{sym}", shape="box"]; }};\n')
     oup.writelines(edges)
     node_nums.append(node.id)
 
-def parse_input(filename):
+def parse_input(filename, remove_non_blas=None):
     try:
         inp = gzip.open(filename, 'rt') if filename != '-' else sys.stdin
     except IOError as err:
         print(err)
         return
+
+    remove_non_blas = False if remove_non_blas == None else remove_non_blas
 
     oup = sys.stdout
     pointer_re = r'0x[A-Za-z0-9]+'
@@ -95,6 +101,8 @@ def parse_input(filename):
     # 1. keep optable for each node
     # 2. update optable 
     optable = OperandTable()    # in-flight operands
+
+    nodes_stack = []
 
     oup.write('digraph thread1 {\n')
     oup.write('\tnode [shape=plaintext, fontsize=16];\n')
@@ -117,8 +125,13 @@ def parse_input(filename):
             ret = match.group(3)
 
             inputs = set()
+
             args = [x.strip() for x in args_str.split(',')]
             outputs = set(re.findall(pointer_re, ret))
+
+            parents = {}
+
+            on_blas_path = sym in arg_parsers
 
             if sym in arg_parsers:
                 for arg_desc in arg_parsers[sym]:
@@ -135,10 +148,14 @@ def parse_input(filename):
                     if not optable.contains(x):
                         optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
 
+            for in_ptr in inputs:
+                if in_ptr in outgoing:
+                    parents.update({in_ptr: outgoing[in_ptr]})
+                    on_blas_path |= outgoing[in_ptr].name in arg_parsers
 
-            nodes[sym] = Node(sym, inputs, outputs, optable)
+            nodes[sym] = Node(sym, inputs, outputs, optable, parents, on_blas_path)
 
-            print_node(oup, sym, nodes[sym], outgoing)
+            nodes_stack.append(nodes[sym])
 
             for ptr in outputs:
                 outgoing[ptr] = nodes[sym]
@@ -150,6 +167,10 @@ def parse_input(filename):
 
             args = [x.strip() for x in args_str.split(',')]
             outputs = set()
+            
+            parents = {}
+
+            on_blas_path = sym in arg_parsers
 
             if sym in arg_parsers:
                 for arg_desc in arg_parsers[sym]:
@@ -166,9 +187,14 @@ def parse_input(filename):
                     if not optable.contains(x):
                         optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
 
+            for in_ptr in inputs:
+                if in_ptr in outgoing:
+                    parents.update({in_ptr: outgoing[in_ptr]})
+                    on_blas_path |= outgoing[in_ptr].name in arg_parsers
+
             if not sym in unfinished:
                 unfinished[sym] = []
-            unfinished[sym].append(Node(sym, inputs, outputs, optable))
+            unfinished[sym].append(Node(sym, inputs, outputs, optable, parents, on_blas_path))
 
         else:   # 'end'
             sym = match.group(1)
@@ -180,12 +206,31 @@ def parse_input(filename):
             outputs = set(re.findall(pointer_re, ret))
 
             node = unfinished[sym].pop()
-            nodes[sym] = node + Node(sym, set(), outputs, optable)
+            nodes[sym] = node + Node(sym, set(), outputs, optable, {})
 
-            print_node(oup, sym, nodes[sym], outgoing)
+            nodes_stack.append(nodes[sym])
 
             for ptr in outputs:
                 outgoing[ptr] = nodes[sym]
+
+    # now remove non-blas nodes
+    final_nodes_stack = []
+
+    if remove_non_blas:
+        for node in reversed(nodes_stack):
+            if not node.on_blas_path:
+                continue
+            for sym, parent in node.parents.items():
+                parent.on_blas_path = node.on_blas_path
+        for node in nodes_stack:
+            if node.on_blas_path:
+                final_nodes_stack.append(node)
+
+    else:
+        final_nodes_stack = nodes_stack
+
+    for node in final_nodes_stack:
+        print_node(oup, node)
 
     oup.write(f'\t{{')
     if len(node_nums) > 0:
@@ -201,8 +246,12 @@ def parse_input(filename):
     inp.close()
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} ltrace-file")
-        sys.exit(1)
+    import sys
+    from argparse import *
 
-    parse_input(sys.argv[1])
+    aparser = ArgumentParser()
+    aparser.add_argument('ltrace_file')
+    aparser.add_argument('-t', '--trim', action='store_true', help='Only output nodes on a BLAS path')
+
+    args = aparser.parse_args()
+    parse_input(args.ltrace_file, args.trim)
