@@ -71,7 +71,7 @@ def print_node(oup, node):
     oup.writelines(edges)
     node_nums.append(node.id)
 
-def parse_input(filename, remove_non_blas=None):
+def parse_input(filename, remove_non_blas=None, print_hist=None):
     try:
         inp = gzip.open(filename, 'rt') if filename != '-' else sys.stdin
     except IOError as err:
@@ -79,6 +79,7 @@ def parse_input(filename, remove_non_blas=None):
         return
 
     remove_non_blas = False if remove_non_blas == None else remove_non_blas
+    print_hist = False if print_hist == None else print_hist
 
     oup = sys.stdout
     pointer_re = r'0x[A-Za-z0-9]+'
@@ -98,8 +99,9 @@ def parse_input(filename, remove_non_blas=None):
 
     nodes_stack = []
 
-    oup.write('digraph thread1 {\n')
-    oup.write('\tnode [shape=plaintext, fontsize=16];\n')
+    if not print_hist:
+        oup.write('digraph thread1 {\n')
+        oup.write('\tnode [shape=plaintext, fontsize=16];\n')
 
     for line in inp:
         match = atomic_re.match(line)
@@ -207,36 +209,72 @@ def parse_input(filename, remove_non_blas=None):
             for ptr in outputs:
                 outgoing[ptr] = nodes[sym]
 
-    # now remove non-blas nodes
-    final_nodes_stack = []
-
-    if remove_non_blas:
+    if print_hist:
+        path_lens = {}      # maps ptr -> current path length
+        blas_hist = {}      # maps path length -> count
+        total_len = 0
         for node in reversed(nodes_stack):
             if not node.on_blas_path:
                 continue
             for sym, parent in node.parents.items():
                 parent.on_blas_path = node.on_blas_path
         for node in nodes_stack:
-            if node.on_blas_path:
-                final_nodes_stack.append(node)
+            for ptr in node.inputs:
+                if node.on_blas_path:
+                    if ptr in path_lens:
+                        path_lens[ptr] += 1
+                    else:
+                        path_lens[ptr] = 1
+                else:
+                    # we're no longer on a BLAS path; remove
+                    if ptr in path_lens:
+                        if path_lens[ptr] in blas_hist:
+                            blas_hist[path_lens[ptr]] += 1
+                        else:
+                            blas_hist[path_lens[ptr]] = 1
+                        total_len += path_lens[ptr]
+                        del path_lens[ptr]
+
+        oup.write('Path Length: Count (Percent of Total)\n')
+        total_paths = 0
+        for plen in sorted(blas_hist):
+            pcnt = plen*blas_hist[plen]/total_len*100
+            oup.write(f'{plen}: {blas_hist[plen]} ({float("%.3g" % pcnt)}%)\n')
+            total_paths += blas_hist[plen]
+        oup.write(f'Total BLAS calls: {total_len}\n')
+        oup.write(f'Total BLAS paths: {total_paths}\n')
 
     else:
-        final_nodes_stack = nodes_stack
+        # now remove non-blas nodes
+        final_nodes_stack = []
 
-    for node in final_nodes_stack:
-        print_node(oup, node)
+        if remove_non_blas:
+            for node in reversed(nodes_stack):
+                if not node.on_blas_path:
+                    continue
+                for sym, parent in node.parents.items():
+                    parent.on_blas_path = node.on_blas_path
+            for node in nodes_stack:
+                if node.on_blas_path:
+                    final_nodes_stack.append(node)
 
-    oup.write(f'\t{{')
-    if len(node_nums) > 0:
-        oup.write('\t\t')
-    for i in range(0, len(node_nums)):
-        if i == len(node_nums) - 1:
-            oup.write(f'"{node_nums[i]}";\n')
         else:
-            oup.write(f'"{node_nums[i]}" -> ')
-    oup.write(f'\t}}\n')
+            final_nodes_stack = nodes_stack
 
-    oup.write('}\n')
+        for node in final_nodes_stack:
+            print_node(oup, node)
+
+        oup.write(f'\t{{')
+        if len(node_nums) > 0:
+            oup.write('\t\t')
+        for i in range(0, len(node_nums)):
+            if i == len(node_nums) - 1:
+                oup.write(f'"{node_nums[i]}";\n')
+            else:
+                oup.write(f'"{node_nums[i]}" -> ')
+        oup.write(f'\t}}\n')
+
+        oup.write('}\n')
     inp.close()
 
 if __name__ == "__main__":
@@ -246,6 +284,7 @@ if __name__ == "__main__":
     aparser = ArgumentParser()
     aparser.add_argument('ltrace_file')
     aparser.add_argument('-t', '--trim', action='store_true', help='Only output nodes on a BLAS path')
+    aparser.add_argument('-c', '--hist', action='store_true', help='Only print histogram of BLAS call chains')
 
     args = aparser.parse_args()
-    parse_input(args.ltrace_file, args.trim)
+    parse_input(args.ltrace_file, args.trim, args.hist)
