@@ -1,0 +1,16 @@
+
+Device: Quadro M4000
+Transfer size (MB): 16
+
+Pageable transfers
+  Host to Device bandwidth (GB/s): 5.004420
+  Device to Host bandwidth (GB/s): 8.752868
+
+Pinned transfers
+  Host to Device bandwidth (GB/s): 9.938167
+  Device to Host bandwidth (GB/s): 9.968590
+
+Managed transfers
+  Host to Device bandwidth (GB/s): 65.258649
+  Device to Host bandwidth (GB/s): 54.974100
+n
