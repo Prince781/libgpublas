@@ -1,0 +1,16 @@
+
+Device: GeForce GT 750M
+Transfer size (MB): 16
+
+Pageable transfers
+  Host to Device bandwidth (GB/s): 4.323454
+  Device to Host bandwidth (GB/s): 3.265351
+
+Pinned transfers
+  Host to Device bandwidth (GB/s): 11.736653
+  Device to Host bandwidth (GB/s): 12.590366
+
+Managed transfers
+  Host to Device bandwidth (GB/s): 25.731926
+  Device to Host bandwidth (GB/s): 23.859471
+n
