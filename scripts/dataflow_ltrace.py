@@ -4,7 +4,7 @@
 import sys
 import re
 import gzip
-from blas_api import *
+from blas_api import arg_parsers
 
 num_nodes = 0
 node_nums = []
@@ -98,12 +98,14 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
     optable = OperandTable()    # in-flight operands
 
     nodes_stack = []
+    lineno = 0
 
     if not print_hist:
         oup.write('digraph thread1 {\n')
         oup.write('\tnode [shape=plaintext, fontsize=16];\n')
 
     for line in inp:
+        lineno += 1
         match = atomic_re.match(line)
         mtype = 'node'
         if not match:
@@ -115,82 +117,67 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
         if not match:
             continue
 
+        def parse_line(sym, inputs, args, outputs, optable):
+            parents = {}
+
+            on_blas_path = sym in arg_parsers
+
+            if sym in arg_parsers:
+                for arg_desc in arg_parsers[sym]:
+                    arg = {key: args[idx] for key,idx in arg_desc.items()}
+                    arg['nrows'] = 1
+                    if 'nrows' in arg_desc:
+                        try:
+                            arg['nrows'] = int(arg['nrows'])
+                        except:
+                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["nrows"]} is not an integer')
+                    arg['ncols'] = 1
+                    if 'ncols' in arg_desc:
+                        try:
+                            arg['ncols'] = int(arg['ncols'])
+                        except:
+                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["ncols"]} is not an integer')
+                    inputs.add(arg['ptr'])
+                    optable += arg
+                    if 'output' in arg and arg['output']:
+                        outputs.add(arg['ptr'])
+            else:
+                inputs = set(re.findall(pointer_re, args_str))
+                for x in inputs:
+                    if not optable.contains(x):
+                        optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
+
+            for in_ptr in inputs:
+                if in_ptr in outgoing:
+                    parents.update({in_ptr: outgoing[in_ptr]})
+                    on_blas_path |= outgoing[in_ptr].name in arg_parsers
+
+            return Node(sym, inputs, outputs, optable, parents, on_blas_path)
+
+
         if mtype == 'node':
             sym = match.group(1)
             args_str = match.group(2)
             ret = match.group(3)
 
-            inputs = set()
-
-            args = [x.strip() for x in args_str.split(',')]
-            outputs = set(re.findall(pointer_re, ret))
-
-            parents = {}
-
-            on_blas_path = sym in arg_parsers
-
-            if sym in arg_parsers:
-                for arg_desc in arg_parsers[sym]:
-                    arg = {key: args[idx] for key,idx in arg_desc.items()}
-                    arg['nrows'] = int(arg['nrows'])
-                    arg['ncols'] = int(arg['ncols'])
-                    inputs.add(arg['ptr'])
-                    optable += arg
-                    if 'output' in arg and arg['output']:
-                        outputs.add(arg['ptr'])
-            else:
-                inputs = set(re.findall(pointer_re, args_str))
-                for x in inputs:
-                    if not optable.contains(x):
-                        optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
-
-            for in_ptr in inputs:
-                if in_ptr in outgoing:
-                    parents.update({in_ptr: outgoing[in_ptr]})
-                    on_blas_path |= outgoing[in_ptr].name in arg_parsers
-
-            nodes[sym] = Node(sym, inputs, outputs, optable, parents, on_blas_path)
-
+            nodes[sym] = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(re.findall(pointer_re, ret)), optable)
             nodes_stack.append(nodes[sym])
 
-            for ptr in outputs:
+            for ptr in nodes[sym].outputs:
                 outgoing[ptr] = nodes[sym]
                     
         elif mtype == 'begin':
             sym = match.group(1)
             args_str = match.group(2)
-            inputs = set()
 
-            args = [x.strip() for x in args_str.split(',')]
-            outputs = set()
+            nd = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(), optable)
+
+            for ptr in nd.outputs:
+                outgoing[ptr] = nd
             
-            parents = {}
-
-            on_blas_path = sym in arg_parsers
-
-            if sym in arg_parsers:
-                for arg_desc in arg_parsers[sym]:
-                    arg = {key: args[idx] for key,idx in arg_desc.items()}
-                    arg['nrows'] = int(arg['nrows'])
-                    arg['ncols'] = int(arg['ncols'])
-                    inputs.add(arg['ptr'])
-                    optable += arg
-                    if 'output' in arg and arg['output']:
-                        outputs.add(arg['ptr'])
-            else:
-                inputs = set(re.findall(pointer_re, args_str))
-                for x in inputs:
-                    if not optable.contains(x):
-                        optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
-
-            for in_ptr in inputs:
-                if in_ptr in outgoing:
-                    parents.update({in_ptr: outgoing[in_ptr]})
-                    on_blas_path |= outgoing[in_ptr].name in arg_parsers
-
             if not sym in unfinished:
                 unfinished[sym] = []
-            unfinished[sym].append(Node(sym, inputs, outputs, optable, parents, on_blas_path))
+            unfinished[sym].append(nd)
 
         else:   # 'end'
             sym = match.group(1)
