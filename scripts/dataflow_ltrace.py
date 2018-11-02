@@ -14,7 +14,7 @@ class Node:
         self.name = name        # function/symbol name
         self.inputs = inputs    # list of pointers/arguments going in
         self.outputs = outputs  # pointer coming out
-        self.optable = {k:v for k,v in optable.items() if k in inputs}
+        self.optable = {ptr:optable[ptr] for ptr in inputs}
         global num_nodes
         num_nodes += 1
         self.id = num_nodes
@@ -129,7 +129,7 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
                         try:
                             arg['nrows'] = int(arg['nrows'])
                         except:
-                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["nrows"]} is not an integer')
+                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["nrows"]} is not an integer\n')
                             arg['nrows'] = 1
                     else:
                         arg['nrows'] = 1
@@ -137,7 +137,7 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
                         try:
                             arg['ncols'] = int(arg['ncols'])
                         except:
-                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["ncols"]} is not an integer')
+                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["ncols"]} is not an integer\n')
                             arg['ncols'] = 1
                     else:
                         arg['ncols'] = 1
