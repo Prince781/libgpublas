@@ -14,7 +14,7 @@ class Node:
         self.name = name        # function/symbol name
         self.inputs = inputs    # list of pointers/arguments going in
         self.outputs = outputs  # pointer coming out
-        self.optable = optable  # in-flight operands
+        self.optable = {k:v for k,v in optable.items() if k in inputs}
         global num_nodes
         num_nodes += 1
         self.id = num_nodes
@@ -31,32 +31,32 @@ class Node:
 
 class OperandTable:
     def __init__(self, ops=None):
-        self.ops = {} if ops == None else ops
+        self.__ops = {} if ops == None else ops
 
     def __add__(self, other):
         assert 'ptr' in other
         assert 'nrows' in other
         assert 'ncols' in other
-        newop = {k:other[k] for k in other if k != 'ptr'}
-        if other['ptr'] in self.ops:
-            ops = self.ops.copy()
-            ops[other['ptr']] = newop
-            return OperandTable(ops)
-        else:
-            self.ops[other['ptr']] = newop
+        self.__ops[other['ptr']] = {k:other[k] for k in other if k != 'ptr'}
         return self
 
-    def contains(self, ptr):
-        return ptr in self.ops
+    def __contains__(self, ptr):
+        return ptr in self.__ops
+
+    def __getitem__(self, ptr):
+        return self.__ops[ptr]
+
+    def items(self):
+        return self.__ops.items()
 
 def print_node(oup, node):
     edges = []
     sym = node.name
-    tbl = node.optable.ops
+    tbl = node.optable
 
     for in_ptr in node.inputs:
-        nrows = tbl[in_ptr]['nrows']# if in_ptr in tbl else 0
-        ncols = tbl[in_ptr]['ncols']# if in_ptr in tbl else 0
+        nrows = tbl[in_ptr]['nrows']# if in_ptr in tbl else 1
+        ncols = tbl[in_ptr]['ncols']# if in_ptr in tbl else 1
         if in_ptr in node.parents:
             parent = node.parents[in_ptr]
             psym = parent.name
@@ -124,27 +124,31 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
 
             if sym in arg_parsers:
                 for arg_desc in arg_parsers[sym]:
-                    arg = {key: args[idx] for key,idx in arg_desc.items()}
-                    arg['nrows'] = 1
+                    arg = {key: args[idx] for key,idx in arg_desc.items() if key != 'output'}
                     if 'nrows' in arg_desc:
                         try:
                             arg['nrows'] = int(arg['nrows'])
                         except:
                             sys.stderr.write(f'Line {lineno}: arg #{arg_desc["nrows"]} is not an integer')
-                    arg['ncols'] = 1
+                            arg['nrows'] = 1
+                    else:
+                        arg['nrows'] = 1
                     if 'ncols' in arg_desc:
                         try:
                             arg['ncols'] = int(arg['ncols'])
                         except:
                             sys.stderr.write(f'Line {lineno}: arg #{arg_desc["ncols"]} is not an integer')
+                            arg['ncols'] = 1
+                    else:
+                        arg['ncols'] = 1
                     inputs.add(arg['ptr'])
                     optable += arg
-                    if 'output' in arg and arg['output']:
+                    if 'output' in arg_desc and arg_desc['output']:
                         outputs.add(arg['ptr'])
             else:
                 inputs = set(re.findall(pointer_re, args_str))
                 for x in inputs:
-                    if not optable.contains(x):
+                    if not x in optable:
                         optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
 
             for in_ptr in inputs:
@@ -152,7 +156,7 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
                     parents.update({in_ptr: outgoing[in_ptr]})
                     on_blas_path |= outgoing[in_ptr].name in arg_parsers
 
-            return Node(sym, inputs, outputs, optable, parents, on_blas_path)
+            return (Node(sym, inputs, outputs, optable, parents, on_blas_path), optable)
 
 
         if mtype == 'node':
@@ -160,7 +164,7 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
             args_str = match.group(2)
             ret = match.group(3)
 
-            nodes[sym] = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(re.findall(pointer_re, ret)), optable)
+            nodes[sym], optable = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(re.findall(pointer_re, ret)), optable)
             nodes_stack.append(nodes[sym])
 
             for ptr in nodes[sym].outputs:
@@ -170,7 +174,7 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
             sym = match.group(1)
             args_str = match.group(2)
 
-            nd = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(), optable)
+            nd, optable = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(), optable)
 
             for ptr in nd.outputs:
                 outgoing[ptr] = nd
