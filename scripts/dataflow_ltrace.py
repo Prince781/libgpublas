@@ -4,10 +4,16 @@
 import sys
 import re
 import gzip
+import binascii
 from blas_api import arg_parsers
 
 num_nodes = 0
 node_nums = []
+
+# see https://stackoverflow.com/questions/3703276/how-to-tell-if-a-file-is-gzip-compressed
+def is_gz_file(filepath):
+    with open(filepath, 'rb') as test_f:
+        return binascii.hexlify(test_f.read(2)) == b'1f8b'
 
 class Node:
     def __init__(self, name, inputs, outputs, optable, parents, on_blas_path):
@@ -26,7 +32,7 @@ class Node:
         assert other_node.name == self.name
         return Node(self.name, self.inputs.union(other_node.inputs), \
                 self.outputs.union(other_node.outputs), \
-                other_node.optable, dict(list(self.parents.items()) + list(other_node.parents.items())), \
+                self.optable.join(other_node.optable), {**self.parents, **other_node.parents}, \
                 self.on_blas_path or other_node.on_blas_path)
 
 class OperandTable:
@@ -48,6 +54,12 @@ class OperandTable:
 
     def items(self):
         return self.__ops.items()
+
+    def join(self, other):
+        return OperandTable({**self.__ops, **other.__ops})
+
+    def __len__(self):
+        return len(self.__ops)
 
 def print_node(oup, node):
     edges = []
@@ -73,7 +85,13 @@ def print_node(oup, node):
 
 def parse_input(filename, remove_non_blas=None, print_hist=None):
     try:
-        inp = gzip.open(filename, 'rt') if filename != '-' else sys.stdin
+        if filename == '-':
+            inp = sys.stdin
+        else:
+            if is_gz_file(filename):
+                inp = gzip.open(filename, 'rt')
+            else:
+                inp = open(filename, 'rt')
     except IOError as err:
         print(err)
         return
@@ -108,6 +126,7 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
         lineno += 1
         match = atomic_re.match(line)
         mtype = 'node'
+
         if not match:
             match = unfinished_re.match(line)
             mtype = 'begin'
