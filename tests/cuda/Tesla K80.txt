@@ -1,0 +1,16 @@
+
+Device: Tesla K80
+Transfer size (MB): 16
+
+Pageable transfers
+  Host to Device bandwidth (GB/s): 3.774354
+  Device to Host bandwidth (GB/s): 5.087705
+
+Pinned transfers
+  Host to Device bandwidth (GB/s): 7.480104
+  Device to Host bandwidth (GB/s): 7.500222
+
+Managed transfers
+  Host to Device bandwidth (GB/s): 58.079985
+  Device to Host bandwidth (GB/s): 39.434974
+n
