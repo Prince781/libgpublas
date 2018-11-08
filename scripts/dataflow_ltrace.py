@@ -8,82 +8,61 @@ import binascii
 from blas_api import arg_parsers
 
 num_nodes = 0
-node_nums = []
+node_nums = []  # needed for layout
+live_ops = {}   # [ptr] -> [node]
+
+# histogram stuff
+want_hist = False
+blas_hist = {}  # maps path length -> count
+path_lens = {}  # maps ptr -> current path length
+total_blas = 0
+
+class Node:
+    def __init__(self, sym, in_edges=None, is_blas_func=None):
+        global want_hist
+        global num_nodes
+        global total_blas
+        self.sym = sym
+        self.in_edges = in_edges if in_edges != None else {}
+        self.id = num_nodes
+        num_nodes += 1
+        self.is_blas_func = is_blas_func if is_blas_func != None else False
+
+        if self.is_blas_func:
+            total_blas += 1
+
+        if self.is_blas_func and want_hist:
+            for e,n in self.in_edges.items():
+                if n.is_blas_func:
+                    path_lens[e] = (path_lens[e]+1) if e in path_lens else 1
+        elif not self.is_blas_func and want_hist:
+            # check if we're no longer on a BLAS path;
+            for e,n in self.in_edges.items():
+                if not e in path_lens:  # could happen if only one BLAS call was made before
+                    continue
+                if n.is_blas_func:  # remove
+                    if path_lens[e] in blas_hist:
+                        blas_hist[path_lens[e]] += 1
+                    else:
+                        blas_hist[path_lens[e]] = 1
+                    del path_lens[e]
+
+    def print(self, oup):
+        global want_hist
+        oup.write(f'\t{{ rank=same; "{self.id}"; {self.sym}_{self.id} [label="{self.sym}", shape="box"]; }};\n')
+        for in_ptr,parent in self.in_edges.items():
+            oup.write(f'\t{parent.sym}_{parent.id} -> {self.sym}_{self.id} [label="{in_ptr}"];\n')
+        node_nums.append(self.id)
+        if not want_hist:
+            self.in_edges = None    # break references to save memory
 
 # see https://stackoverflow.com/questions/3703276/how-to-tell-if-a-file-is-gzip-compressed
 def is_gz_file(filepath):
     with open(filepath, 'rb') as test_f:
         return binascii.hexlify(test_f.read(2)) == b'1f8b'
 
-class Node:
-    def __init__(self, name, inputs, outputs, optable, parents, on_blas_path):
-        self.name = name        # function/symbol name
-        self.inputs = inputs    # list of pointers/arguments going in
-        self.outputs = outputs  # pointer coming out
-        self.optable = {ptr:optable[ptr] for ptr in inputs}
-        global num_nodes
-        num_nodes += 1
-        self.id = num_nodes
-        self.parents = parents
-        self.on_blas_path = on_blas_path
 
-    # combine two nodes with the same name
-    def __add__(self, other_node):
-        assert other_node.name == self.name
-        return Node(self.name, self.inputs.union(other_node.inputs), \
-                self.outputs.union(other_node.outputs), \
-                self.optable.join(other_node.optable), {**self.parents, **other_node.parents}, \
-                self.on_blas_path or other_node.on_blas_path)
-
-class OperandTable:
-    def __init__(self, ops=None):
-        self.__ops = {} if ops == None else ops
-
-    def __add__(self, other):
-        assert 'ptr' in other
-        assert 'nrows' in other
-        assert 'ncols' in other
-        self.__ops[other['ptr']] = {k:other[k] for k in other if k != 'ptr'}
-        return self
-
-    def __contains__(self, ptr):
-        return ptr in self.__ops
-
-    def __getitem__(self, ptr):
-        return self.__ops[ptr]
-
-    def items(self):
-        return self.__ops.items()
-
-    def join(self, other):
-        return OperandTable({**self.__ops, **other.__ops})
-
-    def __len__(self):
-        return len(self.__ops)
-
-def print_node(oup, node):
-    edges = []
-    sym = node.name
-    tbl = node.optable
-
-    for in_ptr in node.inputs:
-        nrows = tbl[in_ptr]['nrows']# if in_ptr in tbl else 1
-        ncols = tbl[in_ptr]['ncols']# if in_ptr in tbl else 1
-        if in_ptr in node.parents:
-            parent = node.parents[in_ptr]
-            psym = parent.name
-            if parent == node:
-                continue
-            dims = ''
-            if nrows != 0 or ncols != 0:
-                dims = f'[{nrows}x{ncols}]'
-            edges.append(f'\t{psym}_{parent.id} -> {sym}_{node.id} [label="{in_ptr}{dims}"];\n')
-
-    oup.write(f'\t{{ rank=same; "{node.id}"; {sym}_{node.id} [label="{sym}", shape="box"]; }};\n')
-    oup.writelines(edges)
-    node_nums.append(node.id)
-
-def parse_input(filename, remove_non_blas=None, print_hist=None):
+def parse_input(filename):
     try:
         if filename == '-':
             inp = sys.stdin
@@ -93,13 +72,11 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
             else:
                 inp = open(filename, 'rt')
     except IOError as err:
-        print(err)
+        print(err, file=sys.stderr)
         return
 
-    remove_non_blas = False if remove_non_blas == None else remove_non_blas
-    print_hist = False if print_hist == None else print_hist
-
     oup = sys.stdout
+
     pointer_re = r'0x[A-Za-z0-9]+'
     symbol_re = r'[A-Za-z]\w+'
 
@@ -107,23 +84,17 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
     unfinished_re = re.compile(fr'({symbol_re})\((.*) <unfinished ...>')
     resumed_re = re.compile(fr'<... ({symbol_re}) resumed>\s+=\s+(.*)')
 
-    nodes = {}      # [sym] = node
-    outgoing = {}   # [ptr] = node means node outputs ptr
     unfinished = {} # when we see an 'end', we combine it with this and put it in nodes
 
-    # 1. keep optable for each node
-    # 2. update optable 
-    optable = OperandTable()    # in-flight operands
-
-    nodes_stack = []
-    lineno = 0
-
-    if not print_hist:
+    if not want_hist:
         oup.write('digraph thread1 {\n')
         oup.write('\tnode [shape=plaintext, fontsize=16];\n')
 
+    lineno = 0
+
     for line in inp:
         lineno += 1
+
         match = atomic_re.match(line)
         mtype = 'node'
 
@@ -136,144 +107,71 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
         if not match:
             continue
 
-        def parse_line(sym, inputs, args, outputs, optable):
-            parents = {}
-
-            on_blas_path = sym in arg_parsers
-
-            if sym in arg_parsers:
-                for arg_desc in arg_parsers[sym]:
-                    arg = {key: args[idx] for key,idx in arg_desc.items() if key != 'output'}
-                    if 'nrows' in arg_desc:
-                        try:
-                            arg['nrows'] = int(arg['nrows'])
-                        except:
-                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["nrows"]} is not an integer\n')
-                            arg['nrows'] = 1
-                    else:
-                        arg['nrows'] = 1
-                    if 'ncols' in arg_desc:
-                        try:
-                            arg['ncols'] = int(arg['ncols'])
-                        except:
-                            sys.stderr.write(f'Line {lineno}: arg #{arg_desc["ncols"]} is not an integer\n')
-                            arg['ncols'] = 1
-                    else:
-                        arg['ncols'] = 1
-                    inputs.add(arg['ptr'])
-                    optable += arg
-                    if 'output' in arg_desc and arg_desc['output']:
-                        outputs.add(arg['ptr'])
-            else:
-                inputs = set(re.findall(pointer_re, args_str))
-                for x in inputs:
-                    if not x in optable:
-                        optable += {'ptr': x, 'nrows': 0, 'ncols': 0}
-
-            for in_ptr in inputs:
-                if in_ptr in outgoing:
-                    parents.update({in_ptr: outgoing[in_ptr]})
-                    on_blas_path |= outgoing[in_ptr].name in arg_parsers
-
-            return (Node(sym, inputs, outputs, optable, parents, on_blas_path), optable)
-
-
         if mtype == 'node':
             sym = match.group(1)
             args_str = match.group(2)
-            ret = match.group(3)
+            ret_str = match.group(3)
 
-            nodes[sym], optable = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(re.findall(pointer_re, ret)), optable)
-            nodes_stack.append(nodes[sym])
+            args = [x.strip() for x in args_str.split(',')]
+            rets = list(re.findall(pointer_re, ret_str))
 
-            for ptr in nodes[sym].outputs:
-                outgoing[ptr] = nodes[sym]
-                    
+            in_edges = {arg: live_ops[arg] for arg in args if arg in live_ops}
+
+            if sym == 'free' and len(args) > 0 and args[0] in live_ops:
+                del live_ops[args[0]]
+
+            nd = Node(sym, in_edges, sym in arg_parsers)
+
+            if not want_hist:
+                nd.print(oup)
+
+            if sym in arg_parsers:
+                for argd in arg_parsers[sym]:
+                    if argd['output']:
+                        live_ops[args[argd['ptr']]] = nd
+
+            for ret in rets:
+                live_ops[ret] = nd
+
         elif mtype == 'begin':
             sym = match.group(1)
             args_str = match.group(2)
 
-            nd, optable = parse_line(sym, set(), [x.strip() for x in args_str.split(',')], set(), optable)
+            args = [x.strip() for x in args_str.split(',')]
+            rets = list(re.findall(pointer_re, ret_str))
 
-            for ptr in nd.outputs:
-                outgoing[ptr] = nd
-            
+            in_edges = {arg: live_ops[arg] for arg in args if arg in live_ops}
+
+            nd = (sym, in_edges, sym in arg_parsers)
             if not sym in unfinished:
                 unfinished[sym] = []
             unfinished[sym].append(nd)
 
-        else:   # 'end'
+            if sym in arg_parsers:
+                for argd in arg_parsers[sym]:
+                    if argd['output']:
+                        live_ops[args[argd['ptr']]] = nd
+        else: # 'end'
             sym = match.group(1)
-            ret = match.group(2)
+            ret_str = match.group(2)
 
-            if not sym in unfinished or not unfinished[sym]:
-                raise Exception(f'`{line}` comes before a corresponding "unfinished"')
+            rets = list(re.findall(pointer_re, ret_str))
 
-            outputs = set(re.findall(pointer_re, ret))
+            if sym == 'free' and len(args) > 0 and args[0] in live_ops:
+                del live_ops[args[0]]
 
-            node = unfinished[sym].pop()
-            nodes[sym] = node + Node(sym, set(), outputs, optable, {})
+            nd_sym, nd_in_edges, nd_is_blas = unfinished[sym].pop()
 
-            nodes_stack.append(nodes[sym])
+            nd = Node(nd_sym, nd_in_edges, nd_is_blas)
 
-            for ptr in outputs:
-                outgoing[ptr] = nodes[sym]
+            if not want_hist:
+                nd.print(oup)
 
-    if print_hist:
-        path_lens = {}      # maps ptr -> current path length
-        blas_hist = {}      # maps path length -> count
-        total_len = 0
-        for node in reversed(nodes_stack):
-            if not node.on_blas_path:
-                continue
-            for sym, parent in node.parents.items():
-                parent.on_blas_path = node.on_blas_path
-        for node in nodes_stack:
-            for ptr in node.inputs:
-                if node.on_blas_path:
-                    if ptr in path_lens:
-                        path_lens[ptr] += 1
-                    else:
-                        path_lens[ptr] = 1
-                else:
-                    # we're no longer on a BLAS path; remove
-                    if ptr in path_lens:
-                        if path_lens[ptr] in blas_hist:
-                            blas_hist[path_lens[ptr]] += 1
-                        else:
-                            blas_hist[path_lens[ptr]] = 1
-                        total_len += path_lens[ptr]
-                        del path_lens[ptr]
+            for ret in rets:
+                live_ops[ret] = nd
 
-        oup.write('Path Length: Count (Percent of Total)\n')
-        total_paths = 0
-        for plen in sorted(blas_hist):
-            pcnt = plen*blas_hist[plen]/total_len*100
-            oup.write(f'{plen}: {blas_hist[plen]} ({float("%.3g" % pcnt)}%)\n')
-            total_paths += blas_hist[plen]
-        oup.write(f'Total BLAS calls: {total_len}\n')
-        oup.write(f'Total BLAS paths: {total_paths}\n')
-
-    else:
-        # now remove non-blas nodes
-        final_nodes_stack = []
-
-        if remove_non_blas:
-            for node in reversed(nodes_stack):
-                if not node.on_blas_path:
-                    continue
-                for sym, parent in node.parents.items():
-                    parent.on_blas_path = node.on_blas_path
-            for node in nodes_stack:
-                if node.on_blas_path:
-                    final_nodes_stack.append(node)
-
-        else:
-            final_nodes_stack = nodes_stack
-
-        for node in final_nodes_stack:
-            print_node(oup, node)
-
+    # used for formatting
+    if not want_hist:
         oup.write(f'\t{{')
         if len(node_nums) > 0:
             oup.write('\t\t')
@@ -284,8 +182,16 @@ def parse_input(filename, remove_non_blas=None, print_hist=None):
                 oup.write(f'"{node_nums[i]}" -> ')
         oup.write(f'\t}}\n')
 
-        oup.write('}\n')
-    inp.close()
+        oup.write('}\n')    # close digraph description
+    else: # print histogram
+        oup.write('Path Length: Count (Percent of Total BLAS Calls)\n')
+        total_paths = 0
+        for plen in sorted(blas_hist):
+            pcnt = (plen+1)*blas_hist[plen]/total_blas*100
+            oup.write(f'{plen}: {blas_hist[plen]} ({float("%.3g" % pcnt)}%)\n')
+            total_paths += blas_hist[plen]
+        oup.write(f'Total BLAS calls: {total_blas}\n')
+        oup.write(f'Total BLAS paths: {total_paths}\n')
 
 if __name__ == "__main__":
     import sys
@@ -293,8 +199,8 @@ if __name__ == "__main__":
 
     aparser = ArgumentParser()
     aparser.add_argument('ltrace_file')
-    aparser.add_argument('-t', '--trim', action='store_true', help='Only output nodes on a BLAS path')
     aparser.add_argument('-c', '--hist', action='store_true', help='Only print histogram of BLAS call chains')
 
     args = aparser.parse_args()
-    parse_input(args.ltrace_file, args.trim, args.hist)
+    want_hist = args.hist
+    parse_input(args.ltrace_file)

@@ -5,8 +5,7 @@ def arg_desc(ptr, nrows=None, ncols=None, output=None):
         obj['nrows'] = nrows
     if ncols != None:
         obj['ncols'] = ncols
-    if output != None:
-        obj['output'] = output
+    obj['output'] = output if output != None else False
     return obj
 
 arg_parsers = {\
