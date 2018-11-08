@@ -186,12 +186,15 @@ def parse_input(filename):
     else: # print histogram
         oup.write('Path Length: Count (Percent of Total BLAS Calls)\n')
         total_paths = 0
+        total_path_len = 0
         for plen in sorted(blas_hist):
+            total_path_len += (plen+1)*blas_hist[plen]
             pcnt = (plen+1)*blas_hist[plen]/total_blas*100
             oup.write(f'{plen}: {blas_hist[plen]} ({float("%.3g" % pcnt)}%)\n')
             total_paths += blas_hist[plen]
         oup.write(f'Total BLAS calls: {total_blas}\n')
         oup.write(f'Total BLAS paths: {total_paths}\n')
+        oup.write(f'Isolated BLAS calls: {total_blas - total_path_len}\n')
 
 if __name__ == "__main__":
     import sys
