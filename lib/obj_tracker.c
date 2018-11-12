@@ -56,6 +56,8 @@ static void *objects = NULL;
 static unsigned long num_objects = 0;
 static uint64_t next_uid = 0;
 
+static uint64_t num_allocs; /* number of times malloc() or calloc() were called */
+
 static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 static __thread bool grabbed_reader_lock = false;
@@ -199,7 +201,10 @@ static void get_real_free(void) {
 }
 
 #ifndef STANDALONE
-bool obj_tracker_should_alloc_managed_ptr(void) {
+static bool 
+obj_tracker_should_alloc_managed_ptr(bool is_malloc,
+                                     uint64_t nth_alloc,
+                                     size_t obj_size) {
     switch (hfunc) {
         case H_TRUE:
             return true;
@@ -207,6 +212,7 @@ bool obj_tracker_should_alloc_managed_ptr(void) {
             return false;
         case H_RANDOM:
             return (long double) random() / LONG_MAX > 0.5;
+        /* TODO: oracle / tensorflow */
         default:
             return false;
     }
@@ -481,9 +487,13 @@ static void *insert_objinfo(struct objinfo *oinfo)
     return node;
 }
 
-static void track_object(void *ptr, 
-        enum alloc_sym sym,
-        struct objmngr *mngr, size_t request, size_t size)
+static void
+track_object(void *ptr, 
+             enum alloc_sym sym,
+             struct objmngr *mngr, 
+             size_t request, 
+             size_t size,
+             uint64_t nth_alloc)
 {
     struct objinfo *oinfo;
 #if TRACE_OUTPUT
@@ -502,6 +512,7 @@ static void track_object(void *ptr,
     oinfo->ptr = ptr;
     clock_gettime(CLOCK_MONOTONIC_RAW, &oinfo->time);
     oinfo->uid = __sync_fetch_and_add(&next_uid, 1);
+    oinfo->nth_alloc = nth_alloc;
 
     node = insert_objinfo(oinfo);
 
@@ -597,6 +608,8 @@ void *malloc(size_t request) {
     size_t actual_size;
     struct objmngr mngr;
 
+    __sync_fetch_and_add(&num_allocs, 1);
+
     if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
         if (!real_malloc)
             get_real_malloc();
@@ -621,7 +634,7 @@ void *malloc(size_t request) {
 #if STANDALONE
         mngr = glibc_manager;
 #else
-        if (obj_tracker_should_alloc_managed_ptr()) {
+        if (obj_tracker_should_alloc_managed_ptr(true, num_allocs, request)) {
             mngr = blas2cuda_manager;
         } else {
             mngr = glibc_manager;
@@ -630,7 +643,7 @@ void *malloc(size_t request) {
 
         ptr = mngr.ctor(request);
         actual_size = mngr.get_size(ptr);
-        track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size);
+        track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size, num_allocs);
     } else
         ptr = real_malloc(request);
 
@@ -644,6 +657,8 @@ void *calloc(size_t nmemb, size_t size) {
     void *ptr;
     size_t actual_size;
     struct objmngr mngr;
+
+    __sync_fetch_and_add(&num_allocs, 1);
 
     request = nmemb * size;
     if (nmemb != 0 && request / nmemb != size) {
@@ -675,7 +690,7 @@ void *calloc(size_t nmemb, size_t size) {
 #if STANDALONE
         mngr = glibc_manager;
 #else
-        if (obj_tracker_should_alloc_managed_ptr()) {
+        if (obj_tracker_should_alloc_managed_ptr(false, num_allocs, request)) {
             mngr = blas2cuda_manager;
         } else {
             mngr = glibc_manager;
@@ -684,7 +699,7 @@ void *calloc(size_t nmemb, size_t size) {
 
         ptr = mngr.cctor(nmemb, size);
         actual_size = mngr.get_size(ptr);
-        track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size);
+        track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size, num_allocs);
     } else
         ptr = real_calloc(nmemb, size);
 

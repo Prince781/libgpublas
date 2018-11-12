@@ -92,6 +92,7 @@ struct objinfo {
     void *ptr;              /* location of object */
     struct timespec time;   /* when this object was created */
     uint64_t uid;           /* unique ID of this object */
+    uint64_t nth_alloc;     /* the nth call to malloc()/calloc() */
 };
 
 enum objprint_type {
