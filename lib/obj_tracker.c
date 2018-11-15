@@ -365,8 +365,8 @@ void obj_tracker_print_info(enum objprint_type type, const char *fname, const st
 #if STANDALONE
     if (!objtracker_options.only_print_calls || type == OBJPRINT_CALL)
 #endif
-        writef(STDOUT_FILENO, "%c [%p] fun=[%s] reqsize=[%zu] tid=[%d] time=[%lds+%ldns] uid=[%lu]\n",
-                c, info->ptr, fun_name, info->ci.reqsize, tid, 
+        writef(STDOUT_FILENO, "%c #%lu [%p] fun=[%s] reqsize=[%zu] tid=[%d] time=[%lds+%ldns] uid=[%lu]\n",
+                c, info->nth_alloc, info->ptr, fun_name, info->ci.reqsize, tid, 
                 tm.tv_sec, tm.tv_nsec, info->uid);
 }
 
