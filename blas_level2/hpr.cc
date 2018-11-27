@@ -39,10 +39,12 @@ static void _cblas_hpr(const CBLAS_LAYOUT Layout,
             (void *) gpu_a, a_info,
             NULL);
 
-    hpr_func(b2c_handle, fillmode, 
-            n, &alpha,
-            gpu_x, incx,
-            gpu_a);
+    call_cuda_kernel(
+        hpr_func(b2c_handle, fillmode, 
+                n, &alpha,
+                gpu_x, incx,
+                gpu_a)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

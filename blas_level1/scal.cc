@@ -15,7 +15,7 @@ void _cblas_scal (const int n,
 
     gpu_x = (V *) b2c_place_on_gpu((void *) x, size_x, &x_info, NULL);
 
-    scal_func(b2c_handle, n, &a, gpu_x, incx);
+    call_cuda_kernel(scal_func(b2c_handle, n, &a, gpu_x, incx));
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

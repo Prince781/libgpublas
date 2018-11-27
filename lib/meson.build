@@ -3,6 +3,7 @@ lib_inc = include_directories('.')
 libobjtracker = static_library('objtracker',
     sources: [
       'obj_tracker.c',
+      'oracle.c',
     ],
     include_directories: [root_inc],
     dependencies: [

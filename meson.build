@@ -14,7 +14,8 @@ c_args = [
   '-Werror', 
   '-Wno-unused-parameter',
   '-Winit-self',
-  '-O3'
+  '-O3',
+  '-DDEBUG_TRACKING'
 ]
 
 sources = files(

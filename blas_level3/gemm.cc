@@ -73,14 +73,16 @@ void _cblas_gemm(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    gemm_func(b2c_handle,
-            opa, opb,
-            m, n, k,
-            &alpha,
-            gpu_a, lda,
-            gpu_b, ldb,
-            &beta,
-            gpu_c, ldc);
+    call_cuda_kernel(
+        gemm_func(b2c_handle,
+                opa, opb,
+                m, n, k,
+                &alpha,
+                gpu_a, lda,
+                gpu_b, ldb,
+                &beta,
+                gpu_c, ldc)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

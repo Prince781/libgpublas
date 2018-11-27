@@ -61,14 +61,16 @@ void _cblas_trmm(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    trmm_func(b2c_handle,
-            cside, cuplo,
-            ctransa, cdiag,
-            m, n,
-            &alpha,
-            gpu_a, lda,
-            gpu_b, ldb,
-            gpu_b, ldb);
+    call_cuda_kernel(
+        trmm_func(b2c_handle,
+                cside, cuplo,
+                ctransa, cdiag,
+                m, n,
+                &alpha,
+                gpu_a, lda,
+                gpu_b, ldb,
+                gpu_b, ldb)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

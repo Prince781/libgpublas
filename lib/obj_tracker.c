@@ -25,12 +25,15 @@
 #include <assert.h>
 #include <err.h>
 #include <limits.h>
+#include <stdarg.h>
 
 #if DEBUG_TRACKING
 #define TRACE_OUTPUT    1
 #endif
 
 #define OBJTRACKER_OPTIONS  "OBJTRACKER_OPTIONS"
+
+#include "oracle.h"
 
 static void *find_objinfo(struct objinfo *o);
 
@@ -62,7 +65,15 @@ static pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 static __thread bool grabbed_reader_lock = false;
 static __thread bool grabbed_writer_lock = false;
-static __thread bool inside_internal = false;
+static __thread uint64_t inside_internal = 0;
+
+struct excluded_region {
+    void *start;
+    void *end;
+};
+
+static struct excluded_region *excluded_regions;
+static size_t num_excluded_regions;
 
 static inline void read_lock(void) {
     int ret;
@@ -212,7 +223,8 @@ obj_tracker_should_alloc_managed_ptr(bool is_malloc,
             return false;
         case H_RANDOM:
             return (long double) random() / LONG_MAX > 0.5;
-        /* TODO: oracle / tensorflow */
+        case H_ORACLE:
+            return oracle_should_alloc_managed_ptr(is_malloc, nth_alloc, obj_size);
         default:
             return false;
     }
@@ -312,6 +324,89 @@ static void obj_tracker_get_fptrs(void) {
         };
         success = true;
     }
+}
+
+void obj_tracker_internal_enter(void) {
+    inside_internal += 1;
+}
+
+void obj_tracker_internal_leave(void) {
+    assert (inside_internal > 0);
+    inside_internal -= 1;
+}
+
+int obj_tracker_find_excluded_regions(const char *pattern1, ...) {
+    int nmaps = 0;
+    FILE *maps;
+    char *line = NULL;
+    size_t linesz = 0;
+    size_t extra_buf = 0;
+    size_t used_buf = 0;
+
+    obj_tracker_internal_enter();
+
+    if (!(maps = fopen("/proc/self/maps", "r"))) {
+        writef(STDERR_FILENO, "objtracker: failed to open /proc/self/maps: %m\n");
+        return -1;
+    }
+
+    /* reset maps */
+    num_excluded_regions = 0;
+
+    /* read maps */
+    while (getline(&line, &linesz, maps) != EOF) {
+        void *addr_min, *addr_max;
+        char *pathname = NULL;
+        const char *pattern = NULL;
+
+        if (sscanf(line, "%p-%p %*[^ ] %*x %*[^ ] %*d %ms", &addr_min, &addr_max, &pathname) != 3)
+            continue;
+
+        va_list ap;
+
+        va_start(ap, pattern1);
+
+        for (pattern = pattern1; pattern != NULL; pattern = va_arg(ap, const char *)) {
+            if (strstr(pathname, pattern) != NULL) {
+                /* match: add this to the list */
+                if (used_buf >= extra_buf) {
+                    extra_buf = extra_buf > 0 ? extra_buf * 2 : 128;
+                    excluded_regions = realloc(excluded_regions, extra_buf * sizeof(*excluded_regions));
+                }
+                excluded_regions[used_buf++] = (struct excluded_region) { addr_min, addr_max };
+                num_excluded_regions++;
+                writef(STDOUT_FILENO, "objtracker: region %p-%p matches `%s'\n", addr_min, addr_max, pattern);
+                break;
+            }
+        }
+
+        va_end(ap);
+
+        free(pathname);
+    }
+
+    free(line);
+    fclose(maps);
+
+    obj_tracker_internal_leave();
+    return nmaps;
+}
+
+static bool in_excluded_region(void *ret_addr) {
+    int start = 0, end = num_excluded_regions;
+    int mid;
+
+    while (start < end) {
+        mid = (start + end) / 2;
+        if (ret_addr > excluded_regions[mid].end)
+            start = mid + 1;
+        else if (ret_addr < excluded_regions[mid].start)
+            end = mid - 1;
+        else
+            return true;
+    }
+
+    return false;
 }
 
 void obj_tracker_print_info(enum objprint_type type, const char *fname, const struct objinfo *info)
@@ -443,6 +538,8 @@ void obj_tracker_fini(void) {
         blas_tracker_fini();
 #endif
         tid = syscall(SYS_gettid);
+        if (num_objects > 0)
+            writef(STDERR_FILENO, "objtracker: warning, there are still %zu object(s) being tracked!\n", num_objects);
         writef(STDERR_FILENO, "objtracker: decommissioned on thread %d\n", tid);
         initialized = false;
         destroying = false;
@@ -458,7 +555,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
     void *node;
     bool saved_grabbed_reader_lock = grabbed_reader_lock;
     
-    inside_internal = true;
+    obj_tracker_internal_enter();
 
     if (grabbed_reader_lock) {
         unlock();
@@ -471,7 +568,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
     node = tsearch(oinfo, &objects, objects_compare);
 
     if (node) {
-        ++num_objects;
+        __sync_fetch_and_add(&num_objects, 1);
     }
 
     unlock();
@@ -482,7 +579,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
         grabbed_reader_lock = true;
     }
 
-    inside_internal = false;
+    obj_tracker_internal_leave();
 
     return node;
 }
@@ -527,7 +624,7 @@ static void *find_objinfo(struct objinfo *o)
 {
     void *node;
 
-    inside_internal = true;
+    obj_tracker_internal_enter();
 
     if (!grabbed_writer_lock) {
         read_lock();
@@ -541,7 +638,7 @@ static void *find_objinfo(struct objinfo *o)
         grabbed_reader_lock = false;
     }
 
-    inside_internal = false;
+    obj_tracker_internal_leave();
 
     return node;
 }
@@ -553,7 +650,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
 
     bool saved_grabbed_reader_lock = grabbed_reader_lock;
 
-    inside_internal = true;
+    obj_tracker_internal_enter();
 
     if (grabbed_reader_lock) {
         unlock();
@@ -580,7 +677,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     memcpy(mngr, &objinfo->ci.mngr, sizeof(*mngr));
     real_free(objinfo);
 
-    inside_internal = false;
+    obj_tracker_internal_leave();
 
     return result;
 }
@@ -597,7 +694,7 @@ static void untrack_object(void *ptr, struct objmngr *mngr)
 
     if (node) {
         delete_objinfo(node, mngr);
-        --num_objects;
+        __sync_fetch_and_add(&num_objects, -1);
     }
     tracking = true;
 }
@@ -607,10 +704,10 @@ void *malloc(size_t request) {
     void *ptr;
     size_t actual_size;
     struct objmngr mngr;
+    uint64_t nth = num_allocs;
 
-    __sync_fetch_and_add(&num_allocs, 1);
-
-    if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
+    if (inside || inside_internal || destroying || initializing || !tracking || !initialized
+     || in_excluded_region(__builtin_return_address(0))) {
         if (!real_malloc)
             get_real_malloc();
         if (!real_malloc) {
@@ -620,6 +717,7 @@ void *malloc(size_t request) {
         return real_malloc(request);
     }
 
+    nth = __sync_fetch_and_add(&num_allocs, 1);
     if (!request)
         return NULL;
 
@@ -631,10 +729,12 @@ void *malloc(size_t request) {
     }
 
     if (tracking) {
+        bool track;
 #if STANDALONE
+        track = true;
         mngr = glibc_manager;
 #else
-        if (obj_tracker_should_alloc_managed_ptr(true, num_allocs, request)) {
+        if ((track = obj_tracker_should_alloc_managed_ptr(true, num_allocs, request))) {
             mngr = blas2cuda_manager;
         } else {
             mngr = glibc_manager;
@@ -643,7 +743,8 @@ void *malloc(size_t request) {
 
         ptr = mngr.ctor(request);
         actual_size = mngr.get_size(ptr);
-        track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size, num_allocs);
+        if (track)
+            track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size, nth);
     } else
         ptr = real_malloc(request);
 
@@ -657,8 +758,10 @@ void *calloc(size_t nmemb, size_t size) {
     void *ptr;
     size_t actual_size;
     struct objmngr mngr;
+    uint64_t nth = num_allocs;
 
-    __sync_fetch_and_add(&num_allocs, 1);
+    if (!inside_internal && initialized)
+        nth = __sync_fetch_and_add(&num_allocs, 1);
 
     request = nmemb * size;
     if (nmemb != 0 && request / nmemb != size) {
@@ -666,7 +769,8 @@ void *calloc(size_t nmemb, size_t size) {
         return NULL;
     }
 
-    if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
+    if (inside || inside_internal || destroying || initializing || !tracking || !initialized
+     || in_excluded_region(__builtin_return_address(0))) {
         if (!real_calloc)
             get_real_calloc();
         if (!real_calloc) {
@@ -687,10 +791,12 @@ void *calloc(size_t nmemb, size_t size) {
     }
 
     if (tracking) {
+        bool track;
 #if STANDALONE
+        track = true;
         mngr = glibc_manager;
 #else
-        if (obj_tracker_should_alloc_managed_ptr(false, num_allocs, request)) {
+        if ((track = obj_tracker_should_alloc_managed_ptr(false, num_allocs, request))) {
             mngr = blas2cuda_manager;
         } else {
             mngr = glibc_manager;
@@ -699,7 +805,8 @@ void *calloc(size_t nmemb, size_t size) {
 
         ptr = mngr.cctor(nmemb, size);
         actual_size = mngr.get_size(ptr);
-        track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size, num_allocs);
+        if (track)
+            track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size, nth);
     } else
         ptr = real_calloc(nmemb, size);
 
@@ -767,4 +874,40 @@ void free(void *ptr) {
         real_free(ptr);
 
     inside = false;
+}
+
+/* memory management without object tracking */
+
+void *internal_malloc(size_t request) {
+    void *res;
+
+    obj_tracker_internal_enter();
+    res = real_malloc(request);
+    obj_tracker_internal_leave();
+    return res;
+}
+
+void *internal_calloc(size_t nmemb, size_t size) {
+    void *res;
+
+    obj_tracker_internal_enter();
+    res = real_calloc(nmemb, size);
+    obj_tracker_internal_leave();
+    return res;
+}
+
+void *internal_realloc(void *ptr, size_t size) {
+    void *res;
+
+    obj_tracker_internal_enter();
+    res = real_realloc(ptr, size);
+    obj_tracker_internal_leave();
+
+    return res;
+}
+
+void internal_free(void *ptr) {
+    obj_tracker_internal_enter();
+    real_free(ptr);
+    obj_tracker_internal_leave();
 }

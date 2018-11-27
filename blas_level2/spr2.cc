@@ -48,11 +48,13 @@ void _cblas_spr2(const CBLAS_LAYOUT Layout,
             NULL);
 
 
-    spr2_func(b2c_handle, fillmode, 
-            n, &alpha,
-            gpu_x, incx,
-            gpu_y, incy,
-            gpu_a);
+    call_cuda_kernel(
+        spr2_func(b2c_handle, fillmode, 
+                n, &alpha,
+                gpu_x, incx,
+                gpu_y, incy,
+                gpu_a)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

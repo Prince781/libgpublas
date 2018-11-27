@@ -43,11 +43,13 @@ static void _cblas_ger(const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    ger_func(b2c_handle, m, n,
-            &alpha, 
-            gpu_x, incx,
-            gpu_y, incy,
-            gpu_a, lda);
+    call_cuda_kernel(
+        ger_func(b2c_handle, m, n,
+                &alpha, 
+                gpu_x, incx,
+                gpu_y, incy,
+                gpu_a, lda)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

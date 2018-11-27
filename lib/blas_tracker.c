@@ -35,7 +35,7 @@ static void *get_real_blas_fun_cached(const char *name) {
     ENTRY *result;
 
     if (!fptrs_table) {
-        fptrs_table = real_calloc(1, sizeof(*fptrs_table));
+        fptrs_table = internal_calloc(1, sizeof(*fptrs_table));
         if (hcreate_r(CAPACITY, fptrs_table) < 0) {
             writef(STDERR_FILENO, "Failed to create lookup table: %s", strerror(errno));
             abort();
@@ -98,7 +98,7 @@ void blas_tracker_init(void) {
     }
 
     if (!blas_lib_handles) {
-        blas_lib_handles = real_calloc(objtracker_options.num_blas,
+        blas_lib_handles = internal_calloc(objtracker_options.num_blas,
                 sizeof(*blas_lib_handles));
         for (int i=0; i<objtracker_options.num_blas; ++i) {
             dlerror();

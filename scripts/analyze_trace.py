@@ -28,7 +28,8 @@ class Event:
         return f'Host[{self.numhost} items and {self.sizehost} B] Dev[{self.numdev} items and {self.sizedev} B]'
 
 class Record:
-    def __init__(self, fun, reqsize, start, uid, is_gpu=False):
+    def __init__(self, nth, fun, reqsize, start, uid, is_gpu=False):
+        self.nth = nth
         self.fun = fun
         self.reqsize = reqsize
         self.alive = (start, None)
@@ -36,18 +37,18 @@ class Record:
         self.is_gpu=is_gpu
 
     def __str__(self):
-        return f'{"D" if self.is_gpu else "H"} {self.uid} fun=[{self.fun}] reqsize=[{self.reqsize}] alive={self.alive}'
+        return f'{"D" if self.is_gpu else "H"} #{self.nth} U{self.uid} fun=[{self.fun}] reqsize=[{self.reqsize}] alive={self.alive}'
 
 for line in gzip.open(sys.argv[1], 'rt'):
     lineno = lineno + 1
-    m = re.match(r'([TUC]).*fun=\[(\w+)\] reqsize=\[(\d+)\].*time=\[(\d+)s\+(\d+)ns\] uid=\[(\d+)\]', line)
+    m = re.match(r'([TUC]) #(\d+).*fun=\[(\w+)\] reqsize=\[(\d+)\].*time=\[(\d+)s\+(\d+)ns\] uid=\[(\d+)\]', line)
     if m:
-        tp, fun, reqsize, time_s, time_ns, uid = m.group(1,2,3,4,5,6)
+        tp, nth, fun, reqsize, time_s, time_ns, uid = m.group(1,2,3,4,5,6,7)
         time = int(int(time_s) * 10e9 + int(time_ns))
         if tp == 'T':
             numitems_host += 1
             totalsize_host += int(reqsize)
-            records[int(uid)] = Record(fun, int(reqsize), time, int(uid))
+            records[int(uid)] = Record(nth, fun, int(reqsize), time, int(uid))
             events[time] = Event(numitems_host, numitems_dev, totalsize_host, totalsize_dev)
             if not earliest or time < earliest:
                 earliest = time

@@ -48,13 +48,15 @@ void _cblas_hemv (const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    hemv_func(b2c_handle, fillmode,
-            n,
-            &alpha,
-            gpu_a, lda,
-            gpu_x, incx,
-            &beta,
-            gpu_y, incy);
+    call_cuda_kernel(
+        hemv_func(b2c_handle, fillmode,
+                n,
+                &alpha,
+                gpu_a, lda,
+                gpu_x, incx,
+                &beta,
+                gpu_y, incy)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

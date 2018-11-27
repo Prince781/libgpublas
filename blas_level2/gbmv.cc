@@ -49,13 +49,15 @@ void _cblas_gbmv (const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    gbmv_func(b2c_handle, op,
-            m, n, kl, ku, 
-            &alpha, 
-            gpu_A, lda,
-            gpu_x, incx,
-            &beta,
-            gpu_y, incy);
+    call_cuda_kernel(
+        gbmv_func(b2c_handle, op,
+                m, n, kl, ku, 
+                &alpha, 
+                gpu_A, lda,
+                gpu_x, incx,
+                &beta,
+                gpu_y, incy)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

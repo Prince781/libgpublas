@@ -64,13 +64,15 @@ void _cblas_syrk(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    syrk_func(b2c_handle,
-            cuplo, ctrans,
-            n, k,
-            &alpha,
-            gpu_a, lda,
-            &beta,
-            gpu_c, ldc);
+    call_cuda_kernel(
+        syrk_func(b2c_handle,
+                cuplo, ctrans,
+                n, k,
+                &alpha,
+                gpu_a, lda,
+                &beta,
+                gpu_c, ldc)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

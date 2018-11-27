@@ -42,11 +42,13 @@ void _cblas_trmv(const CBLAS_LAYOUT Layout, const CBLAS_UPLO uplo,
             (void *) gpu_a, a_info,
             NULL);
 
-    trmv_func(b2c_handle, fillmode,
-            op, cdiag,
-            cols_a,
-            gpu_a, rows_a,
-            gpu_x, incx);
+    call_cuda_kernel(
+        trmv_func(b2c_handle, fillmode,
+                op, cdiag,
+                cols_a,
+                gpu_a, rows_a,
+                gpu_x, incx)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

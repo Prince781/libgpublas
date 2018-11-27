@@ -72,14 +72,16 @@ void _cblas_hemm(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    hemm_func(b2c_handle,
-            cside, cuplo,
-            m, n,
-            &alpha,
-            gpu_a, lda,
-            gpu_b, ldb,
-            &beta,
-            gpu_c, ldc);
+    call_cuda_kernel(
+        hemm_func(b2c_handle,
+                cside, cuplo,
+                m, n,
+                &alpha,
+                gpu_a, lda,
+                gpu_b, ldb,
+                &beta,
+                gpu_c, ldc)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

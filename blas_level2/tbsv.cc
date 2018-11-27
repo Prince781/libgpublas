@@ -43,11 +43,13 @@ void _cblas_tbsv(const CBLAS_LAYOUT Layout,
             (void *) gpu_a, a_info,
             NULL);
 
-    tbsv_func(b2c_handle, fillmode,
-            op, cdiag,
-            cols_a, k,
-            gpu_a, rows_a,
-            gpu_x, incx);
+    call_cuda_kernel(
+        tbsv_func(b2c_handle, fillmode,
+                op, cdiag,
+                cols_a, k,
+                gpu_a, rows_a,
+                gpu_x, incx)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

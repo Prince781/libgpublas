@@ -52,13 +52,15 @@ void _cblas_herk(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    herk_func(b2c_handle,
-            cuplo, ctrans,
-            n, k,
-            &alpha,
-            gpu_a, lda,
-            &beta,
-            gpu_c, ldc);
+    call_cuda_kernel(
+        herk_func(b2c_handle,
+                cuplo, ctrans,
+                n, k,
+                &alpha,
+                gpu_a, lda,
+                &beta,
+                gpu_c, ldc)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

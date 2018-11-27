@@ -46,12 +46,14 @@ void _cblas_symv (const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    symv_func(b2c_handle, fillmode,
-            cols_a, &alpha,
-            gpu_a, rows_a,
-            gpu_x, incx,
-            &beta,
-            gpu_y, incy);
+    call_cuda_kernel(
+        symv_func(b2c_handle, fillmode,
+                cols_a, &alpha,
+                gpu_a, rows_a,
+                gpu_x, incx,
+                &beta,
+                gpu_y, incy)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

@@ -43,10 +43,14 @@ struct obj_options {
 extern struct obj_options objtracker_options;
 #endif
 
+/**
+ * What decision to make for each malloc().
+ */
 enum heuristic {
-    H_RANDOM,
-    H_TRUE,
-    H_FALSE
+    H_RANDOM,       /* allocate objects on the GPU at random */
+    H_TRUE,         /* always allocate objects on the GPU */
+    H_FALSE,        /* always allocate objects on the host */
+    H_ORACLE        /* use a trace of the program to decide */
 };
 
 extern enum heuristic hfunc;
@@ -102,10 +106,24 @@ enum objprint_type {
     OBJPRINT_CALL
 };
 
+void obj_tracker_internal_enter(void);
+void obj_tracker_internal_leave(void);
+
+/**
+ * Reads /proc/self/maps for memory regions. If a region matches any
+ * pattern in the NULL-terminated list, it will be added to the list
+ * of excluded regions. The object tracker will be disabled when it
+ * is called by code within these regions.
+ *
+ * @return the number of found regions, or < 0 on error
+ */
+int obj_tracker_find_excluded_regions(const char *pattern1, ...);
+
 void obj_tracker_print_info(enum objprint_type type, const char *fname, const struct objinfo *info);
 
-
-/* Initialize the object tracker. */
+/**
+ * Initialize the object tracker.
+ */
 void obj_tracker_init(bool tracking_enabled);
 
 void obj_tracker_set_tracking(bool enabled);
@@ -129,12 +147,27 @@ obj_tracker_objinfo(void *ptr);
  */
 void obj_tracker_fini(void);
 
-#if RBTREE
+/* memory management without object tracking */
+
 /**
- * Prints all objects in the tracker into a 
+ * malloc() without object tracking
  */
-void obj_tracker_print_rbtree(const char *filename);
-#endif
+void *internal_malloc(size_t request);
+
+/**
+ * calloc() without object tracking
+ */
+void *internal_calloc(size_t nmemb, size_t size);
+
+/**
+ * realloc() without object tracking
+ */
+void *internal_realloc(void *ptr, size_t size);
+
+/**
+ * free() without object tracking
+ */
+void internal_free(void *ptr);
 
 #ifdef __cplusplus
 };

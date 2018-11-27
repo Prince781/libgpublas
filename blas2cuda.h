@@ -34,6 +34,23 @@ do {\
         writef(STDERR_FILENO, "blas2cuda: calling %s()\n", #name);\
 } while (0)
 
+
+/**
+ * Any expressions that ultimately make a CUDA kernel call should be wrapped with this.
+ * 
+ * This disables the Object Tracker for the current thread and calls cudaDeviceSynchronize(),
+ * to avoid bus errors either caused by either trying to access unified memory during a kernel 
+ * call (alloc_managed() writes the buffer size to the buffer) or after the kernel has been called
+ * but the results have not been synchronized.
+ */
+#define call_cuda_kernel(expr) {\
+    obj_tracker_internal_enter();\
+    expr;\
+    obj_tracker_internal_leave();\
+    if (b2c_must_synchronize)\
+        cudaDeviceSynchronize();\
+} while (0)
+
 struct options {
     bool debug_execfail;
     bool debug_exec;
@@ -42,6 +59,7 @@ struct options {
 
 extern struct options b2c_options;
 extern cublasHandle_t b2c_handle;
+extern bool b2c_must_synchronize;
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,7 +83,7 @@ static inline void b2c_fatal_error(cudaError_t status, const char *domain)
  * Returns the GPU buffer, which may be NULL on failure.
  * Free with cudaFree().
  */
-void *b2c_copy_to_gpu(const void *cpubuf, size_t size);
+void *b2c_copy_to_gpu(const void *hostbuf, size_t size);
 
 /**
  * Creates a new CPU buffer and copies the GPU buffer to it.
@@ -77,7 +95,7 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size);
 /**
  * Copies an existing GPU buffer to an existing CPU buffer.
  */
-void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size);
+void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size);
 
 /**
  * If the buffer is on the CPU, copies it to the GPU and returns a GPU pointer.
@@ -90,7 +108,7 @@ void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size);
  * in the event of an error. The list is terminated by a NULL pointer for a
  * gpubuf.
  */
-void *b2c_place_on_gpu(void *cpubuf, 
+void *b2c_place_on_gpu(void *hostbuf, 
         size_t size,
         const struct objinfo **info_in,
         void *gpubuf2,

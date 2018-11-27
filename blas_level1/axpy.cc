@@ -22,7 +22,7 @@ static void _cblas_axpy (const int n,
             (void *) gpu_x, x_info,
             NULL);
 
-    axpy_func(b2c_handle, n, &a, gpu_x, incx, gpu_y, incy);
+    call_cuda_kernel(axpy_func(b2c_handle, n, &a, gpu_x, incx, gpu_y, incy));
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

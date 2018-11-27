@@ -9,7 +9,7 @@ ifeq ($(USE_MKL), y)
     LDFLAGS += -lmkl_intel_lp64 -lmkl_tbb_thread -lmkl_core -ltbb -lstdc++ -lpthread
     LDFLAGS += -Wl,-rpath=$(MKLROOT)/lib/intel64,-rpath=$(TBBROOT)/lib/intel64/gcc4.7
 else
-    LDFLAGS += -lcblas
+    LDFLAGS += -L/usr/lib64/atlas/ -ltatlas
 endif
 
 .PHONY: all-tests clean 

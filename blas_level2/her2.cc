@@ -47,11 +47,13 @@ static void _cblas_her2(const CBLAS_LAYOUT Layout,
             NULL);
 
 
-    her2_func(b2c_handle, fillmode, 
-            n, &alpha,
-            gpu_x, incx,
-            gpu_y, incy,
-            gpu_a, lda);
+    call_cuda_kernel(
+        her2_func(b2c_handle, fillmode, 
+                n, &alpha,
+                gpu_x, incx,
+                gpu_y, incy,
+                gpu_a, lda)
+    );
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

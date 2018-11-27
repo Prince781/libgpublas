@@ -6,8 +6,12 @@
 #include <sys/syscall.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
+#include <signal.h>
 
 #define BLAS2CUDA_OPTIONS "BLAS2CUDA_OPTIONS"
+
+#include "lib/oracle.h"
 
 static bool cublas_initialized = false;
 
@@ -29,8 +33,11 @@ struct objmngr blas2cuda_manager = {
 
 static size_t hits = 0;
 static size_t misses = 0;
+static size_t total_managed_mem = 0;    /* in bytes */
 
 cublasHandle_t b2c_handle;
+
+bool b2c_must_synchronize = false;
 
 struct options b2c_options = { false, false, false };
 
@@ -42,7 +49,9 @@ void b2c_print_help(void) {
             "   debug_execfail  -- debug kernel failures\n"
             "   debug_exec      -- debug kernel invocations\n"
             "   trace_copy      -- trace copies between CPU and GPU\n"
-            "   heuristic=<val> -- one of: 'random', 'true', 'false'\n");
+            "   heuristic=<val> -- one of: 'random', 'true', 'false', or:\n"
+            "                      'oracle:<filename>', where <filename> is\n"
+            "                      the name of an object trace\n");
 }
 
 static void set_options(void) {
@@ -84,12 +93,25 @@ static void set_options(void) {
                 } else if (strncmp(hnum, "false", sizeof("false") - 1) == 0) {
                     hfunc = H_FALSE;
                     set = true;
+                } else if (strncmp(hnum, "oracle:", sizeof("oracle:") - 1) == 0) {
+                    hfunc = H_ORACLE;
+                    set = true;
                 }
 
                 if (set) {
                     writef(STDERR_FILENO, "blas2cuda: selecting heuristic %s\n", hnum);
                 } else {
                     writef(STDERR_FILENO, "blas2cuda: unsupported heuristic '%s'\n", hnum);
+                    abort();
+                }
+
+                if (hfunc == H_ORACLE) {
+                    char *filename = strchr(hnum, ':') + 1;
+                    
+                    if (!oracle_load_file(filename)) {
+                        writef(STDERR_FILENO, "blas2cuda:oracle: failed to load '%s':%m\n", filename);
+                        abort();
+                    }
                 }
             }
         } else {
@@ -124,50 +146,53 @@ void init_cublas(void) {
     }
 }
 
-void *b2c_copy_to_gpu(const void *devbuf, size_t size)
+void *b2c_copy_to_gpu(const void *hostbuf, size_t size)
 {
     void *gpubuf = NULL;
 
-
+    obj_tracker_internal_enter();
     cudaMalloc(&gpubuf, size);
 
-    if (!gpubuf)
+    if (!gpubuf) {
+        obj_tracker_internal_leave();
         return NULL;
+    }
 
-    cudaMemcpy(gpubuf, devbuf, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(gpubuf, hostbuf, size, cudaMemcpyHostToDevice);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : CPU ---> GPU\n", __func__, size);
 
+    obj_tracker_internal_leave();
     return gpubuf;
 }
 
 void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
 {
-    void *devbuf = NULL;
+    void *hostbuf = NULL;
 
-    devbuf = malloc(size);
+    hostbuf = internal_malloc(size);
 
-    if (devbuf == NULL)
-        return devbuf;
+    if (hostbuf == NULL)
+        return hostbuf;
 
-    cudaMemcpy(devbuf, gpubuf, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hostbuf, gpubuf, size, cudaMemcpyDeviceToHost);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
 
-    return devbuf;
+    return hostbuf;
 }
 
-void b2c_copy_from_gpu(void *cpubuf, const void *gpubuf, size_t size)
+void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
 {
-    cudaMemcpy(cpubuf, gpubuf, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hostbuf, gpubuf, size, cudaMemcpyDeviceToHost);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
 }
 
-void *b2c_place_on_gpu(void *cpubuf, 
+void *b2c_place_on_gpu(void *hostbuf, 
         size_t size,
         const struct objinfo **info_in,
         void *gpubuf2,
@@ -176,13 +201,14 @@ void *b2c_place_on_gpu(void *cpubuf,
     void *gpubuf;
     const struct objinfo *gpubuf2_info;
 
-    if (!cpubuf) {
+    if (!hostbuf) {
         cudaMalloc(&gpubuf, size);
-    } else if ((*info_in = obj_tracker_objinfo(cpubuf))) {
-        gpubuf = cpubuf;
+    } else if ((*info_in = obj_tracker_objinfo(hostbuf))) {
+        assert ((*info_in)->ptr == hostbuf);
+        gpubuf = hostbuf;
         hits++;
     } else {
-        gpubuf = b2c_copy_to_gpu(cpubuf, size);
+        gpubuf = b2c_copy_to_gpu(hostbuf, size);
         misses++;
     }
 
@@ -219,17 +245,22 @@ void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
 /* memory management */
 static void *alloc_managed(size_t request)
 {
+    cudaError_t err;
     void *ptr;
 
-    cudaMallocManaged(&ptr, sizeof(size_t) + request, cudaMemAttachGlobal);
-    if (cudaPeekAtLastError() != cudaSuccess) {
-        cudaError_t err = cudaGetLastError();
-        writef(STDERR_FILENO, "blas2cuda: %s @ %s, line %d: failed to allocate memory: %s - %s\n", 
-                __func__, __FILE__, __LINE__, cudaGetErrorName(err), cudaGetErrorString(err));
+    obj_tracker_internal_enter();
+    err = cudaMallocManaged(&ptr, sizeof(size_t) + request, cudaMemAttachGlobal);
+    if (err != cudaSuccess) {
+        writef(STDERR_FILENO, "blas2cuda: %s @ %s, line %d: failed to allocate %zu B: %s - %s\n", 
+                __func__, __FILE__, __LINE__, sizeof(size_t) + request, 
+                cudaGetErrorName(err), cudaGetErrorString(err));
+        obj_tracker_internal_leave();
         abort();
     }
 
+    total_managed_mem += sizeof(size_t) + request;
     *((size_t *)ptr) = request;
+    obj_tracker_internal_leave();
     return ptr + sizeof(size_t);
 }
 
@@ -252,6 +283,7 @@ static void *realloc_managed(void *managed_ptr, size_t request)
 }
 
 static void free_managed(void *managed_ptr) {
+    total_managed_mem -= sizeof(size_t) + get_size_managed(managed_ptr);
     cudaFree(managed_ptr - sizeof(size_t));
 }
 
@@ -273,9 +305,31 @@ void blas2cuda_init(void)
         writef(STDOUT_FILENO, "blas2cuda: initializing cuBLAS...\n");
         init_cublas();
         writef(STDOUT_FILENO, "blas2cuda: initialized cuBLAS\n");
+
+        /* get device properties */
+        int num_devices;
+        cudaGetDeviceCount(&num_devices);
+        for (int i=0; i < num_devices; i++) {
+            struct cudaDeviceProp prop;
+            cudaGetDeviceProperties(&prop, i);
+            writef(STDOUT_FILENO, "CUDA device #%d {\n", i+1);
+            writef(STDOUT_FILENO, "  name: %s\n", prop.name);
+            writef(STDOUT_FILENO, "  total global memory: %zu\n", prop.totalGlobalMem);
+            writef(STDOUT_FILENO, "  supports managed memory?: %s\n", prop.managedMemory ? "true" : "false");
+            writef(STDOUT_FILENO, "  concurrent managed access?: %s\n", prop.concurrentManagedAccess ? "true" : "false");
+            writef(STDOUT_FILENO, "}\n");
+
+            b2c_must_synchronize |= !prop.concurrentManagedAccess;
+        }
+
+        /* initialize object tracker */
         obj_tracker_init(false);
         set_options();
         obj_tracker_set_tracking(true);
+        /* add excluded regions */
+        if (obj_tracker_find_excluded_regions("libcuda", "nvidia", NULL) < 0)
+            writef(STDERR_FILENO, "blas2cuda: error while finding excluded regions: %m\n");
+
         writef(STDOUT_FILENO, "blas2cuda: initialized on thread %d\n", tid);
         b2c_initialized = true;
         inside = false;
@@ -295,12 +349,11 @@ void blas2cuda_fini(void)
             writef(STDERR_FILENO, "blas2cuda: failed to destroy. Not initialized\n");
 
         tid = syscall(SYS_gettid);
-        writef(STDOUT_FILENO, "blas2cuda: decommissioned on thread %d\n", tid);
         obj_tracker_fini();
         inside = false;
         b2c_initialized = false;
 
-        int fd = open("statistics.csv", O_RDWR | O_CREAT);
+        int fd = open("statistics.csv", O_RDWR | O_CREAT, 0644);
         if (fd > -1) {
             writef(fd, "Hits, Misses\n");
             writef(fd, "%zu, %zu", hits, misses);
@@ -308,5 +361,7 @@ void blas2cuda_fini(void)
         } else {
             writef(STDERR_FILENO, "blas2cuda: failed to write to statistics file: %s\n", strerror(errno));
         }
+
+        writef(STDOUT_FILENO, "blas2cuda: decommissioned on thread %d\n", tid);
     }
 }
