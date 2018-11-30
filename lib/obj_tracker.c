@@ -760,14 +760,7 @@ void *calloc(size_t nmemb, size_t size) {
     struct objmngr mngr;
     uint64_t nth = num_allocs;
 
-    if (!inside_internal && initialized)
-        nth = __sync_fetch_and_add(&num_allocs, 1);
-
     request = nmemb * size;
-    if (nmemb != 0 && request / nmemb != size) {
-        errno = ERANGE;
-        return NULL;
-    }
 
     if (inside || inside_internal || destroying || initializing || !tracking || !initialized
      || in_excluded_region(__builtin_return_address(0))) {
@@ -775,10 +768,14 @@ void *calloc(size_t nmemb, size_t size) {
             get_real_calloc();
         if (!real_calloc) {
             writef(STDOUT_FILENO, "calloc: returning NULL because real_calloc is undefined\n");
+            if (nmemb != 0 && request / nmemb != size)
+                errno = ERANGE;
             return NULL;
         }
         return real_calloc(nmemb, size);
     }
+
+    nth = __sync_fetch_and_add(&num_allocs, 1);
 
     if (!nmemb || !size)
         return real_calloc(nmemb, size);
