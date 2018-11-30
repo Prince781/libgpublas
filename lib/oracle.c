@@ -69,8 +69,5 @@ bool oracle_load_file(const char *filename) {
     oracle_trace_loaded = true;
     fclose(f);
 
-    for (size_t i = 0; i < ndecisions; ++i) {
-    }
-
     return true;
 }
