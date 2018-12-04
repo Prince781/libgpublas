@@ -42,6 +42,7 @@ struct obj_options objtracker_options = {
     .only_print_calls = false,
     .blas_libs = NULL,
     .num_blas = 0,
+    .debug_uninit = false
 };
 #endif
 
@@ -106,6 +107,16 @@ static inline void unlock(void) {
         abort();
     }
 }
+
+static void *debug_alloc(void *ptr, const char *info, bool init) {
+#if STANDALONE
+    if (objtracker_options.debug_uninit && !init)
+        writef(STDOUT_FILENO, "objtracker%s: %s = %p\n",
+                init ? "" : "(uninitialized)", info, ptr);
+#endif
+    return ptr;
+}
+
 
 /* allows us to temporarily disable tracking */
 #if STANDALONE
@@ -244,7 +255,8 @@ void obj_tracker_print_help(void) {
 	"   blas_libs          -- A comma(,)-separated list of libraries\n"
 	"                         to load, in the order specified. Use \n"
 	"                         this for libraries that are not linked\n"
-	"                         to their dependencies, like Intel MKL.\n");
+	"                         to their dependencies, like Intel MKL.\n"
+        "   debug_uninit       -- Debug calls before object tracker initialization.\n");
 }
 
 #if STANDALONE
@@ -275,6 +287,8 @@ static void obj_tracker_get_options(void) {
         } else if (strcmp(option, "only_print_calls") == 0) {
             objtracker_options.only_print_calls = true;
             writef(STDERR_FILENO, "object tracker: will only print calls\n");
+        } else if (strcmp(option, "debug_uninit") == 0) {
+            objtracker_options.debug_uninit = true;
         } else if (strncmp(option, "blas_libs=", 10) == 0) {
             char *blaslibs = strchr(option, '=');
             char *blas_lib = NULL;
@@ -714,7 +728,7 @@ void *malloc(size_t request) {
             writef(STDOUT_FILENO, "malloc: returning NULL because real_malloc is undefined\n");
             return NULL;
         }
-        return real_malloc(request);
+        return debug_alloc(real_malloc(request), "malloc", !(!initialized || initializing));
     }
 
     nth = __sync_fetch_and_add(&num_allocs, 1);
@@ -772,7 +786,7 @@ void *calloc(size_t nmemb, size_t size) {
                 errno = ERANGE;
             return NULL;
         }
-        return real_calloc(nmemb, size);
+        return debug_alloc(real_calloc(nmemb, size), "calloc", !(!initialized || initializing));
     }
 
     nth = __sync_fetch_and_add(&num_allocs, 1);
@@ -825,7 +839,7 @@ void *realloc(void *ptr, size_t size) {
             writef(STDOUT_FILENO,"realloc: returning NULL because real_realloc is undefined\n");
             return NULL;
         }
-        return real_realloc(ptr, size);
+        return debug_alloc(real_realloc(ptr, size), "realloc", !(!initialized || initializing));
     }
 
     if ((ptr_info = obj_tracker_objinfo(ptr))) {

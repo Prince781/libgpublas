@@ -39,7 +39,7 @@ cublasHandle_t b2c_handle;
 
 bool b2c_must_synchronize = false;
 
-struct options b2c_options = { false, false, false };
+struct b2c_options b2c_options = { false, false, false };
 
 void b2c_print_help(void) {
     writef(STDERR_FILENO, 

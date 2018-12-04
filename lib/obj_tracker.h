@@ -38,6 +38,12 @@ struct obj_options {
      * The number of BLAS libraries (max(0, size of list - 1)).
      */
     int num_blas;
+
+    /**
+     * Print calls to {c,m,re,...}alloc() before object tracker
+     * initialization.
+     */
+    bool debug_uninit;
 };
 
 extern struct obj_options objtracker_options;

@@ -51,13 +51,13 @@ do {\
         cudaDeviceSynchronize();\
 } while (0)
 
-struct options {
+struct b2c_options {
     bool debug_execfail;
     bool debug_exec;
     bool trace_copy;
 };
 
-extern struct options b2c_options;
+extern struct b2c_options b2c_options;
 extern cublasHandle_t b2c_handle;
 extern bool b2c_must_synchronize;
 

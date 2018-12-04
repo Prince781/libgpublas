@@ -19,9 +19,15 @@ if [ ! -e $LIBOBJTRACKER ]; then
     ninja -C $(dirname $LIBOBJTRACKER)
 fi
 
-echo "running: env OBJTRACKER_OPTIONS=\"blas_libs=$1\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
+options="blas_libs=$1;debug_uninit"
+ltrace_args="-n2 -SfCi -s64 -o $fname.ltrace"
 
-cat < <(env OBJTRACKER_OPTIONS="blas_libs=$1" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} | awk '/[CUT] #[0-9]+ \[0x[0-9a-f]+\] fun=\[\w+\] reqsize=\[[0-9a-f]+\]/{print $1,$2,$3,$4,$5,$6,$7,$8}' 2>stderr.txt) | tee $fname
+echo "running: ltrace $ltrace_args env OBJTRACKER_OPTIONS=\"$options\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
+
+cat < <(ltrace $ltrace_args env OBJTRACKER_OPTIONS="$options" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} 2>stderr.txt | awk '/[CUT] #[0-9]+ \[0x[0-9a-f]+\] fun=\[\w+\] reqsize=\[[0-9a-f]+\]/{print $1,$2,$3,$4,$5,$6,$7,$8}') | tee $fname
+
+sort -u stderr.txt > tmp
+mv tmp stderr.txt
 
 gzip -f $fname
 printf "Saved to $fname.gz\n"
