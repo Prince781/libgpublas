@@ -696,7 +696,7 @@ static void *delete_objinfo(void *node, struct objmngr *mngr)
     return result;
 }
 
-static void untrack_object(void *ptr, struct objmngr *mngr)
+static bool untrack_object(void *ptr, struct objmngr *mngr)
 {
     /* change this if objects_compare changes */
     struct objinfo searchobj = { .ptr = ptr };
@@ -711,6 +711,8 @@ static void untrack_object(void *ptr, struct objmngr *mngr)
         __sync_fetch_and_add(&num_objects, -1);
     }
     tracking = true;
+
+    return node != NULL;
 }
 
 void *malloc(size_t request) {
@@ -829,8 +831,17 @@ void *realloc(void *ptr, size_t size) {
     static __thread bool inside = false;
     void *new_ptr;
     const struct objinfo *ptr_info;
-    if (!size)
+    struct objmngr mngr;
+
+    ptr_info = obj_tracker_objinfo(ptr);
+
+    if (!size) {
+        if (untrack_object(ptr, &mngr)) {
+            assert(mngr.dtor != NULL);
+            mngr.dtor(ptr);
+        }
         return NULL;
+    }
 
     if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
         if (!real_realloc)
@@ -839,11 +850,15 @@ void *realloc(void *ptr, size_t size) {
             writef(STDOUT_FILENO,"realloc: returning NULL because real_realloc is undefined\n");
             return NULL;
         }
-        return debug_alloc(real_realloc(ptr, size), "realloc", !(!initialized || initializing));
+        new_ptr = real_realloc(ptr, size);
+        if (ptr_info)
+            untrack_object(ptr, &mngr);
+        return debug_alloc(new_ptr, "realloc", !(!initialized || initializing));
     }
 
-    if ((ptr_info = obj_tracker_objinfo(ptr))) {
+    if (ptr_info) {
         new_ptr = ptr_info->ci.mngr.realloc(ptr, size);
+        untrack_object(ptr, &mngr);
     } else
         new_ptr = real_realloc(ptr, size);
 
