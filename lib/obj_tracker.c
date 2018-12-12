@@ -598,7 +598,7 @@ static void *insert_objinfo(struct objinfo *oinfo)
     return node;
 }
 
-static void
+static bool
 track_object(void *ptr, 
              enum alloc_sym sym,
              struct objmngr *mngr, 
@@ -613,7 +613,7 @@ track_object(void *ptr,
     __attribute__((unused)) void *node;
 #endif
 
-    tracking = false;
+    obj_tracker_internal_enter();
 
     oinfo = real_malloc(sizeof(*oinfo));
     memcpy(&oinfo->ci.mngr, mngr, sizeof(*mngr));
@@ -631,7 +631,9 @@ track_object(void *ptr,
     obj_tracker_print_info(node ? OBJPRINT_TRACK : OBJPRINT_TRACK_FAIL, "", oinfo);
 #endif
 
-    tracking = true;
+    obj_tracker_internal_leave();
+
+    return node != NULL;
 }
 
 static void *find_objinfo(struct objinfo *o)
@@ -702,7 +704,7 @@ static bool untrack_object(void *ptr, struct objmngr *mngr)
     struct objinfo searchobj = { .ptr = ptr };
     void *node;
     
-    tracking = false;
+    obj_tracker_internal_enter();
 
     node = find_objinfo(&searchobj);
 
@@ -710,14 +712,15 @@ static bool untrack_object(void *ptr, struct objmngr *mngr)
         delete_objinfo(node, mngr);
         __sync_fetch_and_add(&num_objects, -1);
     }
-    tracking = true;
+
+    obj_tracker_internal_leave();
 
     return node != NULL;
 }
 
 void *malloc(size_t request) {
     static __thread bool inside = false;
-    void *ptr;
+    void *ptr = NULL;
     size_t actual_size;
     struct objmngr mngr;
     uint64_t nth = num_allocs;
@@ -760,7 +763,7 @@ void *malloc(size_t request) {
         ptr = mngr.ctor(request);
         actual_size = mngr.get_size(ptr);
         if (track)
-            track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size, nth);
+            assert(track_object(ptr, ALLOC_MALLOC, &mngr, request, actual_size, nth));
     } else
         ptr = real_malloc(request);
 
@@ -771,7 +774,7 @@ void *malloc(size_t request) {
 void *calloc(size_t nmemb, size_t size) {
     static __thread bool inside = false;
     size_t request;
-    void *ptr;
+    void *ptr = NULL;
     size_t actual_size;
     struct objmngr mngr;
     uint64_t nth = num_allocs;
@@ -819,9 +822,10 @@ void *calloc(size_t nmemb, size_t size) {
         ptr = mngr.cctor(nmemb, size);
         actual_size = mngr.get_size(ptr);
         if (track)
-            track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size, nth);
+            assert(track_object(ptr, ALLOC_CALLOC, &mngr, request, actual_size, nth));
     } else
         ptr = real_calloc(nmemb, size);
+
 
     inside = false;
     return ptr;
@@ -829,9 +833,10 @@ void *calloc(size_t nmemb, size_t size) {
 
 void *realloc(void *ptr, size_t size) {
     static __thread bool inside = false;
-    void *new_ptr;
+    void *new_ptr = NULL;
     const struct objinfo *ptr_info;
     struct objmngr mngr;
+    uint64_t nth = num_allocs;
 
     ptr_info = obj_tracker_objinfo(ptr);
 
@@ -842,6 +847,7 @@ void *realloc(void *ptr, size_t size) {
         }
         return NULL;
     }
+
 
     if (inside || inside_internal || destroying || initializing || !tracking || !initialized) {
         if (!real_realloc)
@@ -856,9 +862,14 @@ void *realloc(void *ptr, size_t size) {
         return debug_alloc(new_ptr, "realloc", !(!initialized || initializing));
     }
 
+    nth = __sync_fetch_and_add(&num_allocs, 1);
+
     if (ptr_info) {
+	size_t actual_size;
         new_ptr = ptr_info->ci.mngr.realloc(ptr, size);
+	actual_size = ptr_info->ci.mngr.get_size(new_ptr);
         untrack_object(ptr, &mngr);
+	track_object(new_ptr, ALLOC_REALLOC, &mngr, size, actual_size, nth);
     } else
         new_ptr = real_realloc(ptr, size);
 

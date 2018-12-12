@@ -64,6 +64,7 @@ extern enum heuristic hfunc;
 enum alloc_sym {
     ALLOC_MALLOC,
     ALLOC_CALLOC,
+    ALLOC_REALLOC,
     N_ALLOC_SYMS,
     ALLOC_UNKNWN
 };
@@ -74,6 +75,8 @@ static inline const char *alloc_sym_tostr(enum alloc_sym sym) {
             return "malloc";
         case ALLOC_CALLOC:
             return "calloc";
+	case ALLOC_REALLOC:
+	    return "realloc";
         default:
             return "??";
     }
