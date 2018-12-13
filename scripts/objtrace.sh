@@ -24,7 +24,7 @@ ltrace_args="-n2 -SfCi -s64 -o $fname.ltrace"
 
 echo "running: ltrace $ltrace_args env OBJTRACKER_OPTIONS=\"$options\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
 
-cat < <(ltrace $ltrace_args env OBJTRACKER_OPTIONS="$options" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} 2>stderr.txt | awk '/[CUT] #[0-9]+ \[0x[0-9a-f]+\] fun=\[\w+\] reqsize=\[[0-9a-f]+\]/{print $1,$2,$3,$4,$5,$6,$7,$8}') | tee $fname
+cat < <(ltrace $ltrace_args env OBJTRACKER_OPTIONS="$options" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} 2>stderr.txt | grep -E '[CUT] #[0-9]+') | tee $fname
 
 sort -u stderr.txt > tmp
 mv tmp stderr.txt
