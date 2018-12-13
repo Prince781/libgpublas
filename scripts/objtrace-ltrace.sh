@@ -20,10 +20,11 @@ if [ ! -e $LIBOBJTRACKER ]; then
 fi
 
 options="blas_libs=$1;debug_uninit"
+ltrace_args="-n2 -SfCi -s64 -o $fname.ltrace"
 
-echo "running: env OBJTRACKER_OPTIONS=\"$options\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
+echo "running: ltrace $ltrace_args env OBJTRACKER_OPTIONS=\"$options\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
 
-cat < <(env OBJTRACKER_OPTIONS="$options" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} 2>stderr.txt | grep -E '[CUT] #[0-9]+') | tee $fname
+cat < <(ltrace $ltrace_args env OBJTRACKER_OPTIONS="$options" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3} 2>stderr.txt | grep -E '[CUT] #[0-9]+') | tee $fname
 
 sort -u stderr.txt > tmp
 mv tmp stderr.txt
