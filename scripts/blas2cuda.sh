@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # blas2cuda.sh
 # preload libblas2cuda.so and run with a tracker file
 
