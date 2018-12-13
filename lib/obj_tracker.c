@@ -443,7 +443,7 @@ void obj_tracker_print_info(enum objprint_type type, const char *fname, const st
             c = 'C';
             break;
         default:
-            c = '?';
+            assert(false);
             break;
     }
 
@@ -455,8 +455,11 @@ void obj_tracker_print_info(enum objprint_type type, const char *fname, const st
             case ALLOC_CALLOC:
                 fun_name = "calloc";
                 break;
+            case ALLOC_REALLOC:
+                fun_name = "realloc";
+                break;
             default:
-                fun_name = "??";
+                assert(false);
                 break;
         }
     } else if (type == OBJPRINT_UNTRACK)
