@@ -10,7 +10,7 @@ void _cblas_scal (const int n,
             V *, int))
 {
     V *gpu_x;
-    const int size_x = size(1, n-1, incx, sizeof(*x));
+    const int size_x = b2c_size(1, n-1, incx, sizeof(*x));
     const struct objinfo *x_info;
 
     gpu_x = (V *) b2c_place_on_gpu((void *) x, size_x, &x_info, NULL);

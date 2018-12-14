@@ -7,7 +7,7 @@ import re
 
 dfs = []
 
-m = {'results-atlas': 'ATLAS', 'results-b2c-false': 'blas2cuda ($h(q,r)=0$)', 'results-b2c-random': 'blas2cuda ($h(q,r)=P(X > 0.5)$)'}
+m = {'results-atlas': 'ATLAS', 'results-b2c-false': 'gpublas ($h(q,r)=0$)', 'results-b2c-random': 'gpublas ($h(q,r)=P(X > 0.5)$)'}
 
 tar = tarfile.open("results.tar.gz", "r:gz")
 for member in tar.getmembers():

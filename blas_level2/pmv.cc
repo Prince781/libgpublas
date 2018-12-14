@@ -20,9 +20,9 @@ static void _cblas_hpmv(const CBLAS_LAYOUT Layout,
     const cublasFillMode_t fillmode = cu(uplo);
     const T *gpu_a, *gpu_x;
     T *gpu_y;
-    const int size_a = size(0, n, n+1, sizeof(*a))/2;
-    const int size_x = size(1, n-1, incx, sizeof(*x));
-    const int size_y = size(1, n-1, incy, sizeof(*y));
+    const int size_a = b2c_size(0, n, n+1, sizeof(*a))/2;
+    const int size_x = b2c_size(1, n-1, incx, sizeof(*x));
+    const int size_y = b2c_size(1, n-1, incy, sizeof(*y));
     const struct objinfo *x_info, *y_info, *a_info;
     int rows_a, cols_a;
 

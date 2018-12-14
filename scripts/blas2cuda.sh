@@ -1,11 +1,11 @@
 #!/bin/sh
-# blas2cuda.sh
-# preload libblas2cuda.so and run with a tracker file
+# gpublas.sh
+# preload libgpublas.so and run with a tracker file
 
 pardir=$(dirname $(readlink -f $0))
 heuristic=$1
 progname=$2
-BLAS2CUDA=$pardir/../build/libblas2cuda.so
+gpublas=$pardir/../build/libgpublas.so
 optirun=
 
 if [ -z $heuristic ] || [ -z $progname ]; then
@@ -13,9 +13,9 @@ if [ -z $heuristic ] || [ -z $progname ]; then
     exit 1
 fi
 
-if [ ! -e $BLAS2CUDA ]; then
-    meson $(dirname $BLAS2CUDA)
-    if ! ninja -C $(dirname $BLAS2CUDA); then
+if [ ! -e $gpublas ]; then
+    meson $(dirname $gpublas)
+    if ! ninja -C $(dirname $gpublas); then
         exit 1
     fi
 fi
@@ -24,4 +24,4 @@ if [ -e /bin/optirun ]; then
     optirun=/bin/optirun
 fi
 
-$optirun env LD_PRELOAD=$BLAS2CUDA BLAS2CUDA_OPTIONS="heuristic=$heuristic" $progname ${@:3}
+$optirun env LD_PRELOAD=$gpublas GPUBLAS_OPTIONS="heuristic=$heuristic" $progname ${@:3}

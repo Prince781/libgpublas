@@ -21,9 +21,9 @@ void _cblas_hemv (const CBLAS_LAYOUT Layout,
 {
     const T *gpu_a, *gpu_x;
     T *gpu_y;
-    const int size_a = size(0, n, lda, sizeof(*a));
-    const int size_x = size(1, n-1, incx, sizeof(*x));
-    const int size_y = size(1, n-1, incy, sizeof(*y));
+    const int size_a = b2c_size(0, n, lda, sizeof(*a));
+    const int size_x = b2c_size(1, n-1, incx, sizeof(*x));
+    const int size_y = b2c_size(1, n-1, incy, sizeof(*y));
     const struct objinfo *a_info, *x_info, *y_info;
     int rows_a, cols_a;
     const cublasFillMode_t fillmode = cu(uplo);

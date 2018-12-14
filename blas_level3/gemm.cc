@@ -6,10 +6,10 @@ static inline int compute_size(const CBLAS_LAYOUT Layout, const CBLAS_TRANSPOSE 
 {
     if ((Layout == CblasColMajor && transa == CblasNoTrans)
             || (Layout == CblasRowMajor && (transa == CblasTrans || transa == CblasConjTrans))) {
-        return size(0, lda, dim1, sizeof(*a));
+        return b2c_size(0, lda, dim1, sizeof(*a));
     }
 
-    return size(0, lda, dim2, sizeof(*a));
+    return b2c_size(0, lda, dim2, sizeof(*a));
 }
 
 template <typename T>
@@ -45,8 +45,8 @@ void _cblas_gemm(const CBLAS_LAYOUT Layout,
     size_a = compute_size(Layout, transa, a, lda, k, m);
     size_b = compute_size(Layout, transb, b, lda, k, n);
     size_c = (Layout == CblasColMajor) ?
-        size(0, ldc, n, sizeof(*c)) :
-        size(0, ldc, m, sizeof(*c));
+        b2c_size(0, ldc, n, sizeof(*c)) :
+        b2c_size(0, ldc, m, sizeof(*c));
 
     if (Layout == CblasRowMajor) {
         a_info = NULL;

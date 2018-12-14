@@ -47,7 +47,7 @@ struct obj_options objtracker_options = {
 #endif
 
 #ifndef STANDALONE
-extern struct objmngr blas2cuda_manager;
+extern struct objmngr gpublas_manager;
 
 enum heuristic hfunc = H_RANDOM;
 #endif
@@ -751,7 +751,7 @@ void *malloc(size_t request) {
         mngr = glibc_manager;
 #else
         if ((track = obj_tracker_should_alloc_managed_ptr(true, num_allocs, request))) {
-            mngr = blas2cuda_manager;
+            mngr = gpublas_manager;
         } else {
             mngr = glibc_manager;
         }
@@ -810,7 +810,7 @@ void *calloc(size_t nmemb, size_t size) {
         mngr = glibc_manager;
 #else
         if ((track = obj_tracker_should_alloc_managed_ptr(false, num_allocs, request))) {
-            mngr = blas2cuda_manager;
+            mngr = gpublas_manager;
         } else {
             mngr = glibc_manager;
         }

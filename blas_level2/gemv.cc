@@ -21,9 +21,9 @@ void _cblas_gemv (const CBLAS_LAYOUT Layout,
 {
     const T *gpu_A, *gpu_x;
     T *gpu_y;
-    const int size_A = size(0, n, lda, sizeof(*A));
-    const int size_x = size(1, (trans == CblasNoTrans ? n : m) - 1, incx, sizeof(*x));
-    const int size_y = size(1, (trans == CblasNoTrans ? n : m) - 1, incy, sizeof(*y));
+    const int size_A = b2c_size(0, n, lda, sizeof(*A));
+    const int size_x = b2c_size(1, (trans == CblasNoTrans ? n : m) - 1, incx, sizeof(*x));
+    const int size_y = b2c_size(1, (trans == CblasNoTrans ? n : m) - 1, incy, sizeof(*y));
     const struct objinfo *A_info, *x_info, *y_info;
     int rows_A, cols_A;
     cublasOperation_t op = cu(trans);

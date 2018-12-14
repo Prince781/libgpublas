@@ -38,30 +38,30 @@ void _cblas_symm(const CBLAS_LAYOUT Layout,
 
         rows_a = lda;
         cols_a = (side == CblasLeft) ? m : n;
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
+        size_a = b2c_size(0, rows_a, cols_a, sizeof(*a));
         gpu_a = transpose(a, size_a, &rows_a, &cols_a, lda, geam_func);
 
         rows_b = lda;
         cols_b = m;
-        size_b = size(0, rows_b, cols_b, sizeof(*b));
+        size_b = b2c_size(0, rows_b, cols_b, sizeof(*b));
         gpu_b = transpose(b, size_b, &rows_b, &cols_b, ldb, geam_func);
 
         rows_c = m;
         cols_c = n;
-        size_c = size(0, rows_c, cols_c, sizeof(*c));
+        size_c = b2c_size(0, rows_c, cols_c, sizeof(*c));
         gpu_c = transpose(c, size_c, &rows_c, &cols_c, ldc, geam_func);
     } else {
         cols_a = lda;
         rows_a = (side == CblasLeft) ? m : n;
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
+        size_a = b2c_size(0, rows_a, cols_a, sizeof(*a));
 
         cols_b = ldb;
         rows_b = (side == CblasLeft) ? m : n;
-        size_b = size(0, rows_b, cols_b, sizeof(*b));
+        size_b = b2c_size(0, rows_b, cols_b, sizeof(*b));
 
         cols_c = m;
         rows_c = n;
-        size_c = size(0, rows_c, cols_c, sizeof(*c));
+        size_c = b2c_size(0, rows_c, cols_c, sizeof(*c));
 
         gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
         gpu_b = (T *) b2c_place_on_gpu((void *) b, size_b, &b_info, 

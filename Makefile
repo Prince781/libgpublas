@@ -15,11 +15,11 @@ CFLAGS += $(COMPFLAGS) -std=gnu11 -fdump-rtl-expand
 CXXFLAGS += $(COMPFLAGS) -std=gnu++11 -fdump-rtl-expand
 NVCFLAGS=$(subst $(space),$(comma),$(CFLAGS))
 NVCXXFLAGS=$(subst $(space),$(comma),$(CXXFLAGS))
-LDFLAGS += -shared -L$(CUDA)/lib64 -lcublas -L$(LIBDIR) -ldl -lpthread -init blas2cuda_init -fini blas2cuda_fini
+LDFLAGS += -shared -L$(CUDA)/lib64 -lcublas -L$(LIBDIR) -ldl -lpthread -init gpublas_init -fini gpublas_fini
 NVLDFLAGS=$(subst $(space),$(comma),$(LDFLAGS))
 INCLUDES=#$(wildcard *.h)
 
-libblas2cuda.so: $(NVSOURCES:%.cu=$(OBJDIR)/%.o) $(CSOURCES:%.c=$(OBJDIR)/%.o) $(CXXSOURCES:%.cc=$(OBJDIR)/%.o)
+libgpublas.so: $(NVSOURCES:%.cu=$(OBJDIR)/%.o) $(CSOURCES:%.c=$(OBJDIR)/%.o) $(CXXSOURCES:%.cc=$(OBJDIR)/%.o)
 	$(NVCC) -shared -Xcompiler $(NVCXXFLAGS) -Xlinker $(NVLDFLAGS) $^ -o $@
 
 $(OBJDIR)/%.o: %.c $(INCLUDES) Makefile
@@ -44,5 +44,5 @@ tests:
 
 clean:
 	rm -rf $(OBJDIR)
-	rm -f libblas2cuda.so
+	rm -f libgpublas.so
 	@#@$(MAKE) -C $(LIBDIR) clean

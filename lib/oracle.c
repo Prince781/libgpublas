@@ -15,7 +15,7 @@ bool oracle_should_alloc_managed_ptr(bool is_malloc,
                                      uint64_t nth_alloc,
                                      size_t obj_size) {
     if (!oracle_trace_loaded) {
-        writef(STDERR_FILENO, "blas2cuda:oracle: please load a file\n");
+        writef(STDERR_FILENO, "gpublas:oracle: please load a file\n");
         abort();
     }
 

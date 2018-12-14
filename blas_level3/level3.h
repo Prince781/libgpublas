@@ -1,7 +1,7 @@
-#ifndef BLAS2CUDA_LEVEL3_H
-#define BLAS2CUDA_LEVEL3_H
+#ifndef gpublas_LEVEL3_H
+#define gpublas_LEVEL3_H
 #include <complex.h>
-#include "../blas2cuda.h"
+#include "../gpublas.h"
 #include "../cblas.h"
 #include "../conversions.h"
 

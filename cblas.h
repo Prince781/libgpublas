@@ -5,7 +5,7 @@
 
 #define IDX2F(i,j,ld) ((((j)-1)*(ld))+((i)-1))
 
-#define size(amt, n,stride,sz) (((amt) + (n) * abs(stride)) * (sz))
+#define b2c_size(amt, n,stride,sz) (((amt) + (n) * abs(stride)) * (sz))
 
 /* taken from cblas.h */
 

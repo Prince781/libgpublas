@@ -1,11 +1,11 @@
 #!/bin/sh
-# blas2cuda.sh
-# preload libblas2cuda.so and run with a tracker file
+# gpublas.sh
+# preload libgpublas.so and run with a tracker file
 
 pardir=$(dirname $(readlink -f $0))
 trackfile=$1
 progname=$2
-BLAS2CUDA=$pardir/../libblas2cuda.so
+gpublas=$pardir/../libgpublas.so
 optirun=
 
 if [ -z $trackfile ] || [ -z $progname ]; then
@@ -13,8 +13,8 @@ if [ -z $trackfile ] || [ -z $progname ]; then
     exit 1
 fi
 
-if [ ! -e $BLAS2CUDA ]; then
-    if ! make -C $(dirname $BLAS2CUDA); then
+if [ ! -e $gpublas ]; then
+    if ! make -C $(dirname $gpublas); then
         exit 1
     fi
 fi
@@ -23,4 +23,4 @@ if [ -e /bin/optirun ]; then
     optirun=/bin/optirun
 fi
 
-$optirun env LD_PRELOAD=$BLAS2CUDA BLAS2CUDA_OPTIONS="track=$trackfile" nvprof $progname ${@:3}
+$optirun env LD_PRELOAD=$gpublas GPUBLAS_OPTIONS="track=$trackfile" nvprof $progname ${@:3}

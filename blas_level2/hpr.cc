@@ -17,8 +17,8 @@ static void _cblas_hpr(const CBLAS_LAYOUT Layout,
 {
     T *gpu_a;
     const T *gpu_x;
-    const int size_a = size(0, n, n+1, sizeof(*a))/2;
-    const int size_x = size(1, n-1, incx, sizeof(*x));
+    const int size_a = b2c_size(0, n, n+1, sizeof(*a))/2;
+    const int size_x = b2c_size(1, n-1, incx, sizeof(*x));
     const struct objinfo *a_info, *x_info;
     int rows_a, cols_a;
     const cublasFillMode_t fillmode = cu(uplo);

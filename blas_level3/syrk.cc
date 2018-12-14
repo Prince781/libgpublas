@@ -48,8 +48,8 @@ void _cblas_syrk(const CBLAS_LAYOUT Layout,
     }
 
 
-    size_a = size(0, rows_a, cols_a, sizeof(*a));
-    size_c = size(0, rows_c, cols_c, sizeof(*c));
+    size_a = b2c_size(0, rows_a, cols_a, sizeof(*a));
+    size_c = b2c_size(0, rows_c, cols_c, sizeof(*c));
 
     if (Layout == CblasRowMajor) {
         a_info = NULL;

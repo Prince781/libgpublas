@@ -11,8 +11,8 @@ static void _cblas_rot (const int n,
             const T2 *, const T2 *))
 {
     T *gpu_x, *gpu_y;
-    const int size_x = size(1, n-1, incx, sizeof(*x));
-    const int size_y = size(1, n-1, incy, sizeof(*y));
+    const int size_x = b2c_size(1, n-1, incx, sizeof(*x));
+    const int size_y = b2c_size(1, n-1, incy, sizeof(*y));
     const struct objinfo *x_info, *y_info;
 
     gpu_x = (T *) b2c_place_on_gpu((void *) x, size_x, &x_info, NULL);

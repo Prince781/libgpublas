@@ -32,19 +32,19 @@ void _cblas_herk(const CBLAS_LAYOUT Layout,
         a_info = NULL;
         c_info = NULL;
 
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
+        size_a = b2c_size(0, rows_a, cols_a, sizeof(*a));
         gpu_a = transpose(a, size_a, &rows_a, &cols_a, lda, geam_func);
 
         rows_c = ldc;
         cols_c = n;
-        size_c = size(0, rows_c, cols_c, sizeof(*c));
+        size_c = b2c_size(0, rows_c, cols_c, sizeof(*c));
         gpu_c = transpose(c, size_c, &rows_c, &cols_c, ldc, geam_func);
     } else {
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
+        size_a = b2c_size(0, rows_a, cols_a, sizeof(*a));
         
         rows_c = ldc;
         cols_c = n;
-        size_c = size(0, rows_c, cols_c, sizeof(*c));
+        size_c = b2c_size(0, rows_c, cols_c, sizeof(*c));
 
         gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
         gpu_c = (T *) b2c_place_on_gpu((void *) c, size_c, &c_info, 
