@@ -24,7 +24,7 @@ static struct hsearch_data *fptrs_table;
 static void print_objtrack_info_real(const char *fname, const void *ptr) {
     const struct objinfo *info;
 
-    if ((info = obj_tracker_objinfo((void *) ptr))) {
+    if ((info = obj_tracker_objinfo_subptr((void *) ptr))) {
         obj_tracker_print_info(OBJPRINT_CALL, fname, info);
     } else
         writef(STDERR_FILENO, "no objinfo for %p\n", ptr);

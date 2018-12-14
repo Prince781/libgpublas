@@ -35,7 +35,7 @@
 
 #include "oracle.h"
 
-static void *find_objinfo(struct objinfo *o);
+static void *find_objinfo(struct objinfo *o, int (*comparator)(const void *, const void *));
 
 #if STANDALONE
 struct obj_options objtracker_options = {
@@ -294,7 +294,7 @@ static void obj_tracker_get_options(void) {
             char *blas_lib = NULL;
             char *saveptr_bs = NULL;
             int size = 1;
-            char **array = real_calloc(size, sizeof(*array));
+            char **array = internal_calloc(size, sizeof(*array));
             int n = 0;
             if (blaslibs) {
                 blaslibs++;
@@ -302,13 +302,13 @@ static void obj_tracker_get_options(void) {
                 while (blas_lib != NULL) {
                     if (n >= size) {
                         size *= 2;
-                        array = real_realloc(array, sizeof(*array) * size);
+                        array = internal_realloc(array, sizeof(*array) * size);
                     }
                     array[n] = strdup(blas_lib);
                     ++n;
                     blas_lib = strtok_r(NULL, ",", &saveptr_bs);
                 }
-                array = real_realloc(array, sizeof(*array) * n);
+                array = internal_realloc(array, sizeof(*array) * n);
                 objtracker_options.blas_libs = array;
                 objtracker_options.num_blas = n;
             } else
@@ -523,48 +523,35 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr)
     return 0;
 }
 
-const struct objinfo *
-obj_tracker_objinfo(void *ptr)
-{
-    struct objinfo fake_objinfo = { .ptr = ptr };
-    void *node = find_objinfo(&fake_objinfo);
-
-    if (!node)
-        return NULL;
-
-    return *(struct objinfo **)node;
-}
-
-#if STANDALONE
-__attribute__((destructor))
-#endif
-void obj_tracker_fini(void) {
-    pid_t tid;
-    if (initialized && !destroying) {
-        destroying = true;
-
-        if (pthread_rwlock_destroy(&rwlock) < 0) {
-            writef(STDERR_FILENO, "objtracker: Failed to destroy rwlock: %s", strerror(errno));
-            abort();
-        }
-
-        tdestroy(objects, real_free);
-        objects = NULL;
-
-#if STANDALONE
-        blas_tracker_fini();
-#endif
-        tid = syscall(SYS_gettid);
-        if (num_objects > 0)
-            writef(STDERR_FILENO, "objtracker: warning, there are still %zu object(s) being tracked!\n", num_objects);
-        writef(STDERR_FILENO, "objtracker: decommissioned on thread %d\n", tid);
-        initialized = false;
-        destroying = false;
-    }
-}
-
+/**
+ * Checks for exact equality.
+ */
 static int objects_compare(const void *o1, const void *o2) {
     return ((const struct objinfo *)o1)->ptr - ((const struct objinfo *)o2)->ptr;
+}
+
+/**
+ * Checks whether objects are contained within each other.
+ */
+static int objects_compare_subset(const void *o1, const void *o2) {
+    const struct objinfo *oi1 = o1;
+    const struct objinfo *oi2 = o2;
+    ptrdiff_t distance = oi2->ptr - oi1->ptr;
+
+    if (oi1->parent && !oi2->parent)
+        return objects_compare_subset(oi1->parent, oi2);
+
+    if (!oi1->parent && oi2->parent)
+        return objects_compare_subset(oi1, oi2->parent);
+
+    if (oi1->parent && oi2->parent)
+        return objects_compare_subset(oi1->parent, oi2->parent);
+
+    if ((distance >= 0 && distance <= (ssize_t) oi1->size)
+     || (distance <= 0 && -distance <= (ssize_t) oi2->size))
+        return 0;
+
+    return objects_compare(o1, o2);
 }
 
 static void *insert_objinfo(struct objinfo *oinfo)
@@ -601,6 +588,83 @@ static void *insert_objinfo(struct objinfo *oinfo)
     return node;
 }
 
+const struct objinfo *obj_tracker_objinfo(void *ptr)
+{
+    struct objinfo fake_objinfo = { .ptr = ptr };
+    void *node = find_objinfo(&fake_objinfo, &objects_compare);
+
+    if (!node)
+        return NULL;
+
+    return *(struct objinfo **)node;
+}
+
+const struct objinfo *obj_tracker_objinfo_subptr(void *ptr)
+{
+    const struct objinfo *info = NULL;
+
+    if ((info = obj_tracker_objinfo(ptr)))
+        return info;
+
+    struct objinfo query = { .ptr = ptr, .size = 0 };
+    void *node = find_objinfo(&query, &objects_compare_subset);
+    struct objinfo *result;
+
+    if (!node)
+        return NULL;
+
+    result = *(struct objinfo **)node;
+    if (result->ptr == ptr)
+        return result;
+
+    if (result->parent)
+        result = result->parent;
+
+    /* result is a parent */
+    struct objinfo *oinfo = internal_calloc(1, sizeof *oinfo);
+    oinfo->ptr = ptr;
+    oinfo->size = 0;
+    oinfo->nth_alloc = result->nth_alloc;
+    oinfo->uid = result->uid;
+    oinfo->time = result->time;
+    oinfo->ci.alloc = result->ci.alloc;
+    oinfo->parent = result;
+
+    if (!(node = insert_objinfo(oinfo)))
+        return NULL;
+
+    return *(struct objinfo **)node;
+}
+
+#if STANDALONE
+__attribute__((destructor))
+#endif
+void obj_tracker_fini(void) {
+    pid_t tid;
+    if (initialized && !destroying) {
+        destroying = true;
+
+        if (pthread_rwlock_destroy(&rwlock) < 0) {
+            writef(STDERR_FILENO, "objtracker: Failed to destroy rwlock: %s", strerror(errno));
+            abort();
+        }
+
+        tdestroy(objects, real_free);
+        objects = NULL;
+
+#if STANDALONE
+        blas_tracker_fini();
+#endif
+        tid = syscall(SYS_gettid);
+        if (num_objects > 0)
+            writef(STDERR_FILENO, "objtracker: warning, there are still %zu object(s) being tracked!\n", num_objects);
+        writef(STDERR_FILENO, "objtracker: decommissioned on thread %d\n", tid);
+        initialized = false;
+        destroying = false;
+    }
+}
+
+
 static bool
 track_object(void *ptr, 
              enum alloc_sym sym,
@@ -618,7 +682,7 @@ track_object(void *ptr,
 
     obj_tracker_internal_enter();
 
-    oinfo = real_malloc(sizeof(*oinfo));
+    oinfo = real_calloc(1, sizeof(*oinfo));
     memcpy(&oinfo->ci.mngr, mngr, sizeof(*mngr));
     oinfo->ci.alloc = sym;
     oinfo->ci.reqsize = request;
@@ -627,6 +691,7 @@ track_object(void *ptr,
     clock_gettime(CLOCK_MONOTONIC_RAW, &oinfo->time);
     oinfo->uid = __sync_fetch_and_add(&next_uid, 1);
     oinfo->nth_alloc = nth_alloc;
+    oinfo->children = 0;
 
     node = insert_objinfo(oinfo);
 
@@ -639,7 +704,7 @@ track_object(void *ptr,
     return node != NULL;
 }
 
-static void *find_objinfo(struct objinfo *o)
+static void *find_objinfo(struct objinfo *o, int (*comparator)(const void *, const void *))
 {
     void *node;
 
@@ -650,7 +715,7 @@ static void *find_objinfo(struct objinfo *o)
         grabbed_reader_lock = true;
     }
 
-    node = tfind(o, &objects, objects_compare);
+    node = tfind(o, &objects, comparator);
 
     if (!grabbed_writer_lock) {
         unlock();
@@ -709,7 +774,7 @@ static bool untrack_object(void *ptr, struct objmngr *mngr)
     
     obj_tracker_internal_enter();
 
-    node = find_objinfo(&searchobj);
+    node = find_objinfo(&searchobj, &objects_compare);
 
     if (node) {
         delete_objinfo(node, mngr);

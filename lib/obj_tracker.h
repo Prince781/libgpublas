@@ -101,11 +101,17 @@ struct alloc_callinfo {
  */
 struct objinfo {
     struct alloc_callinfo ci;
-    size_t size;            /* size of the actual memory object */
+    /**
+     * Size of the actual memory object. If 0, then this
+     * is not a true object (wasn't allocated).
+     */
+    size_t size;
     void *ptr;              /* location of object */
     struct timespec time;   /* when this object was created */
     uint64_t uid;           /* unique ID of this object */
     uint64_t nth_alloc;     /* the nth call to malloc()/calloc() */
+    uint64_t children;      /* number of children */
+    struct objinfo *parent; /* only if size == 0 */
 };
 
 enum objprint_type {
@@ -148,8 +154,16 @@ int obj_tracker_load(const char *filename, struct objmngr *mngr);
  * If this pointer is managed by the object tracking system,
  * return the information about it. Otherwise, return NULL.
  */
-const struct objinfo *
-obj_tracker_objinfo(void *ptr);
+const struct objinfo *obj_tracker_objinfo(void *ptr);
+
+/**
+ * If this pointer is managed by the object tracking system,
+ * the behavior is the same as obj_tracker_objinfo.
+ * If this pointer is contained within an object managed by
+ * the object tracking system, a new definition is created
+ * and returned. Otherwise, return NULL.
+ */
+const struct objinfo *obj_tracker_objinfo_subptr(void *ptr);
 
 /**
  * Decommission the object tracker.

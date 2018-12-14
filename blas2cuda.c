@@ -176,20 +176,24 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
     if (hostbuf == NULL)
         return hostbuf;
 
+    obj_tracker_internal_enter();
     cudaMemcpy(hostbuf, gpubuf, size, cudaMemcpyDeviceToHost);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
 
+    obj_tracker_internal_leave();
     return hostbuf;
 }
 
 void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
 {
+    obj_tracker_internal_enter();
     cudaMemcpy(hostbuf, gpubuf, size, cudaMemcpyDeviceToHost);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
+    obj_tracker_internal_leave();
 }
 
 void *b2c_place_on_gpu(void *hostbuf, 
@@ -201,9 +205,10 @@ void *b2c_place_on_gpu(void *hostbuf,
     void *gpubuf;
     const struct objinfo *gpubuf2_info;
 
+    obj_tracker_internal_enter();
     if (!hostbuf) {
         cudaMalloc(&gpubuf, size);
-    } else if ((*info_in = obj_tracker_objinfo(hostbuf))) {
+    } else if ((*info_in = obj_tracker_objinfo_subptr(hostbuf))) {
         assert ((*info_in)->ptr == hostbuf);
         gpubuf = hostbuf;
         hits++;
@@ -227,18 +232,22 @@ void *b2c_place_on_gpu(void *hostbuf,
 
         va_end(ap);
 
+        obj_tracker_internal_leave();
         writef(STDERR_FILENO, "blas2cuda: %s: failed to copy to GPU\n", __func__);
         b2c_fatal_error(err, __func__);
         return NULL;
     }
 
+    obj_tracker_internal_leave();
     return gpubuf;
 }
 
 void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
 {
+    obj_tracker_internal_enter();
     if (!info)
         cudaFree(gpubuf);
+    obj_tracker_internal_leave();
 }
 
 
