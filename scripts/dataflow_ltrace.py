@@ -1,4 +1,4 @@
-#!/bin/env python3
+#!/usr/bin/env python3
 # This script produces a graph of the data flow among functions in an ltrace output
 
 import sys
