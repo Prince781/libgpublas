@@ -53,9 +53,9 @@ int main(int argc, char *argv[]) {
     platformIds = calloc(platformIdCount, sizeof *platformIds);
     clGetPlatformIDs(platformIdCount, platformIds, NULL);
 
-    clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_ALL, 0, NULL, &deviceIdCount);
+    clGetDeviceIDs(platformIds[platformIdCount - 1], CL_DEVICE_TYPE_ALL, 0, NULL, &deviceIdCount);
     deviceIds = calloc(deviceIdCount, sizeof *deviceIds);
-    clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_ALL, deviceIdCount, deviceIds, NULL);
+    clGetDeviceIDs(platformIds[platformIdCount - 1], CL_DEVICE_TYPE_ALL, deviceIdCount, deviceIds, NULL);
 
     for (cl_uint i = 0; i < platformIdCount; ++i) {
         char platform_name[1024];
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
     // create an OpenCL context
     cl_context_properties contextProperties[] = {
         CL_CONTEXT_PLATFORM,
-        (cl_context_properties) platformIds[0],
+        (cl_context_properties) platformIds[platformIdCount - 1],
         0
     };
 
@@ -161,8 +161,8 @@ int main(int argc, char *argv[]) {
     }
 
     for (size_t i=0; i < sz / sizeof(*svm_A); ++i) {
-        svm_A[i] = ((i+1)%4) * ((i*100)%37) - (i%3)*(i%19);
-        svm_B[i] = ((i+1)%3) * ((i*100)%41) - (i%2)*(i%21);
+        svm_A[i] = (((i+1)%4) * ((i*100)%37) - (i%3)*(i%19))% 100;
+        svm_B[i] = (((i+1)%3) * ((i*100)%41) - (i%2)*(i%21)) % 100;
         svm_C[i] = 0;
     }
 
