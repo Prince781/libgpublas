@@ -100,8 +100,9 @@ if libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found()
   c_args += '-DUSE_CUDA'
 else
   #use OpenCL
-  libclblas_dep = cc.find_library('clBLAS')
-  gpu_libs = [libclblas_dep]
+  libclblast_dep = dependency('clblast')
+  libcl_dep = dependency('OpenCL')
+  gpu_libs = [libclblast_dep, libcl_dep]
   c_args += '-DUSE_OPENCL'
 endif
 
