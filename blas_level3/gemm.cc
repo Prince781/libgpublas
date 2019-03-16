@@ -43,7 +43,7 @@ void _cblas_gemm(const CBLAS_LAYOUT Layout,
     const struct objinfo *a_info, *b_info, *c_info;
 
     size_a = compute_size(Layout, transa, a, lda, k, m);
-    size_b = compute_size(Layout, transb, b, lda, k, n);
+    size_b = compute_size(Layout, transb, b, ldb, n, k);
     size_c = (Layout == CblasColMajor) ?
         size(0, ldc, n, sizeof(*c)) :
         size(0, ldc, m, sizeof(*c));
