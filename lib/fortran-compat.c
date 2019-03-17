@@ -74,7 +74,7 @@ F77_gemm(prefix, T) {                                               \
             c_trans(*transa), c_trans(*transb),                     \
             *m, *n, *k,                                             \
             *alpha,                                                 \
-            a, *ldb,                                                \
+            a, *lda,                                                \
             b, *ldb,                                                \
             *beta,                                                  \
             c, *ldc);                                               \
