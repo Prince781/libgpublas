@@ -1,4 +1,5 @@
 #include "blas2cuda.h"
+#include "runtime.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +36,9 @@ static size_t hits = 0;
 static size_t misses = 0;
 static size_t total_managed_mem = 0;    /* in bytes */
 
+#if USE_CUDA
 cublasHandle_t b2c_handle;
+#endif
 
 bool b2c_must_synchronize = false;
 
@@ -121,6 +124,7 @@ static void set_options(void) {
     }
 }
 
+#if USE_CUDA
 void init_cublas(void) {
     static bool inside = false;
     if (!cublas_initialized && !inside) {
@@ -145,20 +149,22 @@ void init_cublas(void) {
         inside = false;
     }
 }
+#endif
 
 void *b2c_copy_to_gpu(const void *hostbuf, size_t size)
 {
     void *gpubuf = NULL;
+    runtime_error_t err;
 
     obj_tracker_internal_enter();
-    cudaMalloc(&gpubuf, size);
+    err = runtime_malloc(&gpubuf, size);
 
     if (!gpubuf) {
         obj_tracker_internal_leave();
         return NULL;
     }
 
-    cudaMemcpy(gpubuf, hostbuf, size, cudaMemcpyHostToDevice);
+    err = runtime_memcpy_htod(gpubuf, hostbuf, size);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : CPU ---> GPU\n", __func__, size);
@@ -177,7 +183,7 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
         return hostbuf;
 
     obj_tracker_internal_enter();
-    cudaMemcpy(hostbuf, gpubuf, size, cudaMemcpyDeviceToHost);
+    runtime_memcpy_dtoh(hostbuf, gpubuf, size);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
@@ -188,8 +194,9 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
 
 void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
 {
+    runtime_error_t err;
     obj_tracker_internal_enter();
-    cudaMemcpy(hostbuf, gpubuf, size, cudaMemcpyDeviceToHost);
+    err = runtime_memcpy_dtoh(hostbuf, gpubuf, size);
 
     if (b2c_options.trace_copy)
         writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
@@ -204,10 +211,11 @@ void *b2c_place_on_gpu(void *hostbuf,
 {
     void *gpubuf;
     const struct objinfo *gpubuf2_info;
+    runtime_error_t err;
 
     obj_tracker_internal_enter();
     if (!hostbuf) {
-        cudaMalloc(&gpubuf, size);
+        err = runtime_malloc(&gpubuf, size);
     } else if ((*info_in = obj_tracker_objinfo_subptr(hostbuf))) {
         assert ((*info_in)->ptr == hostbuf);
         gpubuf = hostbuf;
@@ -226,7 +234,7 @@ void *b2c_place_on_gpu(void *hostbuf,
         if (gpubuf2) {
             do {
                 if (!(gpubuf2_info = va_arg(ap, const struct objinfo *)))
-                    cudaFree(gpubuf2);
+                    err = runtime_free(gpubuf2);
             } while ((gpubuf2 = va_arg(ap, void *)));
         }
 
@@ -246,7 +254,7 @@ void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
 {
     obj_tracker_internal_enter();
     if (!info)
-        cudaFree(gpubuf);
+        runtime_free(gpubuf);
     obj_tracker_internal_leave();
 }
 
@@ -254,11 +262,11 @@ void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
 /* memory management */
 static void *alloc_managed(size_t request)
 {
-    cudaError_t err;
+    runtime_error_t err;
     void *ptr;
 
     obj_tracker_internal_enter();
-    err = cudaMallocManaged(&ptr, sizeof(size_t) + request, cudaMemAttachGlobal);
+    err = runtime_malloc_shared(&ptr, sizeof(size_t) + request);
     if (err != cudaSuccess) {
         writef(STDERR_FILENO, "blas2cuda: %s @ %s, line %d: failed to allocate %zu B: %s - %s\n", 
                 __func__, __FILE__, __LINE__, sizeof(size_t) + request, 
@@ -293,7 +301,7 @@ static void *realloc_managed(void *managed_ptr, size_t request)
 
 static void free_managed(void *managed_ptr) {
     total_managed_mem -= sizeof(size_t) + get_size_managed(managed_ptr);
-    cudaFree(managed_ptr - sizeof(size_t));
+    runtime_free(managed_ptr - sizeof(size_t));
 }
 
 static size_t get_size_managed(void *managed_ptr) {

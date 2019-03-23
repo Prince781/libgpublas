@@ -5,14 +5,21 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#if USE_CUDA
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+#elif USE_OPENCL
+#include <CL/cl.h>
+#include "clext.h"
+#else
+#error "Only CUDA and OpenCL are supported."
+#endif
 
 #include "lib/obj_tracker.h"
-
 #include "common.h"
 
+#if USE_CUDA
 #define B2C_ERRORCHECK(name, status) \
 do {\
     if (b2c_options.debug_execfail) {\
@@ -33,14 +40,16 @@ do {\
     if (status == CUBLAS_STATUS_SUCCESS && b2c_options.debug_exec)\
         writef(STDERR_FILENO, "blas2cuda: calling %s()\n", #name);\
 } while (0)
+#endif
 
 
+#if USE_CUDA
 /**
  * Any expressions that ultimately make a CUDA kernel call should be wrapped with this.
  * 
  * This disables the Object Tracker for the current thread and calls cudaDeviceSynchronize(),
- * to avoid bus errors either caused by either trying to access unified memory during a kernel 
- * call (alloc_managed() writes the buffer size to the buffer) or after the kernel has been called
+ * to avoid bus errors either caused by trying to access unified memory during a kernel call 
+ * (alloc_managed() writes the buffer size to the buffer) or after the kernel has been called
  * but the results have not been synchronized.
  */
 #define call_cuda_kernel(expr) {\
@@ -50,6 +59,7 @@ do {\
     if (b2c_must_synchronize)\
         cudaDeviceSynchronize();\
 } while (0)
+#endif
 
 struct b2c_options {
     bool debug_execfail;
@@ -58,13 +68,16 @@ struct b2c_options {
 };
 
 extern struct b2c_options b2c_options;
+#if USE_CUDA
 extern cublasHandle_t b2c_handle;
+#endif
 extern bool b2c_must_synchronize;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if USE_CUDA
 void init_cublas(void);
 
 /**
@@ -77,6 +90,7 @@ static inline void b2c_fatal_error(cudaError_t status, const char *domain)
         abort();
     }
 }
+#endif
 
 /**
  * Creates a new GPU buffer and copies the CPU buffer to it.

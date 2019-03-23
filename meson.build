@@ -21,6 +21,7 @@ sources = files(
     'lib/fortran-compat.c',
     'blas2cuda.c',
     'entry.c',
+    'runtime.c',
 )
 
 blas_level1_sources = files(
