@@ -93,11 +93,11 @@ void parse_args(int argc, char *argv[], int *N, bool *print_res) {
         }
 
         if (argc > 2) {
-            *print_res = !!strcmp(argv[2], "--no-print-results");
+            *print_res = !strcmp(argv[2], "--print-results");
         } else
-            *print_res = true;
+            *print_res = false;
     } else {
-        fprintf(stderr, "Usage: %s N [--no-print-results]\n", argv[0]);
+        fprintf(stderr, "Usage: %s N [--print-results]\n", argv[0]);
         exit(1);
     }
 
