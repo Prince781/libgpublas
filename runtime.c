@@ -1,5 +1,21 @@
 #include "runtime.h"
 
+runtime_error_t runtime_init(void) {
+#if USE_CUDA
+    return cudaSuccess;
+#elif USE_OPENCL
+#error "TODO"
+#endif
+}
+
+runtime_error_t runtime_fini(void) {
+#if USE_CUDA
+    return cudaSuccess;
+#elif USE_OPENCL
+#error "TODO"
+#endif
+}
+
 runtime_error_t runtime_memcpy_htod(void *gpubuf, const void *hostbuf, size_t size) {
     runtime_error_t err;
 #if USE_CUDA

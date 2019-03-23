@@ -7,24 +7,42 @@
 
 typedef cudaError_t runtime_error_t;
 
+#define RUNTIME_ERROR_SUCCESS cudaSuccess
+
+#define runtime_is_error(x) (x != cudaSuccess)
+
+#define runtime_error_name(x) cudaGetErrorName(x)
+#define runtime_error_string(x) cudaGetErrorString(x)
+
 struct runtime_device {
     int id;
     char name[128];
 };
+
 
 #elif USE_OPENCL
 #include <CL/cl.h>
 #include "clext.h"
 
 typedef cl_int runtime_error_t;
+
+#define RUNTIME_ERROR_SUCCESS CL_SUCCESS
+
+#define runtime_is_error(x) (x != CL_SUCCESS)
+
 #else
 #error "Only CUDA and OpenCL are supported"
 #endif
 
 /**
- * Initialize the runtime (CUDA/OpenCL).
+ * Initialize the runtime (only used for OpenCL so far).
  */
 runtime_error_t runtime_init(void);
+
+/**
+ * Deinitialize the runtime
+ */
+runtime_error_t runtime_fini(void);
 
 /**
  * Copy memory from hostbuf -> gpubuf

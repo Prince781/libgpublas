@@ -159,15 +159,20 @@ void *b2c_copy_to_gpu(const void *hostbuf, size_t size)
     obj_tracker_internal_enter();
     err = runtime_malloc(&gpubuf, size);
 
-    if (!gpubuf) {
+    if (!gpubuf || runtime_is_error(err)) {
         obj_tracker_internal_leave();
         return NULL;
     }
 
     err = runtime_memcpy_htod(gpubuf, hostbuf, size);
 
-    if (b2c_options.trace_copy)
-        writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : CPU ---> GPU\n", __func__, size);
+    if (b2c_options.trace_copy || runtime_is_error(err)) {
+        writef(runtime_is_error(err) ? STDERR_FILENO : STDOUT_FILENO, 
+                "blas2cuda: %s: %zu B : CPU ---> GPU%s\n", __func__, size, 
+                runtime_is_error(err) ? " (failed)" : "");
+        if (runtime_is_error(err))
+            abort();
+    }
 
     obj_tracker_internal_leave();
     return gpubuf;
@@ -176,6 +181,7 @@ void *b2c_copy_to_gpu(const void *hostbuf, size_t size)
 void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
 {
     void *hostbuf = NULL;
+    runtime_error_t err;
 
     hostbuf = internal_malloc(size);
 
@@ -183,10 +189,15 @@ void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
         return hostbuf;
 
     obj_tracker_internal_enter();
-    runtime_memcpy_dtoh(hostbuf, gpubuf, size);
+    err = runtime_memcpy_dtoh(hostbuf, gpubuf, size);
 
-    if (b2c_options.trace_copy)
-        writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
+    if (b2c_options.trace_copy || runtime_is_error(err)) {
+        writef(runtime_is_error(err) ? STDERR_FILENO : STDOUT_FILENO, 
+                "blas2cuda: %s: %zu B : GPU ---> CPU%s\n", __func__, size,
+                runtime_is_error(err) ? " (failed)" : "");
+        if (runtime_is_error(err))
+            abort();
+    }
 
     obj_tracker_internal_leave();
     return hostbuf;
@@ -198,8 +209,14 @@ void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
     obj_tracker_internal_enter();
     err = runtime_memcpy_dtoh(hostbuf, gpubuf, size);
 
-    if (b2c_options.trace_copy)
-        writef(STDOUT_FILENO, "blas2cuda: %s: %zu B : GPU ---> CPU\n", __func__, size);
+    if (b2c_options.trace_copy || runtime_is_error(err)) {
+        writef(runtime_is_error(err) ? STDERR_FILENO : STDOUT_FILENO, 
+                "blas2cuda: %s: %zu B : GPU ---> CPU%s\n", __func__, size,
+                runtime_is_error(err) ? " (failed)" : "");
+        if (runtime_is_error(err))
+            abort();
+    }
+
     obj_tracker_internal_leave();
 }
 
@@ -211,7 +228,7 @@ void *b2c_place_on_gpu(void *hostbuf,
 {
     void *gpubuf;
     const struct objinfo *gpubuf2_info;
-    runtime_error_t err;
+    runtime_error_t err = RUNTIME_ERROR_SUCCESS;
 
     obj_tracker_internal_enter();
     if (!hostbuf) {
@@ -225,11 +242,12 @@ void *b2c_place_on_gpu(void *hostbuf,
         misses++;
     }
 
-    if (!gpubuf || cudaPeekAtLastError() != cudaSuccess) {
+    if (!gpubuf || runtime_is_error(err)) {
         va_list ap;
-        cudaError_t err = cudaGetLastError();
 
         va_start(ap, gpubuf2);
+
+        writef(STDERR_FILENO, "blas2cuda: %s: failed to copy to GPU\n", __func__);
 
         if (gpubuf2) {
             do {
@@ -239,10 +257,7 @@ void *b2c_place_on_gpu(void *hostbuf,
         }
 
         va_end(ap);
-
         obj_tracker_internal_leave();
-        writef(STDERR_FILENO, "blas2cuda: %s: failed to copy to GPU\n", __func__);
-        b2c_fatal_error(err, __func__);
         return NULL;
     }
 
@@ -267,10 +282,10 @@ static void *alloc_managed(size_t request)
 
     obj_tracker_internal_enter();
     err = runtime_malloc_shared(&ptr, sizeof(size_t) + request);
-    if (err != cudaSuccess) {
+    if (runtime_is_error(err)) {
         writef(STDERR_FILENO, "blas2cuda: %s @ %s, line %d: failed to allocate %zu B: %s - %s\n", 
                 __func__, __FILE__, __LINE__, sizeof(size_t) + request, 
-                cudaGetErrorName(err), cudaGetErrorString(err));
+                runtime_error_name(err), runtime_error_string(err));
         obj_tracker_internal_leave();
         abort();
     }
@@ -314,12 +329,19 @@ void blas2cuda_init(void)
 {
     static bool inside = false;
     pid_t tid;
+    runtime_error_t rerr;
 
     if (!b2c_initialized && !inside) {
         inside = true;
         tid = syscall(SYS_gettid);
         writef(STDOUT_FILENO, "blas2cuda: initializing on thread %d\n", tid);
         writef(STDOUT_FILENO, "blas2cuda: initializing cuBLAS...\n");
+        rerr = runtime_init();
+        if (runtime_is_error(rerr)) {
+            writef(STDERR_FILENO, "blas2cuda: failed to initialize runtime\n");
+            abort();
+        }
+#if USE_CUDA
         init_cublas();
         writef(STDOUT_FILENO, "blas2cuda: initialized cuBLAS\n");
 
@@ -339,13 +361,20 @@ void blas2cuda_init(void)
             b2c_must_synchronize |= !prop.concurrentManagedAccess;
         }
 
+#else
+        b2c_must_synchronize = true;
+#endif
+
         /* initialize object tracker */
         obj_tracker_init(false);
         set_options();
         obj_tracker_set_tracking(true);
+
+#if USE_CUDA
         /* add excluded regions */
         if (obj_tracker_find_excluded_regions("libcuda", "nvidia", NULL) < 0)
             writef(STDERR_FILENO, "blas2cuda: error while finding excluded regions: %m\n");
+#endif
 
         writef(STDOUT_FILENO, "blas2cuda: initialized on thread %d\n", tid);
         b2c_initialized = true;
@@ -358,12 +387,18 @@ void blas2cuda_fini(void)
 {
     static bool inside = false;
     pid_t tid;
+    runtime_error_t rerr;
 
     if (!inside && b2c_initialized) {
         inside = true;
+#if USE_CUDA
         if (cublas_initialized 
                 && cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
             writef(STDERR_FILENO, "blas2cuda: failed to destroy. Not initialized\n");
+#endif
+        rerr = runtime_fini();
+        if (runtime_is_error(rerr))
+            writef(STDERR_FILENO, "blas2cuda: WARNING: failed to finalize runtime\n");
 
         tid = syscall(SYS_gettid);
         obj_tracker_fini();
