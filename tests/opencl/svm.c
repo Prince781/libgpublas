@@ -11,11 +11,23 @@ static void checkCL(const char *function, cl_int err) {
     }
 }
 
+int read_int(const char *prompt, int min, int max) {
+    int val = 0;
+    int res = 0;
+    do {
+        printf("%s [%d-%d]: ", prompt, min, max);
+        res = scanf("%d", &val);
+    } while (res != EOF && res != 1 && !(val >= min && val <= max));
+    return val;
+}
+
 int main(int argc, char *argv[]) {
     cl_uint platformIdCount = 0;
     cl_platform_id *platformIds = NULL;
-    cl_uint deviceIdCount = 0;
-    cl_device_id *deviceIds = NULL;
+    cl_uint *deviceIdCounts = NULL;
+    cl_device_id **deviceIds = NULL;
+    int selected_platform = 0;
+    int selected_device = 0;
 
     size_t sz = 1024;
     void *ptr = NULL;
@@ -25,37 +37,52 @@ int main(int argc, char *argv[]) {
     clGetPlatformIDs(0, NULL, &platformIdCount);
     platformIds = calloc(platformIdCount, sizeof *platformIds);
     clGetPlatformIDs(platformIdCount, platformIds, NULL);
-
-    clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_ALL, 0, NULL, &deviceIdCount);
-    deviceIds = calloc(deviceIdCount, sizeof *deviceIds);
-    clGetDeviceIDs(platformIds[0], CL_DEVICE_TYPE_ALL, deviceIdCount, deviceIds, NULL);
+    deviceIdCounts = calloc(platformIdCount, sizeof *deviceIdCounts);
+    deviceIds = calloc(platformIdCount, sizeof *deviceIds);
 
     for (cl_uint i = 0; i < platformIdCount; ++i) {
         char platform_name[1024];
+        clGetDeviceIDs(platformIds[i], CL_DEVICE_TYPE_ALL, 0, NULL, &deviceIdCounts[i]);
+        deviceIds[i] = calloc(deviceIdCounts[i], sizeof *deviceIds[i]);
+        clGetDeviceIDs(platformIds[i], CL_DEVICE_TYPE_ALL, deviceIdCounts[i], deviceIds[i], NULL);
 
         clGetPlatformInfo(platformIds[i], CL_PLATFORM_NAME, sizeof platform_name, platform_name, NULL);
         printf("Platform [%u] = %s\n", i, platform_name);
+
+        for (cl_uint d = 0; d < deviceIdCounts[i]; ++d) {
+            char device_name[1024];
+            cl_device_type device_type;
+
+            clGetDeviceInfo(deviceIds[i][d], CL_DEVICE_NAME, sizeof device_name, device_name, NULL);
+            clGetDeviceInfo(deviceIds[i][d], CL_DEVICE_TYPE, sizeof device_type, &device_type, NULL);
+            printf("\tDevice [%u] = %s (%s)\n", d, device_name, clDeviceTypeGetString(device_type));
+        }
     }
 
-    for (cl_uint i = 0; i < deviceIdCount; ++i) {
-        char device_name[1024];
-        cl_device_type device_type;
+    if (platformIdCount == 0) {
+        printf("No platforms found.\n");
+        return 0;
+    } else {
+        selected_platform = read_int("Select a platform", 0, platformIdCount-1);
+    }
 
-        clGetDeviceInfo(deviceIds[i], CL_DEVICE_NAME, sizeof device_name, device_name, NULL);
-        clGetDeviceInfo(deviceIds[i], CL_DEVICE_TYPE, sizeof device_type, &device_type, NULL);
-        printf("Device [%u] = %s (%s)\n", i, device_name, clDeviceTypeGetString(device_type));
+    if (deviceIdCounts[selected_platform] == 0) {
+        printf("No devices for that platform\n");
+        return 0;
+    } else {
+        selected_device = read_int("Select a device", 0, deviceIdCounts[selected_platform]-1);
     }
 
     // create an OpenCL context
     cl_context_properties contextProperties[] = {
         CL_CONTEXT_PLATFORM,
-        (cl_context_properties) platformIds[0],
+        (cl_context_properties) platformIds[selected_platform],
         0
     };
 
     cl_context ctx = clCreateContext(
-            contextProperties, deviceIdCount,
-            deviceIds, NULL,
+            contextProperties, deviceIdCounts[selected_platform],
+            deviceIds[selected_platform], NULL,
             NULL, &error);
 
     if (error != CL_SUCCESS) {
@@ -65,7 +92,7 @@ int main(int argc, char *argv[]) {
 
     // create a command queue
     cl_command_queue queue = clCreateCommandQueueWithProperties(
-            ctx, deviceIds[0],
+            ctx, deviceIds[selected_platform][selected_device],
             (cl_queue_properties[]) { 0 },
             &error);
 

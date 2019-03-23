@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Werror -Wextra -Wno-unused-parameter -std=gnu11
+CFLAGS=-Wall -Werror -Wextra -Wno-unused-parameter -std=gnu11 -ggdb3
 LDFLAGS=-lOpenCL
 
 .PHONY: clean
