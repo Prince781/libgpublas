@@ -40,6 +40,10 @@ void run_test(int num,
             continue;
         }
 
+        printf("Round #%2d: %8ld s + %12ld ns -> %8ld s + %12ld ns%s\n", i, 
+                start.tv_sec, start.tv_nsec,
+                end.tv_sec, end.tv_nsec, i == 0 ? " (not counted)" : "");
+
         ts_diff.tv_sec = end.tv_sec;
         /* subtract nanoeconds */
         if (end.tv_nsec < start.tv_nsec) {
@@ -61,10 +65,13 @@ void run_test(int num,
         }
     }
 
+    /* we're done */
     pinfo->total = total;
-    total.tv_sec /= (num == 1 ? num : num - 1);
-    total.tv_nsec /= (num == 1 ? num : num - 1);
-    pinfo->avg = total;
+    long denom = num == 1 ? num : num - 1;
+    long total_ns = total.tv_sec * 1000000000L + total.tv_nsec;
+    pinfo->avg = (struct timespec){
+        .tv_sec = (total_ns / denom) / 1000000000L, 
+        .tv_nsec = (total_ns / denom) % 1000000000L};
 }
 
 void print_help(const char *progname) {
@@ -99,8 +106,9 @@ void parse_args(int argc, char *argv[], int *N, bool *print_res) {
 
 void print_perfinfo(const char *name, 
         int n, const struct perf_info *pinfo) {
-    printf(" %10s[n=%6d]: %4ld s + %8ld ns\n",
-            name, n, pinfo->avg.tv_sec, pinfo->avg.tv_nsec);
+    printf(" %10s[n=%6d]: TOTAL: %4ld s + %8ld ns, AVG: %4ld s + %8ld ns\n",
+            name, n, pinfo->total.tv_sec, pinfo->total.tv_nsec,
+            pinfo->avg.tv_sec, pinfo->avg.tv_nsec);
 }
 
 void print_mat_f(const float *mat, int rows, int cols, FILE *fin) {

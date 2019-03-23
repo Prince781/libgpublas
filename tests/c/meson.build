@@ -11,8 +11,10 @@ exe_prefixes = [
     'hemm',
 ]
 
+cc = meson.get_compiler('c')
+
 blas_libs = {
-    'mkl': dependency('mkl', required: false),
+    'mkl': cc.find_library('mkl_rt'),
     'tatlas': dependency('tatlas', required: false),
     'cblas': dependency('cblas', required: false),
 }
