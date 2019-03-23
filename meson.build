@@ -89,11 +89,13 @@ libdl_dep = cc.find_library('dl')
 gpu_libs = []
 gpu_inc = []
 
-libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs, required: false)
-libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs, required: false)
-libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs, required: false)
+if not get_option('opencl')
+  libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs, required: false)
+  libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs, required: false)
+  libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs, required: false)
+endif
 
-if libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found()
+if not get_option('opencl') and libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found()
   # use CUDA
   cuda_inc = include_directories(cudadir + '/include')
   gpu_libs = [libcublas_dep, libcuda_dep, libcudart_dep]
@@ -101,8 +103,8 @@ if libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found()
   c_args += '-DUSE_CUDA'
 else
   #use OpenCL
-  libclblast_dep = dependency('clblast')
   libcl_dep = dependency('OpenCL')
+  libclblast_dep = dependency('clblast')
   gpu_libs = [libclblast_dep, libcl_dep]
   c_args += '-DUSE_OPENCL'
 endif
