@@ -20,7 +20,9 @@ blas_libs = {
 incdir = include_directories('.')
 
 foreach prefix : exe_prefixes
-    foreach suffix, dep : blas_libs
-        executable(prefix + '-' + suffix, [prefix + '.c', 'test.c'], include_directories: incdir, dependencies: [dep])
-    endforeach
+  foreach suffix, dep : blas_libs
+    if dep.found()
+      executable(prefix + '-' + suffix, [prefix + '.c', 'test.c'], include_directories: incdir, dependencies: [dep])
+    endif
+  endforeach
 endforeach
