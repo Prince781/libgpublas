@@ -1,4 +1,4 @@
-project('blas2cuda', 'c', 'cpp',
+project('gpublas', 'c', 'cpp',
     default_options: ['c_std=gnu11', 'cpp_std=gnu++11'],
     version: '0.1',
     license: 'GPL3+',
@@ -84,11 +84,27 @@ cuda_lib_dirs = [cudadir + '/lib64', cudadir + '/lib64/stubs']
 ## dependencies
 libpthread_dep = cc.find_library('pthread')
 libdl_dep = cc.find_library('dl')
-libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs)
-libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs)
-libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs)
 
-cuda_inc = include_directories(cudadir + '/include')
+gpu_libs = []
+gpu_inc = []
+
+libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs, required: false)
+libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs, required: false)
+libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs, required: false)
+
+if libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found()
+  # use CUDA
+  cuda_inc = include_directories(cudadir + '/include')
+  gpu_libs = [libcublas_dep, libcuda_dep, libcudart_dep]
+  gpu_inc = [cuda_inc]
+  c_args += '-DUSE_CUDA'
+else
+  #use OpenCL
+  libclblast_dep = dependency('clblast')
+  libcl_dep = dependency('OpenCL')
+  gpu_libs = [libclblast_dep, libcl_dep]
+  c_args += '-DUSE_OPENCL'
+endif
 
 subdir('lib')
 
@@ -99,10 +115,7 @@ library('blas2cuda', sources + blas_level1_sources +
   link_args: '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry',
   dependencies: [
     libobjtracker_dep,
-    libcuda_dep,
-    libcudart_dep,
-    libcublas_dep,
-  ],
-  include_directories: [root_inc, cuda_inc, lib_inc],
+  ] + gpu_libs,
+  include_directories: [root_inc, lib_inc] + gpu_inc,
   install: true,
 )
