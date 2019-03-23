@@ -9,6 +9,8 @@ exe_prefixes = [
     'gbmv',
     'gemm',
     'hemm',
+    'trmv',
+    'trsm',
 ]
 
 cc = meson.get_compiler('c')
