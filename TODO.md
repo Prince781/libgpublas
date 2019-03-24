@@ -4,6 +4,7 @@ TODO
 - [ ] profile GPU transfers (nvprof) to see whether we're actually avoiding copies
 - [x] track statistics of sizes of objects
   - [x] modify dataflow and objtrace scripts
+- [ ] feature: select CPU BLAS library dynamically where it can benefit performance
 - [ ] collect examples
   - [x] nwchem samples from repo
   - [x] mpb samples from repo
