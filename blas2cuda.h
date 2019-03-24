@@ -5,16 +5,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#if USE_CUDA
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#elif USE_OPENCL
-#include <CL/cl.h>
-#include "clext.h"
-#else
-#error "Only CUDA and OpenCL are supported."
-#endif
+#include "runtime.h"
 
 #include "lib/obj_tracker.h"
 #include "common.h"
@@ -39,25 +30,6 @@ do {\
     }\
     if (status == CUBLAS_STATUS_SUCCESS && b2c_options.debug_exec)\
         writef(STDERR_FILENO, "blas2cuda: calling %s()\n", #name);\
-} while (0)
-#endif
-
-
-#if USE_CUDA
-/**
- * Any expressions that ultimately make a CUDA kernel call should be wrapped with this.
- * 
- * This disables the Object Tracker for the current thread and calls cudaDeviceSynchronize(),
- * to avoid bus errors either caused by trying to access unified memory during a kernel call 
- * (alloc_managed() writes the buffer size to the buffer) or after the kernel has been called
- * but the results have not been synchronized.
- */
-#define call_cuda_kernel(expr) {\
-    obj_tracker_internal_enter();\
-    expr;\
-    obj_tracker_internal_leave();\
-    if (b2c_must_synchronize)\
-        cudaDeviceSynchronize();\
 } while (0)
 #endif
 
@@ -100,13 +72,6 @@ static inline void b2c_fatal_error(cudaError_t status, const char *domain)
 void *b2c_copy_to_gpu(const void *hostbuf, size_t size);
 
 /**
- * Creates a new CPU buffer and copies the GPU buffer to it.
- * Returns the CPU buffer, which may be NULL on failure.
- * Free with free().
- */
-void *b2c_copy_to_cpu(const void *gpubuf, size_t size);
-
-/**
  * Copies an existing GPU buffer to an existing CPU buffer.
  */
 void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size);
@@ -122,11 +87,11 @@ void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size);
  * in the event of an error. The list is terminated by a NULL pointer for a
  * gpubuf.
  */
-void *b2c_place_on_gpu(void *hostbuf, 
-        size_t size,
-        const struct objinfo **info_in,
-        void *gpubuf2,
-        ...);
+runtime_gpubuf_t b2c_place_on_gpu(void *hostbuf, 
+                                  size_t size,
+                                  const struct objinfo **info_in,
+                                  runtime_gpubuf_t gpubuf2,
+                                  ...);
 
 /**
  * If {info} is NULL, the GPU buffer will be freed with cudaFree(). Otherwise

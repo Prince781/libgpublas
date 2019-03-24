@@ -38,8 +38,6 @@ void _cblas_gemm(const CBLAS_LAYOUT Layout,
         rows_b = 0, cols_b = 0,
         rows_c = 0, cols_c = 0;
     int size_a, size_b, size_c;
-    cublasOperation_t opa = cu(transa);
-    cublasOperation_t opb = cu(transb);
     const struct objinfo *a_info, *b_info, *c_info;
 
     size_a = compute_size(Layout, transa, a, lda, k, m);
@@ -73,9 +71,9 @@ void _cblas_gemm(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    call_cuda_kernel(
+    call_kernel(
         gemm_func(b2c_handle,
-                opa, opb,
+                cu(transa), cu(transb),
                 m, n, k,
                 &alpha,
                 gpu_a, lda,

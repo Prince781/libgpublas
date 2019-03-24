@@ -178,31 +178,6 @@ void *b2c_copy_to_gpu(const void *hostbuf, size_t size)
     return gpubuf;
 }
 
-void *b2c_copy_to_cpu(const void *gpubuf, size_t size)
-{
-    void *hostbuf = NULL;
-    runtime_error_t err;
-
-    hostbuf = internal_malloc(size);
-
-    if (hostbuf == NULL)
-        return hostbuf;
-
-    obj_tracker_internal_enter();
-    err = runtime_memcpy_dtoh(hostbuf, gpubuf, size);
-
-    if (b2c_options.trace_copy || runtime_is_error(err)) {
-        writef(runtime_is_error(err) ? STDERR_FILENO : STDOUT_FILENO, 
-                "blas2cuda: %s: %zu B : GPU ---> CPU%s\n", __func__, size,
-                runtime_is_error(err) ? " (failed)" : "");
-        if (runtime_is_error(err))
-            abort();
-    }
-
-    obj_tracker_internal_leave();
-    return hostbuf;
-}
-
 void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
 {
     runtime_error_t err;
@@ -220,11 +195,11 @@ void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
     obj_tracker_internal_leave();
 }
 
-void *b2c_place_on_gpu(void *hostbuf, 
-        size_t size,
-        const struct objinfo **info_in,
-        void *gpubuf2,
-        ...)
+runtime_gpubuf_t b2c_place_on_gpu(void *hostbuf, 
+                                  size_t size,
+                                  const struct objinfo **info_in,
+                                  runtime_gpubuf_t gpubuf2,
+                                  ...)
 {
     void *gpubuf;
     const struct objinfo *gpubuf2_info;
@@ -235,6 +210,7 @@ void *b2c_place_on_gpu(void *hostbuf,
         err = runtime_malloc(&gpubuf, size);
     } else if ((*info_in = obj_tracker_objinfo_subptr(hostbuf))) {
         assert ((*info_in)->ptr == hostbuf);
+        err = runtime_svm_unmap(hostbuf);
         gpubuf = hostbuf;
         hits++;
     } else {
@@ -251,8 +227,8 @@ void *b2c_place_on_gpu(void *hostbuf,
 
         if (gpubuf2) {
             do {
-                if (!(gpubuf2_info = va_arg(ap, const struct objinfo *)))
-                    err = runtime_free(gpubuf2);
+                gpubuf2_info = va_arg(ap, const struct objinfo *);
+                b2c_cleanup_gpu_ptr(gpubuf2, gpubuf2_info);
             } while ((gpubuf2 = va_arg(ap, void *)));
         }
 
@@ -267,10 +243,18 @@ void *b2c_place_on_gpu(void *hostbuf,
 
 void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
 {
+    runtime_error_t err;
     obj_tracker_internal_enter();
     if (!info)
-        runtime_free(gpubuf);
+        err = runtime_free(gpubuf);
+    else
+        err = runtime_svm_map(gpubuf, info->size);
     obj_tracker_internal_leave();
+    if (runtime_is_error(err)) {
+        writef(STDERR_FILENO, "blas2cuda: %s: failed to cleanup %p: %s\n", __func__,
+                gpubuf, runtime_error_name(err));
+        abort();
+    }
 }
 
 
@@ -282,6 +266,8 @@ static void *alloc_managed(size_t request)
 
     obj_tracker_internal_enter();
     err = runtime_malloc_shared(&ptr, sizeof(size_t) + request);
+    if (!runtime_is_error(err))
+        err = runtime_svm_map(ptr + sizeof(size_t), request);
     if (runtime_is_error(err)) {
         writef(STDERR_FILENO, "blas2cuda: %s @ %s, line %d: failed to allocate %zu B: %s - %s\n", 
                 __func__, __FILE__, __LINE__, sizeof(size_t) + request, 
