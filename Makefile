@@ -5,12 +5,12 @@ empty:=
 space:=$(empty) $(empty)
 CUDA ?= /opt/cuda
 NVSOURCES=$(wildcard *.cu) $(wildcard blas_level1/*.cu) $(wildcard blas_level2/*.cu) $(wildcard blas_level3/*.cu)
-CSOURCES=$(wildcard *.c) $(filter-out lib/blas_tracker.c, $(filter-out $(wildcard tests/*.c),$(wildcard */*.c)))
+CSOURCES=$(wildcard *.c) $(filter-out $(wildcard scripts/*.c), $(filter-out lib/blas_tracker.c, $(filter-out $(wildcard tests/*.c),$(wildcard */*.c))))
 CXXSOURCES=$(wildcard *.cc) $(wildcard blas_level1/*.cc) $(wildcard blas_level2/*.cc) $(wildcard blas_level3/*.cc)
 OBJDIR=obj
 OBJECTS=$(wildcard $(OBJDIR)/*.o)
 LIBDIR=lib
-COMPFLAGS = -Wall -Werror -fPIC -fdiagnostics-color -ggdb3 -O3 -e entry -I$(CUDA)/include
+COMPFLAGS = -Wall -Werror -fPIC -fdiagnostics-color -ggdb3 -O3 -e entry -I$(CUDA)/include -DUSE_CUDA
 CFLAGS += $(COMPFLAGS) -std=gnu11 -fdump-rtl-expand
 CXXFLAGS += $(COMPFLAGS) -std=gnu++11 -fdump-rtl-expand
 NVCFLAGS=$(subst $(space),$(comma),$(CFLAGS))
