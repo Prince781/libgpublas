@@ -23,6 +23,34 @@ static void print_mat(const char *name, float *m, int len) {
     }
 }
 
+static void copy_file(const char *filename1, const char *filename2) {
+    FILE *file_in, *file_out;
+    char buf[4096];
+    size_t nbytes = 0;
+
+    file_in = fopen(filename1, "r");
+    file_out = fopen(filename2, "w");
+
+    while (fread(buf, sizeof buf, 1, file_in) == 1)
+        fwrite(buf, sizeof buf, 1, file_out);
+
+    while ((nbytes = fread(buf, 1, sizeof buf, file_in)) > 0)
+        fwrite(buf, nbytes, 1, file_out);
+
+    fclose(file_in);
+    fclose(file_out);
+}
+
+static void dump_maps(unsigned lineno) {
+    char fname_buf[64];
+
+    snprintf(fname_buf, sizeof fname_buf, "maps-ln%u.txt", lineno);
+    copy_file("/proc/self/maps", fname_buf);
+
+    snprintf(fname_buf, sizeof fname_buf, "smaps-ln%u.txt", lineno);
+    copy_file("/proc/self/smaps", fname_buf);
+}
+
 int main(int argc, char *argv[]) {
     cl_uint platformIdCount = 0;
     cl_platform_id *platformIds = NULL;
@@ -71,6 +99,8 @@ int main(int argc, char *argv[]) {
         printf("Device [%u] = %s\n", i, device_name);
     }
 
+    dump_maps(__LINE__);
+
     // create an OpenCL context
     cl_context_properties contextProperties[] = {
         CL_CONTEXT_PLATFORM,
@@ -88,6 +118,8 @@ int main(int argc, char *argv[]) {
         goto end;
     }
 
+    dump_maps(__LINE__);
+
     // create a command queue
     cl_command_queue queue = clCreateCommandQueueWithProperties(
             ctx, deviceIds[0],
@@ -98,6 +130,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "clCreateCommandQueueWithProperties(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+
+    dump_maps(__LINE__);
 
     printf("loading and compiling `%s' ...\n", prog_filename);
 
@@ -140,31 +174,42 @@ int main(int argc, char *argv[]) {
         goto end;
     }
 
+    dump_maps(__LINE__);
+
     // initialize arguments 
     svm_A = clSVMAlloc(ctx, CL_MEM_READ_WRITE, sz, 0);
+    dump_maps(__LINE__);
+
     svm_B = clSVMAlloc(ctx, CL_MEM_READ_WRITE, sz, 0);
+    dump_maps(__LINE__);
+
     svm_C = clSVMAlloc(ctx, CL_MEM_READ_WRITE, sz, 0);
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMMap(queue, CL_TRUE, CL_MEM_READ_WRITE, svm_A, sz, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMMap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMMap(queue, CL_TRUE, CL_MEM_READ_WRITE, svm_B, sz, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMMap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMMap(queue, CL_TRUE, CL_MEM_READ_WRITE, svm_C, sz, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMMap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     for (size_t i=0; i < sz / sizeof(*svm_A); ++i) {
         svm_A[i] = (((i+1)%4) * ((i*100)%37) - (i%3)*(i%19))% 100;
         svm_B[i] = (((i+1)%3) * ((i*100)%41) - (i%2)*(i%21)) % 100;
         svm_C[i] = 0;
     }
+    dump_maps(__LINE__);
 
     printf("before kernel:\n");
     print_mat("A", svm_A, sz/sizeof(*svm_A));
@@ -174,20 +219,25 @@ int main(int argc, char *argv[]) {
 
     printf("operation: C = A + B\n\n");
 
+    dump_maps(__LINE__);
+
     if ((error = clEnqueueSVMUnmap(queue, svm_A, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMUnmap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMUnmap(queue, svm_B, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMUnmap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMUnmap(queue, svm_C, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMUnmap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     // setup arguments to kernel, creating cl_mem buffers
     dev_A = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sz, svm_A, &error);
@@ -195,33 +245,39 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "clCreateBuffer(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     dev_B = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sz, svm_B, &error);
     if (error != CL_SUCCESS) {
         fprintf(stderr, "clCreateBuffer(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     dev_C = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sz, svm_C, &error);
     if (error != CL_SUCCESS) {
         fprintf(stderr, "clCreateBuffer(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clSetKernelArg(kernel, 0, sizeof dev_A, &dev_A)) != CL_SUCCESS) {
         fprintf(stderr, "clSetKernelArg(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clSetKernelArg(kernel, 1, sizeof dev_B, &dev_B)) != CL_SUCCESS) {
         fprintf(stderr, "clSetKernelArg(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clSetKernelArg(kernel, 2, sizeof dev_C, &dev_C)) != CL_SUCCESS) {
         fprintf(stderr, "clSetKernelArg(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
 
     // call kernel
@@ -230,22 +286,26 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "clEnqueueNDRangeKernel(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     // print results
     if ((error = clEnqueueSVMMap(queue, CL_TRUE, CL_MEM_READ_WRITE, svm_A, sz, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMMap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMMap(queue, CL_TRUE, CL_MEM_READ_WRITE, svm_B, sz, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMMap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMMap(queue, CL_TRUE, CL_MEM_READ_WRITE, svm_C, sz, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMMap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     printf("after kernel:\n");
     print_mat("A", svm_A, sz/sizeof(*svm_A));
@@ -257,16 +317,19 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "clEnqueueSVMUnmap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMUnmap(queue, svm_B, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMUnmap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
     if ((error = clEnqueueSVMUnmap(queue, svm_C, 0, NULL, NULL)) != CL_SUCCESS) {
         fprintf(stderr, "clEnqueueSVMUnmap(): error - %s\n", clGetErrorString(error));
         goto end;
     }
+    dump_maps(__LINE__);
 
 end:
     printf("cleaning up ...\n");
