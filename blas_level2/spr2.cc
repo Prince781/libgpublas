@@ -48,7 +48,7 @@ void _cblas_spr2(const CBLAS_LAYOUT Layout,
             NULL);
 
 
-    call_cuda_kernel(
+    call_kernel(
         spr2_func(b2c_handle, fillmode, 
                 n, &alpha,
                 gpu_x, incx,

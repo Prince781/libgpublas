@@ -39,7 +39,7 @@ void _cblas_syr(const CBLAS_LAYOUT Layout,
             (void *) gpu_a, a_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         syr_func(b2c_handle, fillmode,
                 n, &alpha,
                 gpu_x, incx,

@@ -42,7 +42,7 @@ void _cblas_trmv(const CBLAS_LAYOUT Layout, const CBLAS_UPLO uplo,
             (void *) gpu_a, a_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         trmv_func(b2c_handle, fillmode,
                 op, cdiag,
                 cols_a,

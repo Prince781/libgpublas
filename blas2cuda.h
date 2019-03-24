@@ -41,6 +41,7 @@ struct b2c_options {
 
 extern struct b2c_options b2c_options;
 #if USE_CUDA
+#include <cublas_v2.h>
 extern cublasHandle_t b2c_handle;
 #endif
 extern bool b2c_must_synchronize;

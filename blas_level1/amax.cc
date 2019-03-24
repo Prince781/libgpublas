@@ -15,7 +15,7 @@ static void _cblas_i_amax(const int n,
 
     gpu_x = (const T *) b2c_place_on_gpu((void *) x, size_x, &x_info, NULL);
 
-    call_cuda_kernel(amax_func(b2c_handle, n, gpu_x, incx, result));
+    call_kernel(amax_func(b2c_handle, n, gpu_x, incx, result));
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

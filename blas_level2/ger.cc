@@ -43,7 +43,7 @@ static void _cblas_ger(const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         ger_func(b2c_handle, m, n,
                 &alpha, 
                 gpu_x, incx,

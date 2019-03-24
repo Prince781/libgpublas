@@ -72,7 +72,7 @@ void _cblas_hemm(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    call_cuda_kernel(
+    call_kernel(
         hemm_func(b2c_handle,
                 cside, cuplo,
                 m, n,

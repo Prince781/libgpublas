@@ -19,7 +19,7 @@ static void _cblas_dotc_sub(const int n,
             (void *) gpu_x, x_info,
             NULL);
 
-    call_cuda_kernel(dotc_func(b2c_handle, n, gpu_x, incx, gpu_y, incy, dotc));
+    call_kernel(dotc_func(b2c_handle, n, gpu_x, incx, gpu_y, incy, dotc));
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

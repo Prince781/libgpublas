@@ -64,7 +64,7 @@ void _cblas_syrk(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    call_cuda_kernel(
+    call_kernel(
         syrk_func(b2c_handle,
                 cuplo, ctrans,
                 n, k,

@@ -6,7 +6,7 @@ void cblas_srotmg (float *d1,
         const float y1, 
         float *param)
 {
-    call_cuda_kernel(cublasSrotmg(b2c_handle, d1, d2, x1, &y1, param));
+    call_kernel(cublasSrotmg(b2c_handle, d1, d2, x1, &y1, param));
 }
 
 void cblas_drotmg (double *d1, 
@@ -15,6 +15,6 @@ void cblas_drotmg (double *d1,
         const double y1, 
         double *param)
 {
-    call_cuda_kernel(cublasDrotmg(b2c_handle, d1, d2, x1, &y1, param));
+    call_kernel(cublasDrotmg(b2c_handle, d1, d2, x1, &y1, param));
 }
 

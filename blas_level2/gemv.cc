@@ -47,7 +47,7 @@ void _cblas_gemv (const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         gemv_func(b2c_handle, op,
                 m, n,
                 &alpha, 

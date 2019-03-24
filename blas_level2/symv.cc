@@ -46,7 +46,7 @@ void _cblas_symv (const CBLAS_LAYOUT Layout,
             (void *) gpu_x, x_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         symv_func(b2c_handle, fillmode,
                 cols_a, &alpha,
                 gpu_a, rows_a,

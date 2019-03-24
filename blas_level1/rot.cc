@@ -20,7 +20,7 @@ static void _cblas_rot (const int n,
             (void *) gpu_x, x_info,
             NULL);
 
-    call_cuda_kernel(rot_func(b2c_handle, n, gpu_x, incx, gpu_y, incy, c, s));
+    call_kernel(rot_func(b2c_handle, n, gpu_x, incx, gpu_y, incy, c, s));
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

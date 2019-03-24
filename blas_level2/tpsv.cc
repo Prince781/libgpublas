@@ -43,7 +43,7 @@ void _cblas_tpsv(const CBLAS_LAYOUT Layout,
             (void *) gpu_a, a_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         tpsv_func(b2c_handle, fillmode,
                 op, cdiag,
                 n,

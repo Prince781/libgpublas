@@ -18,7 +18,7 @@ static void _cblas_swap (const int n,
             (void *) gpu_x, x_info,
             NULL);
 
-    call_cuda_kernel(swap_func(b2c_handle, n, gpu_x, incx, gpu_y, incy));
+    call_kernel(swap_func(b2c_handle, n, gpu_x, incx, gpu_y, incy));
 
     if (cudaPeekAtLastError() != cudaSuccess)
         b2c_fatal_error(cudaGetLastError(), __func__);

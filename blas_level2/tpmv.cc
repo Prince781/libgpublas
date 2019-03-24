@@ -43,7 +43,7 @@ void _cblas_tpmv(const CBLAS_LAYOUT Layout,
             (void *) gpu_a, a_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         tpmv_func(b2c_handle, fillmode,
                 op, cdiag,
                 n,

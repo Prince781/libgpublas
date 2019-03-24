@@ -52,7 +52,7 @@ void _cblas_herk(const CBLAS_LAYOUT Layout,
                 NULL);
     }
 
-    call_cuda_kernel(
+    call_kernel(
         herk_func(b2c_handle,
                 cuplo, ctrans,
                 n, k,

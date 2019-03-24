@@ -42,7 +42,7 @@ void _cblas_trsv(const CBLAS_LAYOUT Layout,
             (void *) gpu_a, a_info,
             NULL);
 
-    call_cuda_kernel(
+    call_kernel(
         trsv_func(b2c_handle, fillmode,
                 op, cdiag,
                 cols_a,
