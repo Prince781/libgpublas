@@ -86,11 +86,11 @@ def parse_input(filename):
     oup = sys.stdout
 
     pointer_re = r'0x[A-Za-z0-9]+'
-    symbol_re = r'[A-Za-z]\w+'
+    symbol_re = r'[A-Za-z_]\w+'
     prefix_re = fr'\d+ \[{pointer_re}\]'     # PID [instruction pointer]
 
     atomic_re = re.compile(fr'{prefix_re}\s+({symbol_re})\((.*)\)\s+=\s+(.*)')
-    unfinished_re = re.compile(fr'{prefix_re}\s+({symbol_re})\((.*) <unfinished ...>')
+    unfinished_re = re.compile(fr'{prefix_re}\s+({symbol_re})\((.*) <(?:(unfinished|no return)) ...>')
     resumed_re = re.compile(fr'{prefix_re}\s+<... ({symbol_re}) resumed>\s+\)\s+=\s+(.*)')
 
     unfinished = {} # when we see an 'end', we combine it with this and put it in nodes
