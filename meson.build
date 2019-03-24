@@ -95,7 +95,7 @@ if not get_option('opencl')
   libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs, required: false)
 endif
 
-if not get_option('opencl') and libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found()
+if not get_option('opencl') and (libcublas_dep.found() or libcuda_dep.found() or libcudart_dep.found())
   # use CUDA
   cuda_inc = include_directories(cudadir + '/include')
   gpu_libs = [libcublas_dep, libcuda_dep, libcudart_dep]
