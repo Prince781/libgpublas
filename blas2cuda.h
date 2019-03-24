@@ -88,11 +88,11 @@ void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size);
  * in the event of an error. The list is terminated by a NULL pointer for a
  * gpubuf.
  */
-runtime_gpubuf_t b2c_place_on_gpu(void *hostbuf, 
-                                  size_t size,
-                                  const struct objinfo **info_in,
-                                  runtime_gpubuf_t gpubuf2,
-                                  ...);
+void *b2c_place_on_gpu(void *hostbuf, 
+                       size_t size,
+                       const struct objinfo **info_in,
+                       void *gpubuf2,
+                       ...);
 
 /**
  * If {info} is NULL, the GPU buffer will be freed with cudaFree(). Otherwise

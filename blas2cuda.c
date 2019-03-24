@@ -195,11 +195,11 @@ void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
     obj_tracker_internal_leave();
 }
 
-runtime_gpubuf_t b2c_place_on_gpu(void *hostbuf, 
-                                  size_t size,
-                                  const struct objinfo **info_in,
-                                  runtime_gpubuf_t gpubuf2,
-                                  ...)
+void *b2c_place_on_gpu(void *hostbuf, 
+                       size_t size,
+                       const struct objinfo **info_in,
+                       void *gpubuf2,
+                       ...)
 {
     void *gpubuf;
     const struct objinfo *gpubuf2_info;
@@ -227,9 +227,9 @@ runtime_gpubuf_t b2c_place_on_gpu(void *hostbuf,
 
         if (gpubuf2) {
             do {
-                gpubuf2_info = va_arg(ap, const struct objinfo *);
+                gpubuf2_info = va_arg(ap, typeof(gpubuf2_info));
                 b2c_cleanup_gpu_ptr(gpubuf2, gpubuf2_info);
-            } while ((gpubuf2 = va_arg(ap, void *)));
+            } while ((gpubuf2 = va_arg(ap, typeof(gpubuf2))));
         }
 
         va_end(ap);
@@ -316,13 +316,14 @@ void blas2cuda_init(void)
     static bool inside = false;
     pid_t tid;
     runtime_error_t rerr;
+    runtime_init_info_t init_info = RUNTIME_INIT_INFO_DEFAULT;
 
     if (!b2c_initialized && !inside) {
         inside = true;
         tid = syscall(SYS_gettid);
         writef(STDOUT_FILENO, "blas2cuda: initializing on thread %d\n", tid);
         writef(STDOUT_FILENO, "blas2cuda: initializing cuBLAS...\n");
-        rerr = runtime_init();
+        rerr = runtime_init(init_info);
         if (runtime_is_error(rerr)) {
             writef(STDERR_FILENO, "blas2cuda: failed to initialize runtime\n");
             abort();
@@ -356,11 +357,13 @@ void blas2cuda_init(void)
         set_options();
         obj_tracker_set_tracking(true);
 
-#if USE_CUDA
         /* add excluded regions */
+#if USE_CUDA
         if (obj_tracker_find_excluded_regions("libcuda", "nvidia", NULL) < 0)
-            writef(STDERR_FILENO, "blas2cuda: error while finding excluded regions: %m\n");
+#elif USE_OPENCL
+        if (obj_tracker_find_excluded_regions("libOpenCL", NULL) < 0)
 #endif
+            writef(STDERR_FILENO, "blas2cuda: error while finding excluded regions: %m\n");
 
         writef(STDOUT_FILENO, "blas2cuda: initialized on thread %d\n", tid);
         b2c_initialized = true;

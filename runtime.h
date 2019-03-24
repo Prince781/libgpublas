@@ -14,6 +14,9 @@ typedef cudaError_t runtime_error_t;
 #define runtime_error_name cudaGetErrorName
 #define runtime_error_string cudaGetErrorString
 
+typedef void *runtime_init_info_t;
+#define RUNTIME_INIT_INFO_DEFAULT NULL
+
 /**
  * Any expressions that ultimately make a CUDA kernel call should be wrapped with this.
  * 
@@ -30,8 +33,6 @@ typedef cudaError_t runtime_error_t;
         cudaDeviceSynchronize();\
 } while (0)
 
-typedef void *runtime_gpubuf_t;
-
 #elif USE_OPENCL
 #include <CL/cl.h>
 #include "clext.h"
@@ -44,6 +45,13 @@ typedef cl_int runtime_error_t;
 #define runtime_error_name clGetErrorString
 #define runtime_error_string clGetErrorString
 
+typedef struct _runtime_init_info {
+    unsigned platform;
+    unsigned device;
+} runtime_init_info_t;
+
+#define RUNTIME_INIT_INFO_DEFAULT (runtime_init_info_t){0,0}
+
 #define call_kernel(expr) {\
     obj_tracker_internal_enter();\
     expr;\
@@ -51,11 +59,6 @@ typedef cl_int runtime_error_t;
     if (b2c_must_synchronize)\
         /* TODO */;\
 } while (0)
-
-/**
- * Memory for exclusive use on the device.
- */
-typedef cl_mem runtime_gpubuf_t;
 
 #else
 #error "Only CUDA and OpenCL are supported"
@@ -68,7 +71,7 @@ extern "C" {
 /**
  * Initialize the runtime (only used for OpenCL so far).
  */
-runtime_error_t runtime_init(void);
+runtime_error_t runtime_init(runtime_init_info_t info);
 
 /**
  * Deinitialize the runtime
