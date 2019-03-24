@@ -2,6 +2,8 @@ TODO
 ----
 
 - [ ] profile GPU transfers (nvprof) to see whether we're actually avoiding copies
+- [x] track statistics of sizes of objects
+  - [x] modify dataflow and objtrace scripts
 - [ ] collect examples
   - [x] nwchem samples from repo
   - [x] mpb samples from repo

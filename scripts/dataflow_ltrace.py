@@ -6,6 +6,7 @@ import re
 import gzip
 import binascii
 from blas_api import arg_parsers
+import blas_api
 
 num_nodes = 0
 node_nums = []  # needed for layout
@@ -13,9 +14,16 @@ live_ops = {}   # [ptr] -> [node]
 
 # histogram stuff
 want_hist = False
+warn = False
 blas_hist = {}  # maps path length -> count
 path_lens = {}  # maps ptr -> current path length
 total_blas = 0
+ptr_info = {}   # maps ptr -> size info (if it exists)
+
+def print_ptr(ptr):
+    if ptr in ptr_info:
+        return ptr_info[ptr]
+    return ptr
 
 class Node:
     def __init__(self, sym, in_edges=None, is_blas_func=None):
@@ -51,7 +59,7 @@ class Node:
         global want_hist
         oup.write(f'\t{{ rank=same; "{self.id}"; {self.sym}_{self.id} [label="{self.sym}", shape="box"]; }};\n')
         for in_ptr,parent in self.in_edges.items():
-            oup.write(f'\t{parent.sym}_{parent.id} -> {self.sym}_{self.id} [label="{in_ptr}"];\n')
+            oup.write(f'\t{parent.sym}_{parent.id} -> {self.sym}_{self.id} [label="{print_ptr(in_ptr)}"];\n')
         node_nums.append(self.id)
         if not want_hist:
             self.in_edges = None    # break references to save memory
@@ -79,10 +87,11 @@ def parse_input(filename):
 
     pointer_re = r'0x[A-Za-z0-9]+'
     symbol_re = r'[A-Za-z]\w+'
+    prefix_re = fr'\d+ \[{pointer_re}\]'     # PID [instruction pointer]
 
-    atomic_re = re.compile(fr'({symbol_re})\((.*)\)\s+=\s+(.*)')
-    unfinished_re = re.compile(fr'({symbol_re})\((.*) <unfinished ...>')
-    resumed_re = re.compile(fr'<... ({symbol_re}) resumed>\s+=\s+(.*)')
+    atomic_re = re.compile(fr'{prefix_re}\s+({symbol_re})\((.*)\)\s+=\s+(.*)')
+    unfinished_re = re.compile(fr'{prefix_re}\s+({symbol_re})\((.*) <unfinished ...>')
+    resumed_re = re.compile(fr'{prefix_re}\s+<... ({symbol_re}) resumed>\s+\)\s+=\s+(.*)')
 
     unfinished = {} # when we see an 'end', we combine it with this and put it in nodes
 
@@ -105,6 +114,8 @@ def parse_input(filename):
             match = resumed_re.match(line)
             mtype = 'end'
         if not match:
+            if warn:
+                print(f'WARNING: could not parse line {lineno}: {line}', file=sys.stderr)
             continue
 
         if mtype == 'node':
@@ -127,8 +138,10 @@ def parse_input(filename):
 
             if sym in arg_parsers:
                 for argd in arg_parsers[sym]:
-                    if argd['output']:
-                        live_ops[args[argd['ptr']]] = nd
+                    ret = rets[0] if rets else None
+                    if argd.is_output:
+                        live_ops[argd.get_ptr(args, ret)] = nd
+                    ptr_info[argd.get_ptr(args, ret)] = blas_api.ptr_info(argd, args, ret)
 
             for ret in rets:
                 live_ops[ret] = nd
@@ -142,15 +155,17 @@ def parse_input(filename):
 
             in_edges = {arg: live_ops[arg] for arg in args if arg in live_ops}
 
-            nd = (sym, in_edges, sym in arg_parsers)
+            nd = Node(sym, in_edges, sym in arg_parsers)
             if not sym in unfinished:
                 unfinished[sym] = []
             unfinished[sym].append(nd)
 
             if sym in arg_parsers:
                 for argd in arg_parsers[sym]:
-                    if argd['output']:
-                        live_ops[args[argd['ptr']]] = nd
+                    ret = rets[0] if rets else None
+                    if argd.is_output:
+                        live_ops[argd.get_ptr(args, ret)] = nd
+                    ptr_info[argd.get_ptr(args, ret)] = blas_api.ptr_info(argd, args, ret)
         else: # 'end'
             sym = match.group(1)
             ret_str = match.group(2)
@@ -160,9 +175,7 @@ def parse_input(filename):
             if sym == 'free' and len(args) > 0 and args[0] in live_ops:
                 del live_ops[args[0]]
 
-            nd_sym, nd_in_edges, nd_is_blas = unfinished[sym].pop()
-
-            nd = Node(nd_sym, nd_in_edges, nd_is_blas)
+            nd = unfinished[sym].pop()
 
             if not want_hist:
                 nd.print(oup)
@@ -203,7 +216,9 @@ if __name__ == "__main__":
     aparser = ArgumentParser()
     aparser.add_argument('ltrace_file')
     aparser.add_argument('-c', '--hist', action='store_true', help='Only print histogram of BLAS call chains')
+    aparser.add_argument('-v', '--verbose', action='store_true', help='Warn when lines cannot be parsed')
 
     args = aparser.parse_args()
     want_hist = args.hist
+    warn = args.verbose
     parse_input(args.ltrace_file)

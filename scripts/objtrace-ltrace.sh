@@ -20,7 +20,7 @@ if [ ! -e $LIBOBJTRACKER ]; then
 fi
 
 options="blas_libs=$1;debug_uninit"
-ltrace_args="-n2 -SfCi -s64 -o $fname.ltrace"
+ltrace_args="-n2 -fCi -s64 -o $fname.ltrace"
 
 echo "running: ltrace $ltrace_args env OBJTRACKER_OPTIONS=\"$options\" LD_PRELOAD=$LIBOBJTRACKER $2 ${@:3}"
 
