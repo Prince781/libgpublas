@@ -11,16 +11,6 @@ static void checkCL(const char *function, cl_int err) {
     }
 }
 
-int read_int(const char *prompt, int min, int max) {
-    int val = 0;
-    int res = 0;
-    do {
-        printf("%s [%d-%d]: ", prompt, min, max);
-        res = scanf("%d", &val);
-    } while (res != EOF && res != 1 && !(val >= min && val <= max));
-    return val;
-}
-
 int main(int argc, char *argv[]) {
     cl_uint platformIdCount = 0;
     cl_platform_id *platformIds = NULL;

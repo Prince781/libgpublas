@@ -54,10 +54,53 @@ static void dump_maps(unsigned lineno) {
 int main(int argc, char *argv[]) {
     cl_uint platformIdCount = 0;
     cl_platform_id *platformIds = NULL;
-    cl_uint deviceIdCount = 0;
-    cl_device_id *deviceIds = NULL;
+    cl_uint *deviceIdCounts = NULL;
+    cl_device_id **deviceIds = NULL;
+    int selected_platform = 0;
+    int selected_device = 0;
 
     cl_int error = 0;
+
+    clGetPlatformIDs(0, NULL, &platformIdCount);
+    platformIds = calloc(platformIdCount, sizeof *platformIds);
+    clGetPlatformIDs(platformIdCount, platformIds, NULL);
+    deviceIdCounts = calloc(platformIdCount, sizeof *deviceIdCounts);
+    deviceIds = calloc(platformIdCount, sizeof *deviceIds);
+
+    for (cl_uint i = 0; i < platformIdCount; ++i) {
+        char platform_name[1024];
+        clGetDeviceIDs(platformIds[i], CL_DEVICE_TYPE_ALL, 0, NULL, &deviceIdCounts[i]);
+        deviceIds[i] = calloc(deviceIdCounts[i], sizeof *deviceIds[i]);
+        clGetDeviceIDs(platformIds[i], CL_DEVICE_TYPE_ALL, deviceIdCounts[i], deviceIds[i], NULL);
+
+        clGetPlatformInfo(platformIds[i], CL_PLATFORM_NAME, sizeof platform_name, platform_name, NULL);
+        printf("Platform [%u] = %s", i, platform_name);
+        clGetPlatformInfo(platformIds[i], CL_PLATFORM_VERSION, sizeof platform_name, platform_name, NULL);
+        printf(", Version: %s\n", platform_name);
+
+        for (cl_uint d = 0; d < deviceIdCounts[i]; ++d) {
+            char device_name[1024];
+            cl_device_type device_type;
+
+            clGetDeviceInfo(deviceIds[i][d], CL_DEVICE_NAME, sizeof device_name, device_name, NULL);
+            clGetDeviceInfo(deviceIds[i][d], CL_DEVICE_TYPE, sizeof device_type, &device_type, NULL);
+            printf("\tDevice [%u] = %s (%s)\n", d, device_name, clDeviceTypeGetString(device_type));
+        }
+    }
+
+    if (platformIdCount == 0) {
+        printf("No platforms found.\n");
+        return 0;
+    } else {
+        selected_platform = read_int("Select a platform", 0, platformIdCount-1);
+    }
+
+    if (deviceIdCounts[selected_platform] == 0) {
+        printf("No devices for that platform\n");
+        return 0;
+    } else {
+        selected_device = read_int("Select a device", 0, deviceIdCounts[selected_platform]-1);
+    }
 
     char **prog_lines = NULL;
     size_t nlines = 0;
@@ -77,40 +120,19 @@ int main(int argc, char *argv[]) {
            dev_B = 0, 
            dev_C = 0;
 
-    clGetPlatformIDs(0, NULL, &platformIdCount);
-    platformIds = calloc(platformIdCount, sizeof *platformIds);
-    clGetPlatformIDs(platformIdCount, platformIds, NULL);
-
-    clGetDeviceIDs(platformIds[platformIdCount - 1], CL_DEVICE_TYPE_ALL, 0, NULL, &deviceIdCount);
-    deviceIds = calloc(deviceIdCount, sizeof *deviceIds);
-    clGetDeviceIDs(platformIds[platformIdCount - 1], CL_DEVICE_TYPE_ALL, deviceIdCount, deviceIds, NULL);
-
-    for (cl_uint i = 0; i < platformIdCount; ++i) {
-        char platform_name[1024];
-
-        clGetPlatformInfo(platformIds[i], CL_PLATFORM_NAME, sizeof platform_name, platform_name, NULL);
-        printf("Platform [%u] = %s\n", i, platform_name);
-    }
-
-    for (cl_uint i = 0; i < deviceIdCount; ++i) {
-        char device_name[1024];
-
-        clGetDeviceInfo(deviceIds[i], CL_DEVICE_NAME, sizeof device_name, device_name, NULL);
-        printf("Device [%u] = %s\n", i, device_name);
-    }
 
     dump_maps(__LINE__);
 
     // create an OpenCL context
     cl_context_properties contextProperties[] = {
         CL_CONTEXT_PLATFORM,
-        (cl_context_properties) platformIds[platformIdCount - 1],
+        (cl_context_properties) platformIds[selected_platform],
         0
     };
 
     cl_context ctx = clCreateContext(
-            contextProperties, deviceIdCount,
-            deviceIds, NULL,
+            contextProperties, deviceIdCounts[selected_platform],
+            deviceIds[selected_platform], NULL,
             NULL, &error);
 
     if (error != CL_SUCCESS) {
@@ -118,11 +140,9 @@ int main(int argc, char *argv[]) {
         goto end;
     }
 
-    dump_maps(__LINE__);
-
     // create a command queue
     cl_command_queue queue = clCreateCommandQueueWithProperties(
-            ctx, deviceIds[0],
+            ctx, deviceIds[selected_platform][selected_device],
             (cl_queue_properties[]) { 0 },
             &error);
 
@@ -130,8 +150,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "clCreateCommandQueueWithProperties(): error - %s\n", clGetErrorString(error));
         goto end;
     }
-
-    dump_maps(__LINE__);
 
     printf("loading and compiling `%s' ...\n", prog_filename);
 
@@ -147,21 +165,19 @@ int main(int argc, char *argv[]) {
     }
 
     // compile and link program
-    error = clBuildProgram(program, deviceIdCount, deviceIds, "-Werror", NULL, NULL);
+    error = clBuildProgram(program, 1, &deviceIds[selected_platform][selected_device], "-Werror", NULL, NULL);
 
     if (error != CL_SUCCESS) {
+        char buf[4096];
         fprintf(stderr, "clBuildProgram(): error - %s\n", clGetErrorString(error));
         fprintf(stderr, "compiler logs:\n\n");
-        for (cl_uint d = 0; d < deviceIdCount; ++d) {
-            char buf[4096];
-            fprintf(stderr, "device #%d:\n", d);
-            error = clGetProgramBuildInfo(program, deviceIds[d], CL_PROGRAM_BUILD_LOG, sizeof buf, buf, NULL);
-            if (error != CL_SUCCESS)
-                fprintf(stderr, "error getting build status: %s\n", clGetErrorString(error));
-            else {
-                buf[4095] = 0;
-                fprintf(stderr, "%s\n", buf);
-            }
+        fprintf(stderr, "device #%d:\n", selected_device);
+        error = clGetProgramBuildInfo(program, deviceIds[selected_platform][selected_device], CL_PROGRAM_BUILD_LOG, sizeof buf, buf, NULL);
+        if (error != CL_SUCCESS)
+            fprintf(stderr, "error getting build status: %s\n", clGetErrorString(error));
+        else {
+            buf[4095] = 0;
+            fprintf(stderr, "%s\n", buf);
         }
         goto end;
     }

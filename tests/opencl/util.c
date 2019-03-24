@@ -32,3 +32,16 @@ size_t load_file(const char *filename, char ***lines) {
     fclose(textfile);
     return nlines;
 }
+
+int read_int(const char *prompt, int min, int max) {
+    int val = 0;
+    int res = 0;
+    if (min == max)
+        return min;
+    do {
+        printf("%s [%d-%d]: ", prompt, min, max);
+        res = scanf("%d", &val);
+    } while (res != EOF && res != 1 && !(val >= min && val <= max));
+    return val;
+}
+

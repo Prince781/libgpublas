@@ -5,8 +5,8 @@ LDFLAGS=-lOpenCL
 
 all: svm svm-kernel svm-mem-kernel
 
-svm: svm.c util.h
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+svm: svm.c util.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 svm-kernel: svm-kernel.c util.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
