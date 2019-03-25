@@ -92,7 +92,7 @@ static inline const char* clGetErrorString(int errorCode) {
 static inline const char *clDeviceTypeGetString(cl_device_type type) {
     switch (type) {
         case CL_DEVICE_TYPE_CPU: return "CL_DEVICE_TYPE_CPU";
-        case CL_DEVICE_TYPE_GPU: return "CL_DEVICE_TYPE_CPU";
+        case CL_DEVICE_TYPE_GPU: return "CL_DEVICE_TYPE_GPU";
         case CL_DEVICE_TYPE_ACCELERATOR: return "CL_DEVICE_TYPE_ACCELERATOR";
         case CL_DEVICE_TYPE_DEFAULT: return "CL_DEVICE_TYPE_DEFAULT";
         case CL_DEVICE_TYPE_CUSTOM: return "CL_DEVICE_TYPE_CUSTOM";
