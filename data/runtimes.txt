@@ -1,0 +1,17 @@
+So far, these values indicate we need to adjust the minimum matrix size cutoff.
+gemm-cblas shows speedup for n=1024, but slowdown for n=32. nwchem modules use
+really small matrices, hence their slowdown with libgpublas.
+
+test        default         libgpublas         date
+----        -------         ----------      -----------
+microbenchmarks
+
+gemm-cblas:
+n = 1024    106414686 ns    5773326 ns      Mar-24-2019
+n = 32      52471 ns        442064 ns       Mar-24-2019
+
+nwchem
+
+pspw:
+C6          496.6s          1114.7s         Mar-23-2019
+Carbene     54.2s           108.1s          Mar-24-2019
