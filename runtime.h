@@ -31,6 +31,7 @@ typedef void *runtime_init_info_t;
     obj_tracker_internal_leave();\
     if (b2c_must_synchronize)\
         cudaDeviceSynchronize();\
+    runtime_fatal_errmsg(cudaGetLastError(), __func__);\
 } while (0)
 
 #elif USE_OPENCL
@@ -57,7 +58,7 @@ typedef struct _runtime_init_info {
     expr;\
     obj_tracker_internal_leave();\
     if (b2c_must_synchronize)\
-        /* TODO */;\
+        {/* TODO */}\
 } while (0)
 
 #else

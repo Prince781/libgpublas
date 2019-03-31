@@ -1,7 +1,6 @@
 #include "runtime.h"
 #include "common.h"
 #include <stdbool.h>
-#include <stdio.h>
 
 #if USE_OPENCL
 #include "clext.h"
@@ -56,7 +55,7 @@ struct opencl_platform *runtime_get_platforms(cl_int *err_in, cl_uint *nplatform
         platforms[p].name = calloc(1, platform_name_sz);
         if ((*err_in = clGetPlatformInfo(platforms[p].id, CL_PLATFORM_NAME, platform_name_sz, platforms[p].name, NULL)) != CL_SUCCESS)
             goto end;
-        printf("Platform [%u] = %s\n", p, platforms[p].name);
+        writef(STDOUT_FILENO, "Platform [%u] = %s\n", p, platforms[p].name);
 
         for (cl_uint d = 0; d < platforms[p].num_devices; ++d) {
             size_t device_name_sz;
@@ -84,12 +83,12 @@ struct opencl_platform *runtime_get_platforms(cl_int *err_in, cl_uint *nplatform
                             NULL)) != CL_SUCCESS)
                     goto end;
 
-            printf("  Device [%u] = %s (%s)\n", d, platforms[p].devices[d].name, clDeviceTypeGetString(platforms[p].devices[d].type));
-            printf(" SVM capabilities:\n");
-            printf("    Course-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER ? "yes" : "no");
-            printf("    Fine-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_BUFFER ? "yes" : "no");
-            printf("    Fine-grained system?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM ? "yes" : "no");
-            printf("    Atomics?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_ATOMICS ? "yes" : "no");
+            writef(STDOUT_FILENO, "  Device [%u] = %s (%s)\n", d, platforms[p].devices[d].name, clDeviceTypeGetString(platforms[p].devices[d].type));
+            writef(STDOUT_FILENO, " SVM capabilities:\n");
+            writef(STDOUT_FILENO, "    Course-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER ? "yes" : "no");
+            writef(STDOUT_FILENO, "    Fine-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_BUFFER ? "yes" : "no");
+            writef(STDOUT_FILENO, "    Fine-grained system?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM ? "yes" : "no");
+            writef(STDOUT_FILENO, "    Atomics?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_ATOMICS ? "yes" : "no");
         }
     }
 
@@ -120,7 +119,7 @@ runtime_error_t runtime_init(runtime_init_info_t info) {
     opencl_platforms = runtime_get_platforms(&err, &num_platforms);
 
     if (runtime_is_error(err)) {
-        fprintf(stderr, "blas2cuda: %s: failed to get OpenCL runtimes - %s\n", __func__, runtime_error_string(err));
+        writef(STDERR_FILENO, "blas2cuda: %s: failed to get OpenCL runtimes - %s\n", __func__, runtime_error_string(err));
         abort();
     }
 

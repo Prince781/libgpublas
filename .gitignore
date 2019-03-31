@@ -57,3 +57,6 @@ compile_commands.json
 *.ltrace
 *.log
 *.swp
+
+# Meson
+build/

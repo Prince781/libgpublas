@@ -1,12 +1,16 @@
-#include <cublas_v2.h>
 #include "../common.h"
 #include "../cblas.h"
 #include "../blas.h"
 #include "../conversions.h"
 #include "level3.h"
 #include "../blas2cuda.h"
+#include "../runtime-blas.h"
 
-extern cublasHandle_t b2c_handle;
+#if USE_CUDA
+extern cublasHandle_t b2c_cublas_handle;
+#else
+extern cl_command_queue opencl_cmd_queue;
+#endif
 
 template <typename T>
 void _b2c_symm(const CBLAS_SIDE side,

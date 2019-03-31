@@ -86,6 +86,8 @@ static inline CBLAS_DIAG c_diag(char c) {
 
 
 #ifdef __cplusplus
+
+#if USE_CUDA
 #include <cublas_api.h>
 
 static inline cuComplex cu(float _Complex f) {
@@ -168,6 +170,8 @@ using geam_t = cublasStatus_t (*)(cublasHandle_t,
             const T *, int,
             T *, int);
 
+#endif
+
 class scalar {
 private:
     double _Complex value;
@@ -178,8 +182,10 @@ public:
     operator double() const { return creal(value); }
     operator float _Complex() const { return ((float) creal(value)) + I * ((float) cimag(value)); }
     operator double _Complex() const { return value; }
+#if USE_CUDA
     operator cuComplex() const { return cu((float _Complex) *this); }
     operator cuDoubleComplex() const { return cu((double _Complex) *this); }
+#endif
 };
 
 #endif // __cplusplus

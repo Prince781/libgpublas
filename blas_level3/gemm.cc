@@ -1,12 +1,37 @@
-#include <cublas_v2.h>
 #include "../common.h"
 #include "../cblas.h"
 #include "../blas.h"
 #include "../conversions.h"
 #include "level3.h"
 #include "../blas2cuda.h"
+#include "../runtime-blas.h"
 
-extern cublasHandle_t b2c_handle;
+#if USE_CUDA
+extern cublasHandle_t b2c_cublas_handle;
+#else
+extern cl_command_queue opencl_cmd_queue;
+#endif
+
+template <typename T>
+#if USE_CUDA
+using gemm_t = cublasStatus_t (*)(cublasHandle_t,
+            cublasOperation_t transa, cublasOperation_t transb,
+            int, int, int,
+            const T *,
+            const T *, int,
+            const T *, int,
+            const T *,
+            T *, int);
+#else
+using gemm_t = CLBlastStatusCode (*)(const CLBlastLayout layout, const CLBlastTranspose a_transpose, const CLBlastTranspose b_transpose,
+                               const size_t m, const size_t n, const size_t k,
+                               const T alpha,
+                               const cl_mem a_buffer, const size_t a_offset, const size_t a_ld,
+                               const cl_mem b_buffer, const size_t b_offset, const size_t b_ld,
+                               const T beta,
+                               cl_mem c_buffer, const size_t c_offset, const size_t c_ld,
+                               cl_command_queue* queue, cl_event* event);
+#endif
 
 template <typename T>
 static inline int compute_size(const CBLAS_LAYOUT Layout, const CBLAS_TRANSPOSE transa,
@@ -29,14 +54,7 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
         const T *b, const int ldb,
         const T beta,
         T *c, const int ldc,
-        cublasStatus_t gemm_func(cublasHandle_t,
-            cublasOperation_t transa, cublasOperation_t transb,
-            int, int, int,
-            const T *,
-            const T *, int,
-            const T *, int,
-            const T *,
-            T *, int))
+        gemm_t<T> gemm_func)
 {
     const T *gpu_a, *gpu_b;
     T *gpu_c;
@@ -57,7 +75,8 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
             NULL);
 
     call_kernel(
-        gemm_func(b2c_handle,
+#if USE_CUDA
+        gemm_func(b2c_cublas_handle,
                 cu(transa), cu(transb),
                 m, n, k,
                 &alpha,
@@ -65,9 +84,10 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
                 gpu_b, ldb,
                 &beta,
                 gpu_c, ldc)
+#else
+        
+#endif
     );
-
-    runtime_fatal_errmsg(cudaGetLastError(), __func__);
 
     if (!c_info) {
         b2c_copy_from_gpu(c, gpu_c, size_c);
@@ -89,7 +109,12 @@ F77_gemm(s, float) {
             b, *ldb,
             *beta,
             c, *ldc,
-            &cublasSgemm);
+#if USE_CUDA
+            &cublasSgemm
+#else
+            &CLBlastSgemm
+#endif
+            );
 }
 
 F77_gemm(d, double) {
@@ -101,9 +126,15 @@ F77_gemm(d, double) {
             b, *ldb,
             *beta,
             c, *ldc,
-            &cublasDgemm);
+#if USE_CUDA
+            &cublasDgemm
+#else
+            &CLBlastDgemm
+#endif
+            );
 }
 
+/*
 F77_gemm(c, float _Complex) {
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
@@ -127,3 +158,4 @@ F77_gemm(z, double _Complex) {
             (cuDoubleComplex *)c, *ldc,
             &cublasZgemm);
 }
+*/

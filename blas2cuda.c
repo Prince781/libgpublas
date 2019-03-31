@@ -15,9 +15,9 @@
 #define BLAS2CUDA_OPTIONS "BLAS2CUDA_OPTIONS"
 
 #include "lib/oracle.h"
-#include <cublas_v2.h>
+#include "runtime-blas.h"
 
-static bool cublas_initialized = false;
+static bool runtime_blas_initialized = false;
 
 static void *alloc_managed(size_t request);
 static void *calloc_managed(size_t nmemb, size_t size);
@@ -38,10 +38,6 @@ struct objmngr blas2cuda_manager = {
 static size_t hits = 0;
 static size_t misses = 0;
 static size_t total_managed_mem = 0;    /* in bytes */
-
-#if USE_CUDA
-cublasHandle_t b2c_handle;
-#endif
 
 bool b2c_must_synchronize = false;
 
@@ -130,7 +126,7 @@ static void set_options(void) {
 #if USE_CUDA
 void init_cublas(void) {
     static bool inside = false;
-    if (!cublas_initialized && !inside) {
+    if (!runtime_blas_initialized && !inside) {
         inside = true;
         switch (cublasCreate(&b2c_handle)) {
             case CUBLAS_STATUS_SUCCESS:
@@ -148,7 +144,7 @@ void init_cublas(void) {
                 abort();
                 break;
         }
-        cublas_initialized = true;
+        runtime_blas_initialized = true;
         inside = false;
     }
 }
@@ -320,6 +316,7 @@ void blas2cuda_init(void)
     pid_t tid;
     runtime_error_t rerr;
     runtime_init_info_t init_info = RUNTIME_INIT_INFO_DEFAULT;
+    runtime_blas_error_t berr;
 
     if (!b2c_initialized && !inside) {
         inside = true;
@@ -331,9 +328,14 @@ void blas2cuda_init(void)
             writef(STDERR_FILENO, "blas2cuda: failed to initialize runtime\n");
             abort();
         }
+
+        if ((berr = runtime_blas_init()) != RUNTIME_BLAS_ERROR_SUCCESS) {
+            writef(STDERR_FILENO, "blas2cuda: failed to initialize BLAS runtime: %s\n",
+                    runtime_blas_error_msg(berr));
+        } else
+            writef(STDOUT_FILENO, "blas2cuda: initialized BLAS runtime\n");
+
 #if USE_CUDA
-        init_cublas();
-        writef(STDOUT_FILENO, "blas2cuda: initialized cuBLAS\n");
 
         /* get device properties */
         int num_devices;
@@ -380,14 +382,13 @@ void blas2cuda_fini(void)
     static bool inside = false;
     pid_t tid;
     runtime_error_t rerr;
+    runtime_blas_error_t berr;
 
     if (!inside && b2c_initialized) {
         inside = true;
-#if USE_CUDA
-        if (cublas_initialized 
-                && cublasDestroy(b2c_handle) == CUBLAS_STATUS_NOT_INITIALIZED)
-            writef(STDERR_FILENO, "blas2cuda: failed to destroy. Not initialized\n");
-#endif
+        if (runtime_blas_initialized && (berr = runtime_blas_init()) != RUNTIME_BLAS_ERROR_SUCCESS)
+            writef(STDERR_FILENO, "blas2cuda: failed to destroy BLAS context: %s\n", 
+                    runtime_blas_error_msg(berr));
         rerr = runtime_fini();
         if (runtime_is_error(rerr))
             writef(STDERR_FILENO, "blas2cuda: WARNING: failed to finalize runtime\n");
