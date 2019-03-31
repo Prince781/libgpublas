@@ -1,8 +1,15 @@
+#include <cublas_v2.h>
+#include "../common.h"
+#include "../cblas.h"
+#include "../blas.h"
+#include "../conversions.h"
 #include "level3.h"
+#include "../blas2cuda.h"
+
+extern cublasHandle_t b2c_handle;
 
 template <typename T>
-void _cblas_syrk(const CBLAS_LAYOUT Layout,
-        const CBLAS_UPLO uplo,
+void _b2c_syrk(const CBLAS_UPLO uplo,
         const CBLAS_TRANSPOSE trans,
         const int n, const int k,
         const T alpha,
@@ -15,8 +22,7 @@ void _cblas_syrk(const CBLAS_LAYOUT Layout,
             const T *,
             const T *, int,
             const T *,
-            T *, int),
-        geam_t<T> geam_func)
+            T *, int))
 {
     const T *gpu_a;
     T *gpu_c;
@@ -30,39 +36,21 @@ void _cblas_syrk(const CBLAS_LAYOUT Layout,
     rows_c = ldc;
     cols_c = n;
     if (trans == CblasNoTrans) {
-        if (Layout == CblasColMajor) {
-            rows_a = lda;
-            cols_a = k;
-        } else {
-            rows_a = lda;
-            cols_a = n;
-        }
+        rows_a = lda;
+        cols_a = k;
     } else {
-        if (Layout == CblasColMajor) {
-            rows_a = lda;
-            cols_a = n;
-        } else {
-            rows_a = lda;
-            cols_a = k;
-        }
+        rows_a = lda;
+        cols_a = n;
     }
 
 
     size_a = size(0, rows_a, cols_a, sizeof(*a));
     size_c = size(0, rows_c, cols_c, sizeof(*c));
 
-    if (Layout == CblasRowMajor) {
-        a_info = NULL;
-        c_info = NULL;
-
-        gpu_a = transpose(a, size_a, &rows_a, &cols_a, lda, geam_func);
-        gpu_c = transpose(c, size_c, &rows_c, &cols_c, ldc, geam_func);
-    } else {
-        gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
-        gpu_c = (T *) b2c_place_on_gpu((void *) c, size_c, &c_info, 
-                (void *) gpu_a, &a_info,
-                NULL);
-    }
+    gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
+    gpu_c = (T *) b2c_place_on_gpu((void *) c, size_c, &c_info, 
+            (void *) gpu_a, &a_info,
+            NULL);
 
     call_kernel(
         syrk_func(b2c_handle,
@@ -74,12 +62,10 @@ void _cblas_syrk(const CBLAS_LAYOUT Layout,
                 gpu_c, ldc)
     );
 
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
+    
+    runtime_fatal_errmsg(cudaGetLastError(), __func__);
 
     if (!c_info) {
-        if (Layout == CblasRowMajor)
-            transpose(gpu_c, size_c, &rows_c, &cols_c, ldc, geam_func);
         b2c_copy_from_gpu(c, gpu_c, size_c);
     }
 
@@ -88,46 +74,42 @@ void _cblas_syrk(const CBLAS_LAYOUT Layout,
 
 }
 
-DECLARE_CBLAS__SYRK(s, float) {
-    _cblas_syrk(Layout, uplo, trans,
-            n, k,
-            alpha,
-            a, lda,
-            beta,
-            c, ldc,
-            &cublasSsyrk,
-            &cublasSgeam);
+F77_syrk(s, float) {
+    _b2c_syrk(c_uplo(*uplo), c_trans(*trans),
+            *n, *k,
+            *alpha,
+            a, *lda,
+            *beta,
+            c, *ldc,
+            &cublasSsyrk);
 }
 
-DECLARE_CBLAS__SYRK(d, double) {
-    _cblas_syrk(Layout, uplo, trans,
-            n, k,
-            alpha,
-            a, lda,
-            beta,
-            c, ldc,
-            &cublasDsyrk,
-            &cublasDgeam);
+F77_syrk(d, double) {
+    _b2c_syrk(c_uplo(*uplo), c_trans(*trans),
+            *n, *k,
+            *alpha,
+            a, *lda,
+            *beta,
+            c, *ldc,
+            &cublasDsyrk);
 }
 
-DECLARE_CBLAS__SYRK(c, float _Complex) {
-    _cblas_syrk(Layout, uplo, trans,
-            n, k,
-            cu(alpha),
-            (cuComplex *) a, lda,
-            cu(beta),
-            (cuComplex *) c, ldc,
-            &cublasCsyrk,
-            &cublasCgeam);
+F77_syrk(c, float _Complex) {
+    _b2c_syrk(c_uplo(*uplo), c_trans(*trans),
+            *n, *k,
+            cu(*alpha),
+            (cuComplex *) a, *lda,
+            cu(*beta),
+            (cuComplex *) c, *ldc,
+            &cublasCsyrk);
 }
 
-DECLARE_CBLAS__SYRK(z, double _Complex) {
-    _cblas_syrk(Layout, uplo, trans,
-            n, k,
-            cu(alpha),
-            (cuDoubleComplex *) a, lda,
-            cu(beta),
-            (cuDoubleComplex *) c, ldc,
-            &cublasZsyrk,
-            &cublasZgeam);
+F77_syrk(z, double _Complex) {
+    _b2c_syrk(c_uplo(*uplo), c_trans(*trans),
+            *n, *k,
+            cu(*alpha),
+            (cuDoubleComplex *) a, *lda,
+            cu(*beta),
+            (cuDoubleComplex *) c, *ldc,
+            &cublasZsyrk);
 }

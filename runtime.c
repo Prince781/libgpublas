@@ -1,4 +1,5 @@
 #include "runtime.h"
+#include "common.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -157,6 +158,13 @@ runtime_error_t runtime_fini(void) {
     num_platforms = 0;
 #endif
     return RUNTIME_ERROR_SUCCESS;
+}
+
+void runtime_fatal_errmsg(runtime_error_t error_code, const char *domain) {
+    if (runtime_is_error(error_code)) {
+        writef(STDERR_FILENO, "libgpublas fatal error: %s - %s\n", domain, runtime_error_name(error_code));
+        abort();
+    }
 }
 
 runtime_error_t runtime_memcpy_htod(void *gpubuf, const void *hostbuf, size_t size) {

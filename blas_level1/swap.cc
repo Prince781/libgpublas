@@ -1,4 +1,12 @@
+#include <cublas_v2.h>
+#include "../common.h"
+#include "../cblas.h"
+#include "../blas.h"
+#include "../conversions.h"
 #include "level1.h"
+#include "../blas2cuda.h"
+
+extern cublasHandle_t b2c_handle;
 
 template <typename T>
 static void _cblas_swap (const int n,
@@ -20,8 +28,8 @@ static void _cblas_swap (const int n,
 
     call_kernel(swap_func(b2c_handle, n, gpu_x, incx, gpu_y, incy));
 
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
+    
+    runtime_fatal_errmsg(cudaGetLastError(), __func__);
 
     if (!x_info)
         b2c_copy_from_gpu(x, gpu_x, size_x);

@@ -1,5 +1,3 @@
-#include "blas2cuda.h"
-#include "runtime.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,9 +8,14 @@
 #include <assert.h>
 #include <signal.h>
 
+#include "blas2cuda.h"
+#include "runtime.h"
+#include "common.h"
+
 #define BLAS2CUDA_OPTIONS "BLAS2CUDA_OPTIONS"
 
 #include "lib/oracle.h"
+#include <cublas_v2.h>
 
 static bool cublas_initialized = false;
 

@@ -1,9 +1,92 @@
 #ifndef CONVERSIONS_H
 #define CONVERSIONS_H
 
+// need to include runtime.h and cblas.h
+
+#ifdef __cplusplus
+#include <ccomplex>
+#else
 #include <complex.h>
-#include <cublas_api.h>
+#endif
 #include "cblas.h"
+#include "common.h"
+#include "runtime.h"
+#include "blas2cuda.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static inline CBLAS_TRANSPOSE c_trans(char c) {
+    switch (c) {
+        case 'N':
+        case 'n':
+            return CblasNoTrans;
+        case 'T':
+        case 't':
+            return CblasTrans;
+        case 'C':
+        case 'c':
+            return CblasConjTrans;
+        default:
+            writef(STDERR_FILENO, "Invalid transpose op '%c'\n", c);
+            abort();
+            break;
+    }
+}
+
+static inline CBLAS_SIDE c_side(char c) {
+    switch (c) {
+        case 'L':
+        case 'l':
+            return CblasLeft;
+        case 'R':
+        case 'r':
+            return CblasRight;
+        default:
+            writef(STDERR_FILENO, "Invalid side op '%c'\n", c);
+            abort();
+            break;
+    }
+}
+
+static inline CBLAS_UPLO c_uplo(char c) {
+    switch (c) {
+        case 'U':
+        case 'u':
+            return CblasUpper;
+        case 'L':
+        case 'l':
+            return CblasLower;
+        default:
+            writef(STDERR_FILENO, "Invalid uplo op '%c'\n", c);
+            abort();
+            break;
+    }
+}
+
+static inline CBLAS_DIAG c_diag(char c) {
+    switch (c) {
+        case 'U':
+        case 'u':
+            return CblasUnit;
+        case 'N':
+        case 'n':
+            return CblasNonUnit;
+        default:
+            writef(STDERR_FILENO, "Invalid diag op '%c'\n", c);
+            abort();
+            break;
+    }
+}
+
+#ifdef __cplusplus
+};      // extern "C"
+#endif
+
+
+#ifdef __cplusplus
+#include <cublas_api.h>
 
 static inline cuComplex cu(float _Complex f) {
     return (cuComplex) { .x = crealf(f), .y = cimagf(f) };
@@ -99,66 +182,6 @@ public:
     operator cuDoubleComplex() const { return cu((double _Complex) *this); }
 };
 
-
-template <typename T>
-T *transpose(const T *host_a, int size_a, int *rows_a, int *cols_a, int lda, geam_t<T> geam_func)
-{
-    T *gpu_a_trans;
-    T alpha = scalar(1.0);
-    T beta = scalar(0.0);
-    // int temp;
-
-    gpu_a_trans = (T *) b2c_copy_to_gpu((void *) host_a, size_a);
-    
-    /* transpose A */
-    geam_func(b2c_handle, CUBLAS_OP_T, CUBLAS_OP_N,
-            *rows_a, *cols_a,
-            &alpha,
-            gpu_a_trans, lda,
-            &beta,
-            gpu_a_trans, lda,
-            gpu_a_trans, lda);
-    
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
-
-    // swap
-    /*
-    temp = *cols_a;
-    *cols_a = *rows_a;
-    *rows_a = temp;
-    */
-
-    return gpu_a_trans;
-}
-
-template <typename T>
-void transpose_in(T *gpu_a, int size_a, int *rows_a, int *cols_a, int lda, geam_t<T> geam_func)
-{
-    T alpha = scalar(1.0);
-    T beta = scalar(0.0);
-    // int temp;
-
-    /* transpose A */
-    geam_func(b2c_handle, CUBLAS_OP_T, CUBLAS_OP_N,
-            *rows_a, *cols_a,
-            &alpha,
-            gpu_a, lda,
-            &beta,
-            gpu_a, lda,
-            gpu_a, lda);
-    
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
-
-    // swap
-    /*
-    temp = *cols_a;
-    *cols_a = *rows_a;
-    *rows_a = temp;
-
-    return gpu_a;
-    */
-}
+#endif // __cplusplus
 
 #endif

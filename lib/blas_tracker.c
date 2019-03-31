@@ -10,7 +10,7 @@
 #include "obj_tracker.h"
 #include "../cblas.h"
 #include "../common.h"
-#include "fortran-compat.h"
+#include "../blas.h"
 
 #define CAPACITY (1 << 10)
 

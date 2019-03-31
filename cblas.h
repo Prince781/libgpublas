@@ -1,11 +1,11 @@
 #ifndef CBLAS_H
 #define CBLAS_H
 
+/* simply define DECLARE_CBLAS 1 before including this file */
+
 #include <stdlib.h>
 
 #define IDX2F(i,j,ld) ((((j)-1)*(ld))+((i)-1))
-
-#define size(amt, n,stride,sz) (((amt) + (n) * abs(stride)) * (sz))
 
 /* taken from cblas.h */
 
@@ -26,15 +26,19 @@ typedef enum {CblasLeft=141, CblasRight=142} CBLAS_SIDE;
 
 typedef CBLAS_LAYOUT CBLAS_ORDER; /* this for backward compatibility with CBLAS_ORDER */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static inline size_t size(size_t amt, size_t n, size_t stride, size_t sz) {
+    return (((amt) + (n) * abs((long long int) stride)) * (sz));
+}
+
 static inline int get_lda(CBLAS_LAYOUT layout, int rows, int cols) {
     if (layout == CblasRowMajor)
         return rows;
     return cols;
 }
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* BLAS Level 1 routines */
 
@@ -42,10 +46,12 @@ extern "C" {
 #define DECLARE_CBLAS__ASUM(prefix, type)    \
 type cblas_##prefix##asum (const int n, const type *x, const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__ASUM(s, float);
 DECLARE_CBLAS__ASUM(sc, float _Complex);
 DECLARE_CBLAS__ASUM(d, double);
 DECLARE_CBLAS__ASUM(dz, double _Complex);
+#endif
 
 /* cblas_?axpy - scalar-vector product (routines) */
 #define DECLARE_CBLAS__AXPY(prefix, type)   \
@@ -56,10 +62,12 @@ void cblas_##prefix##axpy (const int n,     \
         type *y,                            \
         const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__AXPY(s, float);
 DECLARE_CBLAS__AXPY(d, double);
 DECLARE_CBLAS__AXPY(c, float _Complex);
 DECLARE_CBLAS__AXPY(z, double _Complex);
+#endif
 
 /* cblas_?copy - copy vector (routines) */
 #define DECLARE_CBLAS__COPY(prefix, type)   \
@@ -69,10 +77,12 @@ void cblas_##prefix##copy (const int n,     \
         type *y,                            \
         const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__COPY(s, float);
 DECLARE_CBLAS__COPY(d, double);
 DECLARE_CBLAS__COPY(c, float _Complex);
 DECLARE_CBLAS__COPY(z, double _Complex);
+#endif
 
 /* cblas_?dot - vector-vector dot product */
 #define DECLARE_CBLAS__DOT(prefix, type)    \
@@ -82,8 +92,10 @@ type cblas_##prefix##dot (const int n,      \
         const type *y,                      \
         const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__DOT(s, float);
 DECLARE_CBLAS__DOT(d, double);
+#endif
 
 /* cblas_?sdot - vector-vector dot product with double precision */
 /* (not implemented by cuBLAS)
@@ -110,8 +122,10 @@ void cblas_##prefix##dotc_sub (const int n, \
         const int incy,                     \
         type *dotc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__DOTC(c, float _Complex);
 DECLARE_CBLAS__DOTC(z, double _Complex);
+#endif
 
 /* cblas_?dotu - vector-vector dot product */
 #define DECLARE_CBLAS__DOTU(prefix, type)   \
@@ -122,8 +136,10 @@ void cblas_##prefix##dotu_sub (const int n, \
         const int incy,                     \
         type *dotu)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__DOTU(c, float _Complex);
 DECLARE_CBLAS__DOTU(z, double _Complex);
+#endif
 
 /* cblas_?nrm2 - Euclidean norm of a vector */
 #define DECLARE_CBLAS__NRM2(prefix, type)   \
@@ -131,10 +147,12 @@ type cblas_##prefix##_nrm2 (const int n,    \
         const type *x,                      \
         const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__NRM2(s, float);
 DECLARE_CBLAS__NRM2(d, double);
 DECLARE_CBLAS__NRM2(sc, float _Complex);
 DECLARE_CBLAS__NRM2(dz, double _Complex);
+#endif
 
 /* cblas_?rot - performs rotation of points in the plane */
 #define DECLARE_CBLAS__ROT(prefix, type, type2)    \
@@ -146,10 +164,12 @@ void cblas_##prefix##rot (const int n,              \
         const type2 c,                              \
         const type2 s)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__ROT(s, float, float);
 DECLARE_CBLAS__ROT(d, double, double);
 DECLARE_CBLAS__ROT(cs, float _Complex, float);
 DECLARE_CBLAS__ROT(zd, double _Complex, double);
+#endif
 
 /* cblas_?rotg - computes the parameters for a Givens rotation */
 void cblas_srotg (float *a, float *b, float *c, float *s);
@@ -186,12 +206,14 @@ void cblas_##prefix##scal (const int n,             \
         vtype *x,                                   \
         const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SCAL(s, float, float);
 DECLARE_CBLAS__SCAL(d, double, double);
 DECLARE_CBLAS__SCAL(c, float _Complex, float _Complex);
 DECLARE_CBLAS__SCAL(z, double _Complex, double _Complex);
 DECLARE_CBLAS__SCAL(cs, float _Complex, float);
 DECLARE_CBLAS__SCAL(zd, double _Complex, double);
+#endif
 
 /* cblas_?swap - swaps a vector with another vector */
 #define DECLARE_CBLAS__SWAP(prefix, type)           \
@@ -201,10 +223,12 @@ void cblas_##prefix##swap (const int n,             \
         type *y,                                    \
         const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SWAP(s, float);
 DECLARE_CBLAS__SWAP(d, double);
 DECLARE_CBLAS__SWAP(c, float _Complex);
 DECLARE_CBLAS__SWAP(z, double _Complex);
+#endif
 
 /* cblas_i?amax - finds the index of the element with maximum value */
 #define DECLARE_CBLAS_I_AMAX(prefix, type)          \
@@ -212,10 +236,12 @@ CBLAS_INDEX cblas_i##prefix##amax (const int n,     \
         const type *x,                              \
         const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS_I_AMAX(s, float);
 DECLARE_CBLAS_I_AMAX(d, double);
 DECLARE_CBLAS_I_AMAX(c, float _Complex);
 DECLARE_CBLAS_I_AMAX(z, double _Complex);
+#endif
 
 /* cblas_i?amin - finds the index of the element with the smallest absolute
  * value */
@@ -224,10 +250,12 @@ CBLAS_INDEX cblas_i##prefix##amin (const int n,     \
         const type *x,                              \
         const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS_I_AMIN(s, float);
 DECLARE_CBLAS_I_AMIN(d, double);
 DECLARE_CBLAS_I_AMIN(c, float _Complex);
 DECLARE_CBLAS_I_AMIN(z, double _Complex);
+#endif
 
 
 /* BLAS Level 2 routines */
@@ -244,10 +272,12 @@ void cblas_##prefix##gbmv (const CBLAS_LAYOUT Layout,   \
         const type beta,                                \
         type *y, const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__GBMV(s, float);
 DECLARE_CBLAS__GBMV(d, double);
 DECLARE_CBLAS__GBMV(c, float _Complex);
 DECLARE_CBLAS__GBMV(z, double _Complex);
+#endif
 
 /* cblas_?gemv - matrix-vector product using a general matrix */
 #define DECLARE_CBLAS__GEMV(prefix, type)               \
@@ -260,10 +290,12 @@ void cblas_##prefix##gemv(const CBLAS_LAYOUT Layout,    \
         const type beta,                                \
         type *y, const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__GEMV(s, float);
 DECLARE_CBLAS__GEMV(d, double);
 DECLARE_CBLAS__GEMV(c, float _Complex);
 DECLARE_CBLAS__GEMV(z, double _Complex);
+#endif
 
 
 /* cblas_?ger - rank-1 update of a general matrix */
@@ -275,8 +307,10 @@ void cblas_##prefix##ger(const CBLAS_LAYOUT Layout,     \
         const type *y, const int incy,                  \
         type *a, const int lda)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__GER(s, float);
 DECLARE_CBLAS__GER(d, double);
+#endif
 
 #define DECLARE_CBLAS__GERC(prefix, type)               \
 void cblas_##prefix##gerc(const CBLAS_LAYOUT Layout,    \
@@ -297,8 +331,10 @@ void cblas_##prefix##geru(const CBLAS_LAYOUT Layout,    \
         const type *y, const int incy,                  \
         type *a, const int lda)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__GERU(c, float _Complex);
 DECLARE_CBLAS__GERU(z, double _Complex);
+#endif
 
 /* ?hbmv - matrix-vector product using Hermitian band matrix */
 #define DECLARE_CBLAS__HBMV(prefix, type)               \
@@ -311,8 +347,10 @@ void cblas_##prefix##hbmv(const CBLAS_LAYOUT Layout,    \
         const type *beta,                               \
         type *y, const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HBMV(c, float _Complex);
 DECLARE_CBLAS__HBMV(z, double _Complex);
+#endif
 
 /* ?hemv - matrix-vector product using Hermitian matrix */
 #define DECLARE_CBLAS__HEMV(prefix, type)               \
@@ -325,8 +363,10 @@ void cblas_##prefix##hemv(const CBLAS_LAYOUT Layout,    \
         const type *beta,                               \
         type *y, const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HEMV(c, float _Complex);
 DECLARE_CBLAS__HEMV(z, double _Complex);
+#endif
 
 /* ?her - rank-1 update of Hermitian matrix */
 #define DECLARE_CBLAS__HER(prefix, rtype, type)         \
@@ -337,8 +377,10 @@ void cblas_##prefix##her(const CBLAS_LAYOUT Layout,     \
         const type *x, const int incx,                  \
         type *a, const int lda)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HER(c, float, float _Complex);
 DECLARE_CBLAS__HER(z, double, double _Complex);
+#endif
 
 /* ?her2 - rank-2 update of Hermitian matrix */
 #define DECLARE_CBLAS__HER2(prefix, type)               \
@@ -350,8 +392,10 @@ void cblas_##prefix##her2(const CBLAS_LAYOUT Layout,    \
         const type *y, const int incy,                  \
         type *a, const int lda)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HER2(c, float _Complex);
 DECLARE_CBLAS__HER2(z, double _Complex);
+#endif
 
 /* ?hpmv - matrix-vector product using Hermitian packed matrix */
 #define DECLARE_CBLAS__HPMV(prefix, type)               \
@@ -364,8 +408,10 @@ void cblas_##prefix##hpmv(const CBLAS_LAYOUT Layout,    \
         const type *beta,                               \
         type *y, const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HPMV(c, float _Complex);
 DECLARE_CBLAS__HPMV(z, double _Complex);
+#endif
 
 /* ?hpr - rank-1 update of a Hermitian packed matrix */
 #define DECLARE_CBLAS__HPR(prefix, stype, type)         \
@@ -376,8 +422,10 @@ void cblas_##prefix##hpr(const CBLAS_LAYOUT Layout,     \
         const type *x, const int incx,                  \
         type *ap)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HPR(c, float, float _Complex);
 DECLARE_CBLAS__HPR(z, double, double _Complex);
+#endif
 
 /* ?hpr2 - rank-2 update of a Hermitian packed matrix */
 #define DECLARE_CBLAS__HPR2(prefix, type)               \
@@ -389,8 +437,10 @@ void cblas_##prefix##hpr2(const CBLAS_LAYOUT Layout,    \
         const type *y, const int incy,                  \
         type *ap)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HPR2(c, float _Complex);
 DECLARE_CBLAS__HPR2(z, double _Complex);
+#endif
 
 /* ?sbmv - matrix-vector product using a symmetric band matrix */
 #define DECLARE_CBLAS__SBMV(prefix, type)               \
@@ -403,8 +453,10 @@ void cblas_##prefix##sbmv(const CBLAS_LAYOUT Layout,    \
         const type beta,                                \
         type *y, const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SBMV(s, float);
 DECLARE_CBLAS__SBMV(d, double);
+#endif
 
 /* ?spmv - matrix-vector product using a symmetric packed matrix */
 #define DECLARE_CBLAS__SPMV(prefix, type)               \
@@ -417,8 +469,10 @@ void cblas_##prefix##spmv(const CBLAS_LAYOUT Layout,    \
         const type beta,                                \
         type *y, const int incy)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SPMV(s, float);
 DECLARE_CBLAS__SPMV(d, double);
+#endif
 
 /* ?spr - rank-1 update of a symmetric packed matrix */
 #define DECLARE_CBLAS__SPR(prefix, type)                \
@@ -429,8 +483,10 @@ void cblas_##prefix##spr(const CBLAS_LAYOUT Layout,     \
         const type *x, const int incx,                  \
         type *ap)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SPR(s, float);
 DECLARE_CBLAS__SPR(d, double);
+#endif
 
 /* ?spr2 - rank-2 update of a symmetric packed matrix */
 #define DECLARE_CBLAS__SPR2(prefix, type)               \
@@ -442,8 +498,10 @@ void cblas_##prefix##spr2(const CBLAS_LAYOUT Layout,    \
         const type *y, const int incy,                  \
         type *ap)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SPR2(s, float);
 DECLARE_CBLAS__SPR2(d, double);
+#endif
 
 /* ?symv - matrix-vector product for symmetric matrix */
 #define DECLARE_CBLAS__SYMV(prefix, type)               \
@@ -457,8 +515,10 @@ void cblas_##prefix##symv(const CBLAS_LAYOUT Layout,    \
         type *y, const int incy)
 
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SYMV(s, float);
 DECLARE_CBLAS__SYMV(d, double);
+#endif
 
 /* ?syr - rank-1 update of a symmetric matrix */
 #define DECLARE_CBLAS__SYR(prefix, type)                \
@@ -470,8 +530,10 @@ void cblas_##prefix##syr (const CBLAS_LAYOUT Layout,    \
         type *a, const int lda)
 
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SYR(s, float);
 DECLARE_CBLAS__SYR(d, double);
+#endif
 
 /* ?syr2 - rank-2 update of symmetric matrix */
 #define DECLARE_CBLAS__SYR2(prefix, type)               \
@@ -483,8 +545,10 @@ void cblas_##prefix##syr2 (const CBLAS_LAYOUT Layout,   \
         const type *y, const int incy,                  \
         type *a, const int lda)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SYR2(s, float);
 DECLARE_CBLAS__SYR2(d, double);
+#endif
 
 /* ?tbmv - matrix-vector product using a triangular band matrix */
 #define DECLARE_CBLAS__TBMV(prefix, type)               \
@@ -496,10 +560,12 @@ void cblas_##prefix##tbmv (const CBLAS_LAYOUT Layout,   \
         const type *a, const int lda,                   \
         type *x, const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TBMV(s, float);
 DECLARE_CBLAS__TBMV(d, double);
 DECLARE_CBLAS__TBMV(c, float _Complex);
 DECLARE_CBLAS__TBMV(z, double _Complex);
+#endif
 
 /* ?tbsv - solve a system of linear equations whose coefficients are in a
  * triangular band matrix */
@@ -512,10 +578,12 @@ void cblas_##prefix##tbsv(const CBLAS_LAYOUT Layout,    \
         const type *a, const int lda,                   \
         type *x, const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TBSV(s, float);
 DECLARE_CBLAS__TBSV(d, double);
 DECLARE_CBLAS__TBSV(c, float _Complex);
 DECLARE_CBLAS__TBSV(z, double _Complex);
+#endif
 
 /* ?tpmv - matrix-vector product using a triangular band matrix */
 #define DECLARE_CBLAS__TPMV(prefix, type)               \
@@ -527,10 +595,12 @@ void cblas_##prefix##tpmv (const CBLAS_LAYOUT Layout,   \
         const type *ap,                                 \
         type *x, const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TPMV(s, float);
 DECLARE_CBLAS__TPMV(d, double);
 DECLARE_CBLAS__TPMV(c, float _Complex);
 DECLARE_CBLAS__TPMV(z, double _Complex);
+#endif
 
 /* ?tpsv - solves a system of linear equations whose coefficients are in a
  * triangular packed matrix */
@@ -543,10 +613,12 @@ void cblas_##prefix##tpsv(const CBLAS_LAYOUT Layout,    \
         const type *ap,                                 \
         type *x, const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TPSV(s, float);
 DECLARE_CBLAS__TPSV(d, double);
 DECLARE_CBLAS__TPSV(c, float _Complex);
 DECLARE_CBLAS__TPSV(z, double _Complex);
+#endif
 
 /* ?trmv - compute  a matrix-vector product using a triangular matrix */
 #define DECLARE_CBLAS__TRMV(prefix, type)               \
@@ -558,10 +630,12 @@ void cblas_##prefix##trmv(const CBLAS_LAYOUT Layout,    \
         const type *a, const int lda,                   \
         type *x, const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TRMV(s, float);
 DECLARE_CBLAS__TRMV(d, double);
 DECLARE_CBLAS__TRMV(c, float _Complex);
 DECLARE_CBLAS__TRMV(z, double _Complex);
+#endif
 
 /* ?trsv - solve a system of linear equations whose coefficients are in a
  * triangular matrix */
@@ -574,10 +648,12 @@ void cblas_##prefix##trsv(const CBLAS_LAYOUT Layout,    \
         const type *a, const int lda,                   \
         type *x, const int incx)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TRSV(s, float);
 DECLARE_CBLAS__TRSV(d, double);
 DECLARE_CBLAS__TRSV(c, float _Complex);
 DECLARE_CBLAS__TRSV(z, double _Complex);
+#endif
 
 
 /* Level 3 BLAS Routines */
@@ -594,10 +670,12 @@ void cblas_##prefix##gemm(const CBLAS_LAYOUT Layout,    \
         const T beta,                                   \
         T *c, const int ldc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__GEMM(s, float);
 DECLARE_CBLAS__GEMM(d, double);
 DECLARE_CBLAS__GEMM(c, float _Complex);
 DECLARE_CBLAS__GEMM(z, double _Complex);
+#endif
 
 
 /* ?hemm - matrix-matrix product with general matrices */
@@ -612,8 +690,10 @@ void cblas_##prefix##hemm(const CBLAS_LAYOUT Layout,    \
         const T *beta,                                  \
         T *c, const int ldc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HEMM(c, float _Complex);
 DECLARE_CBLAS__HEMM(z, double _Complex);
+#endif
 
 /* ?herk - Hermitian rank-k update */
 #define DECLARE_CBLAS__HERK(prefix, S, T)               \
@@ -626,8 +706,10 @@ void cblas_##prefix##herk(const CBLAS_LAYOUT Layout,    \
         const S beta,                                   \
         T *c, const int ldc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HERK(c, float, float _Complex);
 DECLARE_CBLAS__HERK(z, double, double _Complex);
+#endif
 
 /* ?her2k */
 #define DECLARE_CBLAS__HER2K(prefix, S, T)              \
@@ -641,8 +723,10 @@ void cblas_##prefix##her2k(const CBLAS_LAYOUT Layout,   \
         const S beta,                                   \
         T *c, const int ldc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__HER2K(c, float, float _Complex);
 DECLARE_CBLAS__HER2K(z, double, double _Complex);
+#endif
 
 /* ?symm - matrix-matrix product where one input is symmetric */
 #define DECLARE_CBLAS__SYMM(prefix, T)                  \
@@ -656,10 +740,12 @@ void cblas_##prefix##symm(const CBLAS_LAYOUT Layout,    \
         const T beta,                                   \
         T *c, const int ldc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SYMM(s, float);
 DECLARE_CBLAS__SYMM(d, double);
 DECLARE_CBLAS__SYMM(c, float _Complex);
 DECLARE_CBLAS__SYMM(z, double _Complex);
+#endif
 
 /* ?syrk - symmetric rank-k update */
 #define DECLARE_CBLAS__SYRK(prefix, T)                  \
@@ -672,10 +758,12 @@ void cblas_##prefix##syrk(const CBLAS_LAYOUT Layout,    \
         const T beta,                                   \
         T *c, const int ldc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SYRK(s, float);
 DECLARE_CBLAS__SYRK(d, double);
 DECLARE_CBLAS__SYRK(c, float _Complex);
 DECLARE_CBLAS__SYRK(z, double _Complex);
+#endif
 
 /* ?syr2k - symmetric rank-2k update */
 #define DECLARE_CBLAS__SYR2K(prefix, T)                 \
@@ -689,10 +777,12 @@ void cblas_##prefix##syr2k(const CBLAS_LAYOUT Layout,   \
         const T beta,                                   \
         T *c, const int ldc)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__SYR2K(s, float);
 DECLARE_CBLAS__SYR2K(d, double);
 DECLARE_CBLAS__SYR2K(c, float _Complex);
 DECLARE_CBLAS__SYR2K(z, double _Complex);
+#endif
 
 /* ?trmm - matrix-matrix product where one input matrix is triangular */
 #define DECLARE_CBLAS__TRMM(prefix, T)                  \
@@ -706,10 +796,12 @@ void cblas_##prefix##trmm(const CBLAS_LAYOUT Layout,    \
         const T *a, const int lda,                      \
         T *b, const int ldb)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TRMM(s, float);
 DECLARE_CBLAS__TRMM(d, double);
 DECLARE_CBLAS__TRMM(c, float _Complex);
 DECLARE_CBLAS__TRMM(z, double _Complex);
+#endif
 
 /* ?trsm - solves a triangular matrix equation */
 #define DECLARE_CBLAS__TRSM(prefix, T)                  \
@@ -723,10 +815,12 @@ void cblas_##prefix##trsm(const CBLAS_LAYOUT Layout,    \
         const T *a, const int lda,                      \
         T *b, const int ldb)
 
+#if DECLARE_CBLAS
 DECLARE_CBLAS__TRSM(s, float);
 DECLARE_CBLAS__TRSM(d, double);
 DECLARE_CBLAS__TRSM(c, float _Complex);
 DECLARE_CBLAS__TRSM(z, double _Complex);
+#endif
 
 
 #ifdef __cplusplus

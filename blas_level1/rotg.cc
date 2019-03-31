@@ -1,4 +1,12 @@
+#include <cublas_v2.h>
+#include "../common.h"
+#include "../cblas.h"
+#include "../blas.h"
+#include "../conversions.h"
 #include "level1.h"
+#include "../blas2cuda.h"
+
+extern cublasHandle_t b2c_handle;
 
 void cblas_srotg (float *a, float *b, float *c, float *s) {
     call_kernel(cublasSrotg(b2c_handle, a, b, c, s));

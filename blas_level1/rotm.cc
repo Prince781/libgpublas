@@ -1,4 +1,10 @@
+#include <cublas_v2.h>
+#include "../common.h"
+#include "../cblas.h"
+#include "../blas.h"
+#include "../conversions.h"
 #include "level1.h"
+#include "../blas2cuda.h"
 
 template <typename T>
 static void _cblas_rotm (const int n,
@@ -11,7 +17,7 @@ static void _cblas_rotm (const int n,
     const struct objinfo *x_info, *y_info;
     const int size_x = size(1, n-1, incx, sizeof(*x));
     const int size_y = size(1, n-1, incy, sizeof(*y));
-
+    extern cublasHandle_t b2c_handle;
 
     gpu_x = (T *) b2c_place_on_gpu((void *) x, size_x, &x_info, NULL);
     gpu_y = (T *) b2c_place_on_gpu((void *) y, size_y, &y_info, 
@@ -20,8 +26,8 @@ static void _cblas_rotm (const int n,
 
     call_kernel(rotm_func(b2c_handle, n, gpu_x, incx, gpu_y, incy, param));
 
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
+    
+    runtime_fatal_errmsg(cudaGetLastError(), __func__);
 
     if (!x_info)
         b2c_copy_from_gpu(x, gpu_x, size_x);

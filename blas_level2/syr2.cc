@@ -1,4 +1,12 @@
+#include <cublas_v2.h>
+#include "../common.h"
+#include "../cblas.h"
+#include "../blas.h"
+#include "../conversions.h"
 #include "level2.h"
+#include "../blas2cuda.h"
+
+extern cublasHandle_t b2c_handle;
 
 template <typename T>
 void _cblas_syr2(const CBLAS_LAYOUT Layout,
@@ -57,8 +65,8 @@ void _cblas_syr2(const CBLAS_LAYOUT Layout,
                 gpu_a, rows_a)
     );
 
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
+    
+    runtime_fatal_errmsg(cudaGetLastError(), __func__);
 
     if (!a_info) {
         if (Layout == CblasRowMajor)

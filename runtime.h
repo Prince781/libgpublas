@@ -79,6 +79,11 @@ runtime_error_t runtime_init(runtime_init_info_t info);
 runtime_error_t runtime_fini(void);
 
 /**
+ * if error_code is not "success", prints the error message and exits
+ */
+void runtime_fatal_errmsg(runtime_error_t error_code, const char *domain);
+
+/**
  * Copy memory from hostbuf -> gpubuf
  */
 runtime_error_t runtime_memcpy_htod(void *gpubuf, const void *hostbuf, size_t size);

@@ -1,8 +1,15 @@
+#include <cublas_v2.h>
+#include "../common.h"
+#include "../cblas.h"
+#include "../blas.h"
+#include "../conversions.h"
 #include "level3.h"
+#include "../blas2cuda.h"
+
+extern cublasHandle_t b2c_handle;
 
 template <typename S, typename T>
-void _cblas_herk(const CBLAS_LAYOUT Layout,
-        const CBLAS_UPLO uplo,
+void _b2c_herk(const CBLAS_UPLO uplo,
         const CBLAS_TRANSPOSE trans,
         const int n, const int k,
         const S alpha,
@@ -15,8 +22,7 @@ void _cblas_herk(const CBLAS_LAYOUT Layout,
             const S *,
             const T *, int,
             const S *,
-            T *, int),
-        geam_t<T> geam_func)
+            T *, int))
 {
     const T *gpu_a;
     T *gpu_c;
@@ -27,30 +33,18 @@ void _cblas_herk(const CBLAS_LAYOUT Layout,
     cublasOperation_t ctrans = cu(trans);
     const struct objinfo *a_info, *c_info;
 
-    assign_dims(Layout, trans, rows_a, cols_a, lda, k, n);
-    if (Layout == CblasRowMajor) {
-        a_info = NULL;
-        c_info = NULL;
+    assign_dims(CblasColMajor, trans, rows_a, cols_a, lda, k, n);
 
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
-        gpu_a = transpose(a, size_a, &rows_a, &cols_a, lda, geam_func);
+    size_a = size(0, rows_a, cols_a, sizeof(*a));
+    
+    rows_c = ldc;
+    cols_c = n;
+    size_c = size(0, rows_c, cols_c, sizeof(*c));
 
-        rows_c = ldc;
-        cols_c = n;
-        size_c = size(0, rows_c, cols_c, sizeof(*c));
-        gpu_c = transpose(c, size_c, &rows_c, &cols_c, ldc, geam_func);
-    } else {
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
-        
-        rows_c = ldc;
-        cols_c = n;
-        size_c = size(0, rows_c, cols_c, sizeof(*c));
-
-        gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
-        gpu_c = (T *) b2c_place_on_gpu((void *) c, size_c, &c_info, 
-                (void *) gpu_a, &a_info,
-                NULL);
-    }
+    gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
+    gpu_c = (T *) b2c_place_on_gpu((void *) c, size_c, &c_info, 
+            (void *) gpu_a, &a_info,
+            NULL);
 
     call_kernel(
         herk_func(b2c_handle,
@@ -62,12 +56,10 @@ void _cblas_herk(const CBLAS_LAYOUT Layout,
                 gpu_c, ldc)
     );
 
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
+    
+    runtime_fatal_errmsg(cudaGetLastError(), __func__);
 
     if (!c_info) {
-        if (Layout == CblasRowMajor)
-            transpose(gpu_c, size_c, &rows_c, &cols_c, ldc, geam_func);
         b2c_copy_from_gpu(c, gpu_c, size_c);
     }
 
@@ -76,24 +68,22 @@ void _cblas_herk(const CBLAS_LAYOUT Layout,
 }
 
 
-DECLARE_CBLAS__HERK(c, float, float _Complex) {
-    _cblas_herk(Layout, uplo, trans,
-            n, k,
-            alpha,
-            (cuComplex *) a, lda,
-            beta,
-            (cuComplex *) c, ldc,
-            &cublasCherk,
-            &cublasCgeam);
+F77_herk(c, float, float _Complex) {
+    _b2c_herk(c_uplo(*uplo), c_trans(*trans),
+            *n, *k,
+            *alpha,
+            (cuComplex *) a, *lda,
+            *beta,
+            (cuComplex *) c, *ldc,
+            &cublasCherk);
 }
 
-DECLARE_CBLAS__HERK(z, double, double _Complex) {
-    _cblas_herk(Layout, uplo, trans,
-            n, k,
-            alpha,
-            (cuDoubleComplex *) a, lda,
-            beta,
-            (cuDoubleComplex *) c, ldc,
-            &cublasZherk,
-            &cublasZgeam);
+F77_herk(z, double, double _Complex) {
+    _b2c_herk(c_uplo(*uplo), c_trans(*trans),
+            *n, *k,
+            *alpha,
+            (cuDoubleComplex *) a, *lda,
+            *beta,
+            (cuDoubleComplex *) c, *ldc,
+            &cublasZherk);
 }

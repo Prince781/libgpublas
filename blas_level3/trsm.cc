@@ -1,8 +1,15 @@
+#include <cublas_v2.h>
+#include "../common.h"
+#include "../cblas.h"
+#include "../blas.h"
+#include "../conversions.h"
 #include "level3.h"
+#include "../blas2cuda.h"
+
+extern cublasHandle_t b2c_handle;
 
 template <typename T>
-void _cblas_trsm(const CBLAS_LAYOUT Layout,
-        const CBLAS_SIDE side,
+void _b2c_trsm(const CBLAS_SIDE side,
         const CBLAS_UPLO uplo,
         const CBLAS_TRANSPOSE transa,
         const CBLAS_DIAG diag,
@@ -16,8 +23,7 @@ void _cblas_trsm(const CBLAS_LAYOUT Layout,
             int, int,
             const T *,
             const T *, int,
-            T *, int),
-        geam_t<T> geam_func)
+            T *, int))
 {
     const T *gpu_a;
     T *gpu_b;
@@ -30,33 +36,18 @@ void _cblas_trsm(const CBLAS_LAYOUT Layout,
     cublasDiagType_t cdiag = cu(diag);
     const struct objinfo *a_info, *b_info;
 
-    if (Layout == CblasRowMajor) {
-        a_info = NULL;
-        b_info = NULL;
+    cols_a = lda;
+    rows_a = (side == CblasLeft) ? m : n;
+    size_a = size(0, rows_a, cols_a, sizeof(*a));
 
-        rows_a = lda;
-        cols_a = (side == CblasLeft) ? m : n;
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
-        gpu_a = transpose(a, size_a, &rows_a, &cols_a, lda, geam_func);
+    cols_b = ldb;
+    rows_b = (side == CblasLeft) ? m : n;
+    size_b = size(0, rows_b, cols_b, sizeof(*b));
 
-        rows_b = lda;
-        cols_b = m;
-        size_b = size(0, rows_b, cols_b, sizeof(*b));
-        gpu_b = transpose(b, size_b, &rows_b, &cols_b, ldb, geam_func);
-    } else {
-        cols_a = lda;
-        rows_a = (side == CblasLeft) ? m : n;
-        size_a = size(0, rows_a, cols_a, sizeof(*a));
-
-        cols_b = ldb;
-        rows_b = (side == CblasLeft) ? m : n;
-        size_b = size(0, rows_b, cols_b, sizeof(*b));
-
-        gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
-        gpu_b = (T *) b2c_place_on_gpu((void *) b, size_b, &b_info, 
-                (void *) gpu_a, &a_info,
-                NULL);
-    }
+    gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
+    gpu_b = (T *) b2c_place_on_gpu((void *) b, size_b, &b_info, 
+            (void *) gpu_a, &a_info,
+            NULL);
 
     call_kernel(
         trsm_func(b2c_handle,
@@ -68,12 +59,10 @@ void _cblas_trsm(const CBLAS_LAYOUT Layout,
                 gpu_b, ldb)
     );
 
-    if (cudaPeekAtLastError() != cudaSuccess)
-        b2c_fatal_error(cudaGetLastError(), __func__);
+    
+    runtime_fatal_errmsg(cudaGetLastError(), __func__);
 
     if (!b_info) {
-        if (Layout == CblasRowMajor)
-            transpose(gpu_b, size_b, &rows_b, &cols_b, ldb, geam_func);
         b2c_copy_from_gpu(b, gpu_b, size_b);
     }
 
@@ -81,50 +70,43 @@ void _cblas_trsm(const CBLAS_LAYOUT Layout,
     b2c_cleanup_gpu_ptr((void *) gpu_b, b_info);
 }
 
-DECLARE_CBLAS__TRSM(s, float) {
-    _cblas_trsm(Layout,
-            side, uplo,
-            transa, diag,
-            m, n, 
-            alpha,
-            a, lda,
-            b, ldb,
-            &cublasStrsm,
-            &cublasSgeam);
+F77_trsm(s, float) {
+    _b2c_trsm(c_side(*side), c_uplo(*uplo),
+            c_trans(*transa), c_diag(*diag),
+            *m, *n, 
+            *alpha,
+            a, *lda,
+            b, *ldb,
+            &cublasStrsm);
 }
 
-DECLARE_CBLAS__TRSM(d, double) {
-    _cblas_trsm(Layout,
-            side, uplo,
-            transa, diag,
-            m, n, 
-            alpha,
-            a, lda,
-            b, ldb,
-            &cublasDtrsm,
-            &cublasDgeam);
+F77_trsm(d, double) {
+    _b2c_trsm(c_side(*side), c_uplo(*uplo),
+            c_trans(*transa), c_diag(*diag),
+            *m, *n, 
+            *alpha,
+            a, *lda,
+            b, *ldb,
+            &cublasDtrsm);
 }
 
-DECLARE_CBLAS__TRSM(c, float _Complex) {
-    _cblas_trsm(Layout,
-            side, uplo,
-            transa, diag,
-            m, n, 
-            cu(alpha),
-            (cuComplex *)a, lda,
-            (cuComplex *)b, ldb,
-            &cublasCtrsm,
-            &cublasCgeam);
+
+F77_trsm(c, float _Complex) {
+    _b2c_trsm(c_side(*side), c_uplo(*uplo),
+            c_trans(*transa), c_diag(*diag),
+            *m, *n, 
+            cu(*alpha),
+            (cuComplex *)a, *lda,
+            (cuComplex *)b, *ldb,
+            &cublasCtrsm);
 }
 
-DECLARE_CBLAS__TRSM(z, double _Complex) {
-    _cblas_trsm(Layout,
-            side, uplo,
-            transa, diag,
-            m, n, 
-            cu(alpha),
-            (cuDoubleComplex *)a, lda,
-            (cuDoubleComplex *)b, ldb,
-            &cublasZtrsm,
-            &cublasZgeam);
+F77_trsm(z, double _Complex) {
+    _b2c_trsm(c_side(*side), c_uplo(*uplo),
+            c_trans(*transa), c_diag(*diag),
+            *m, *n, 
+            cu(*alpha),
+            (cuDoubleComplex *)a, *lda,
+            (cuDoubleComplex *)b, *ldb,
+            &cublasZtrsm);
 }
