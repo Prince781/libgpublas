@@ -123,33 +123,6 @@ static void set_options(void) {
     }
 }
 
-#if USE_CUDA
-void init_cublas(void) {
-    static bool inside = false;
-    if (!runtime_blas_initialized && !inside) {
-        inside = true;
-        switch (cublasCreate(&b2c_handle)) {
-            case CUBLAS_STATUS_SUCCESS:
-                {
-                    pid_t tid = syscall(SYS_gettid);
-                    writef(STDOUT_FILENO, "blas2cuda: initialized cuBLAS on thread %d\n", tid);
-                }
-                break;
-            case CUBLAS_STATUS_ALLOC_FAILED:
-                writef(STDERR_FILENO, "blas2cuda: failed to allocate resources\n");
-                break;
-            case CUBLAS_STATUS_NOT_INITIALIZED:
-            default:
-                writef(STDERR_FILENO, "blas2cuda: failed to initialize cuBLAS\n");
-                abort();
-                break;
-        }
-        runtime_blas_initialized = true;
-        inside = false;
-    }
-}
-#endif
-
 void *b2c_copy_to_gpu(const void *hostbuf, size_t size)
 {
     void *gpubuf = NULL;

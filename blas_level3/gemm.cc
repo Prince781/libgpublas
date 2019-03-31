@@ -1,3 +1,6 @@
+#if USE_CUDA
+#include <cublas_v2.h>
+#endif
 #include "../common.h"
 #include "../cblas.h"
 #include "../blas.h"

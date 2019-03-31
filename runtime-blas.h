@@ -4,6 +4,7 @@
 
 #if USE_CUDA
 #include <cublas_v2.h>
+#include <stdio.h>
 
 typedef cublasStatus_t runtime_blas_error_t;
 
@@ -43,8 +44,8 @@ static inline const char *runtime_blas_error_msg(runtime_blas_error_t error) {
 
 #elif USE_OPENCL
 #include <CL/cl.h>
-#include <clblast_c.h>
 #include "clext.h"
+#include <clblast_c.h>
 #include "clblast_ext.h"
 #include <string.h>
 

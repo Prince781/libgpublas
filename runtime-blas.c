@@ -2,7 +2,7 @@
 #include <stdbool.h>
 
 #if USE_CUDA
-cublasStatus_t b2c_cublas_handle;
+cublasHandle_t b2c_cublas_handle;
 #endif
 
 runtime_blas_error_t runtime_blas_init(void) {
