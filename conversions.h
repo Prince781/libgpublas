@@ -11,7 +11,6 @@
 #include "cblas.h"
 #include "common.h"
 #include "runtime.h"
-#include "blas2cuda.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -170,7 +169,64 @@ using geam_t = cublasStatus_t (*)(cublasHandle_t,
             const T *, int,
             T *, int);
 
-#endif
+#elif USE_OPENCL
+#include <clblast_c.h>
+
+static inline CLBlastTranspose clb(CBLAS_TRANSPOSE trans) {
+    switch (trans) {
+        case CblasNoTrans:
+            return CLBlastTransposeNo;
+        case CblasTrans:
+            return CLBlastTransposeYes;
+        case CblasConjTrans:
+            return CLBlastTransposeConjugate;
+        default:
+            fprintf(stderr, "Invalid value for CBLAS_TRANSPOSE: %d\n", trans);
+            abort();
+            break;
+    }
+}
+
+static inline CLBlastTriangle clb(CBLAS_UPLO uplo) {
+    switch (uplo) {
+        case CblasUpper:
+            return CLBlastTriangleUpper;
+        case CblasLower:
+            return CLBlastTriangleLower;
+        default:
+            fprintf(stderr, "Invalid value for CBLAS_UPLO: %d\n", uplo);
+            abort();
+            break;
+    }
+}
+
+static inline CLBlastDiagonal clb(CBLAS_DIAG diag) {
+    switch (diag) {
+        case CblasNonUnit:
+            return CLBlastDiagonalNonUnit;
+        case CblasUnit:
+            return CLBlastDiagonalUnit;
+        default:
+            fprintf(stderr, "Invalid value for CBLAS_DIAG: %d\n", diag);
+            abort();
+            break;
+    }
+}
+
+static inline CLBlastSide clb(CBLAS_SIDE side) {
+    switch (side) {
+        case CblasLeft:
+            return CLBlastSideLeft;
+        case CblasRight:
+            return CLBlastSideRight;
+        default:
+            fprintf(stderr, "Invalid value for CBLAS_SIDE: %d\n", side);
+            abort();
+            break;
+    }
+}
+
+#endif // elif USE_OPENCL 
 
 class scalar {
 private:

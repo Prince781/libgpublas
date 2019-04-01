@@ -54,11 +54,13 @@ typedef struct _runtime_init_info {
 #define RUNTIME_INIT_INFO_DEFAULT (runtime_init_info_t){0,0}
 
 #define call_kernel(expr) {\
+    extern cl_command_queue opencl_cmd_queue;\
+    extern bool b2c_must_synchronize;\
     obj_tracker_internal_enter();\
     expr;\
     obj_tracker_internal_leave();\
     if (b2c_must_synchronize)\
-        {/* TODO */}\
+        clFinish(opencl_cmd_queue);\
 } while (0)
 
 #else

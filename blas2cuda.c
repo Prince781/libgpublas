@@ -35,8 +35,8 @@ struct objmngr blas2cuda_manager = {
     .get_size = get_size_managed
 };
 
-static size_t hits = 0;
-static size_t misses = 0;
+size_t b2c_hits = 0;
+size_t b2c_misses = 0;
 static size_t total_managed_mem = 0;    /* in bytes */
 
 bool b2c_must_synchronize = false;
@@ -166,69 +166,6 @@ void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
 
     obj_tracker_internal_leave();
 }
-
-void *b2c_place_on_gpu(void *hostbuf, 
-                       size_t size,
-                       const struct objinfo **info_in,
-                       void *gpubuf2,
-                       ...)
-{
-    void *gpubuf;
-    const struct objinfo *gpubuf2_info;
-    runtime_error_t err = RUNTIME_ERROR_SUCCESS;
-
-    obj_tracker_internal_enter();
-    if (!hostbuf) {
-        err = runtime_malloc(&gpubuf, size);
-    } else if ((*info_in = obj_tracker_objinfo_subptr(hostbuf))) {
-        assert ((*info_in)->ptr == hostbuf);
-        err = runtime_svm_unmap(hostbuf);
-        gpubuf = hostbuf;
-        hits++;
-    } else {
-        gpubuf = b2c_copy_to_gpu(hostbuf, size);
-        misses++;
-    }
-
-    if (!gpubuf || runtime_is_error(err)) {
-        va_list ap;
-
-        va_start(ap, gpubuf2);
-
-        writef(STDERR_FILENO, "blas2cuda: %s: failed to copy to GPU\n", __func__);
-
-        if (gpubuf2) {
-            do {
-                gpubuf2_info = va_arg(ap, typeof(gpubuf2_info));
-                b2c_cleanup_gpu_ptr(gpubuf2, gpubuf2_info);
-            } while ((gpubuf2 = va_arg(ap, typeof(gpubuf2))));
-        }
-
-        va_end(ap);
-        obj_tracker_internal_leave();
-        return NULL;
-    }
-
-    obj_tracker_internal_leave();
-    return gpubuf;
-}
-
-void b2c_cleanup_gpu_ptr(void *gpubuf, const struct objinfo *info)
-{
-    runtime_error_t err;
-    obj_tracker_internal_enter();
-    if (!info)
-        err = runtime_free(gpubuf);
-    else
-        err = runtime_svm_map(gpubuf, info->size);
-    obj_tracker_internal_leave();
-    if (runtime_is_error(err)) {
-        writef(STDERR_FILENO, "blas2cuda: %s: failed to cleanup %p: %s\n", __func__,
-                gpubuf, runtime_error_name(err));
-        abort();
-    }
-}
-
 
 /* memory management */
 static void *alloc_managed(size_t request)
@@ -374,7 +311,7 @@ void blas2cuda_fini(void)
         int fd = open("statistics.csv", O_RDWR | O_CREAT, 0644);
         if (fd > -1) {
             writef(fd, "Hits, Misses\n");
-            writef(fd, "%zu, %zu", hits, misses);
+            writef(fd, "%zu, %zu", b2c_hits, b2c_misses);
             close(fd);
         } else {
             writef(STDERR_FILENO, "blas2cuda: failed to write to statistics file: %s\n", strerror(errno));

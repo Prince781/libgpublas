@@ -6,8 +6,8 @@
 #include "../blas.h"
 #include "../conversions.h"
 #include "level3.h"
-#include "../blas2cuda.h"
 #include "../runtime-blas.h"
+#include "../runtime-mem.hpp"
 
 #if USE_CUDA
 extern cublasHandle_t b2c_cublas_handle;
@@ -59,23 +59,10 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
         T *c, const int ldc,
         gemm_t<T> gemm_func)
 {
-    const T *gpu_a, *gpu_b;
-    T *gpu_c;
-    int size_a, size_b, size_c;
-    const struct objinfo *a_info, *b_info, *c_info;
+    gpuptr gpu_a((void *)a, compute_size(CblasColMajor, transa, a, lda, k, m));
+    gpuptr gpu_b((void *)b, compute_size(CblasColMajor, transb, b, ldb, n, k));
+    gpuptr gpu_c(c, size(0, ldc, n, sizeof(*c)));
 
-    size_a = compute_size(CblasColMajor, transa, a, lda, k, m);
-    size_b = compute_size(CblasColMajor, transb, b, ldb, n, k);
-    size_c = size(0, ldc, n, sizeof(*c));
-
-    gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
-    gpu_b = (T *) b2c_place_on_gpu((void *) b, size_b, &b_info, 
-            (void *) gpu_a, &a_info,
-            NULL);
-    gpu_c = (T *) b2c_place_on_gpu((void *) c, size_c, &c_info, 
-            (void *) gpu_a, &a_info,
-            (void *) gpu_b, &b_info,
-            NULL);
 
     call_kernel(
 #if USE_CUDA
@@ -88,17 +75,16 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
                 &beta,
                 gpu_c, ldc)
 #else
-        
+        gemm_func(CLBlastLayoutColMajor, clb(transa), clb(transb),
+            m, n, k,
+            alpha,
+            gpu_a, 0, lda,
+            gpu_b, 0, ldb,
+            beta,
+            gpu_c, 0, ldc,
+            &opencl_cmd_queue, NULL)
 #endif
     );
-
-    if (!c_info) {
-        b2c_copy_from_gpu(c, gpu_c, size_c);
-    }
-
-    b2c_cleanup_gpu_ptr((void *) gpu_a, a_info);
-    b2c_cleanup_gpu_ptr((void *) gpu_b, b_info);
-    b2c_cleanup_gpu_ptr((void *) gpu_c, c_info);
 }
 
 // Fortran wrappers
