@@ -123,50 +123,6 @@ static void set_options(void) {
     }
 }
 
-void *b2c_copy_to_gpu(const void *hostbuf, size_t size)
-{
-    void *gpubuf = NULL;
-    runtime_error_t err;
-
-    obj_tracker_internal_enter();
-    err = runtime_malloc(&gpubuf, size);
-
-    if (!gpubuf || runtime_is_error(err)) {
-        obj_tracker_internal_leave();
-        return NULL;
-    }
-
-    err = runtime_memcpy_htod(gpubuf, hostbuf, size);
-
-    if (b2c_options.trace_copy || runtime_is_error(err)) {
-        writef(runtime_is_error(err) ? STDERR_FILENO : STDOUT_FILENO, 
-                "blas2cuda: %s: %zu B : CPU ---> GPU%s\n", __func__, size, 
-                runtime_is_error(err) ? " (failed)" : "");
-        if (runtime_is_error(err))
-            abort();
-    }
-
-    obj_tracker_internal_leave();
-    return gpubuf;
-}
-
-void b2c_copy_from_gpu(void *hostbuf, const void *gpubuf, size_t size)
-{
-    runtime_error_t err;
-    obj_tracker_internal_enter();
-    err = runtime_memcpy_dtoh(hostbuf, gpubuf, size);
-
-    if (b2c_options.trace_copy || runtime_is_error(err)) {
-        writef(runtime_is_error(err) ? STDERR_FILENO : STDOUT_FILENO, 
-                "blas2cuda: %s: %zu B : GPU ---> CPU%s\n", __func__, size,
-                runtime_is_error(err) ? " (failed)" : "");
-        if (runtime_is_error(err))
-            abort();
-    }
-
-    obj_tracker_internal_leave();
-}
-
 /* memory management */
 static void *alloc_managed(size_t request)
 {
