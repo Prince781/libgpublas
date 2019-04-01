@@ -1,5 +1,5 @@
 project('gpublas', 'c', 'cpp',
-    default_options: ['c_std=gnu11', 'cpp_std=gnu++11'],
+    default_options: ['c_std=gnu11', 'cpp_std=gnu++17'],
     version: '0.1',
     license: 'GPL3+',
     meson_version: '>= 0.42.0')

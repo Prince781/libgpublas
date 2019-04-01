@@ -3,16 +3,18 @@
 #include "common.h"
 #include "lib/obj_tracker.h"
 #include <assert.h>
+#include <type_traits>
 
 /**
  * 
  */
+template <typename T>
 class gpuptr {
 private:
-    void *host_ptr;
+    T *host_ptr;
     size_t size;
 #if USE_CUDA
-    void *gpu_ptr;
+    T *gpu_ptr;
 #else
     cl_mem gpu_ptr;
 #endif
@@ -20,7 +22,7 @@ private:
 public:
     const struct objinfo *o_info;
 
-    gpuptr(void *host_ptr, size_t size) : host_ptr(host_ptr), size(size), gpu_ptr(0), grabbed(false) {
+    gpuptr(T *host_ptr, size_t size) : host_ptr(host_ptr), size(size), gpu_ptr(0), grabbed(false) {
         runtime_error_t err;
         extern size_t b2c_hits, b2c_misses;
 #if USE_OPENCL
@@ -32,7 +34,7 @@ public:
         if (!host_ptr) {
             // host_ptr is NULL, so create a brand new buffer
 #if USE_CUDA
-            err = runtime_malloc(&this->gpu_ptr, size);
+            err = runtime_malloc((void **)&this->gpu_ptr, size);
 #else
             this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE, size, NULL, &err);
 #endif
@@ -42,10 +44,10 @@ public:
                         size, runtime_error_string(err));
                 abort();
             }
-        } else if ((this->o_info = obj_tracker_objinfo_subptr(host_ptr))) {
+        } else if ((this->o_info = obj_tracker_objinfo_subptr((void *)host_ptr))) {
             // host_ptr is already shared with GPU
             assert(this->o_info->ptr == host_ptr);
-            err = runtime_svm_unmap(host_ptr);
+            err = runtime_svm_unmap((void *)host_ptr);
             if (runtime_is_error(err)) {
                 writef(STDERR_FILENO, "blas2cuda: failed to unmap %p from host: %s\n",
                         host_ptr, runtime_error_string(err));
@@ -66,7 +68,7 @@ public:
         } else {
             // copy host_ptr contents over to GPU
 #if USE_CUDA
-            err = runtime_malloc(&this->gpu_ptr, size);
+            err = runtime_malloc((void **)&this->gpu_ptr, size);
 #else
             this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size, host_ptr, &err);
 #endif
@@ -78,7 +80,7 @@ public:
             }
 
 #if USE_CUDA
-            err = runtime_memcpy_htod(this->gpu_ptr, host_ptr, size);
+            err = runtime_memcpy_htod((void *)this->gpu_ptr, host_ptr, size);
             if (runtime_is_error(err)) {
                 writef(STDERR_FILENO, "blas2cuda: failed to copy %zu B from %p (CPU) ---> %p (GPU): %s\n",
                         size, host_ptr, this->gpu_ptr, runtime_error_string(err));
@@ -97,6 +99,37 @@ public:
         obj_tracker_internal_leave();
     }
 
+    // if the type is const, do nothing
+    template <class U = T>
+    typename std::enable_if<std::is_same<U, const T>::value, runtime_error_t>::type cleanup_managed() { return RUNTIME_ERROR_SUCCESS; }
+
+    // if the type is non-const
+    template <class U = T>
+    typename std::enable_if<!std::is_same<U, const T>::value, runtime_error_t>::type cleanup_managed() {
+        runtime_error_t err;
+        // copy the GPU buffer back to host
+        if (this->grabbed) {
+#if USE_CUDA
+            err = runtime_memcpy_dtoh(this->host_ptr, this->gpu_ptr, this->size);
+#else
+            err = clEnqueueReadBuffer(opencl_cmd_queue, this->gpu_ptr, CL_TRUE, 0, this->size, this->host_ptr, 0, NULL, NULL);
+#endif
+            if (runtime_is_error(err)) {
+                writef(STDERR_FILENO, "blas2cuda: failed to copy %zu B from %p (GPU) ---> %p (CPU): %s\n", 
+                        this->size, this->gpu_ptr, this->host_ptr, runtime_error_string(err));
+                abort();
+            }
+        }
+
+        // free the temporary GPU buffer
+#if USE_CUDA
+        err = runtime_free(this->gpu_ptr);
+#else
+        err = clReleaseMemObject(this->gpu_ptr);
+#endif
+        return err;
+    }
+
     ~gpuptr() {
         runtime_error_t err;
 #if USE_OPENCL
@@ -106,34 +139,14 @@ public:
         obj_tracker_internal_enter();
 
         if (!this->o_info) {
-            // copy the GPU buffer back to host
-            if (this->grabbed) {
-#if USE_CUDA
-                err = runtime_memcpy_dtoh(this->host_ptr, this->gpu_ptr, this->size);
-#else
-                err = clEnqueueReadBuffer(opencl_cmd_queue, this->gpu_ptr, CL_TRUE, 0, this->size, this->host_ptr, 0, NULL, NULL);
-#endif
-                if (runtime_is_error(err)) {
-                    writef(STDERR_FILENO, "blas2cuda: failed to copy %zu B from %p (GPU) ---> %p (CPU): %s\n", 
-                            this->size, this->gpu_ptr, this->host_ptr, runtime_error_string(err));
-                    abort();
-                }
-            }
-
-            // free the temporary GPU buffer
-#if USE_CUDA
-            err = runtime_free(this->gpu_ptr);
-#else
-            err = clReleaseMemObject(this->gpu_ptr);
-#endif
-            if (runtime_is_error(err)) {
+            if ((err = this->cleanup_managed()) != RUNTIME_ERROR_SUCCESS) {
                 writef(STDERR_FILENO, "blas2cuda: failed to free GPU buffer %p: %s\n",
                         this->gpu_ptr, runtime_error_string(err));
                 abort();
             }
         } else
             // this is a managed object, so all we have to do is map it again
-            err = runtime_svm_map(this->host_ptr, this->o_info->size);
+            err = runtime_svm_map((void *)this->host_ptr, this->o_info->size);
 
         if (runtime_is_error(err)) {
             writef(STDERR_FILENO, "blas2cuda: %s: failed to cleanup %p: %s\n", __func__,
@@ -145,7 +158,7 @@ public:
     }
 
 #if USE_CUDA
-    operator void*() {
+    operator T*() {
 #else
     operator cl_mem() {
 #endif

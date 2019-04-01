@@ -59,9 +59,9 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
         T *c, const int ldc,
         gemm_t<T> gemm_func)
 {
-    gpuptr gpu_a((void *)a, compute_size(CblasColMajor, transa, a, lda, k, m));
-    gpuptr gpu_b((void *)b, compute_size(CblasColMajor, transb, b, ldb, n, k));
-    gpuptr gpu_c(c, size(0, ldc, n, sizeof(*c)));
+    gpuptr<const T> gpu_a(a, compute_size(CblasColMajor, transa, a, lda, k, m));
+    gpuptr<const T> gpu_b(b, compute_size(CblasColMajor, transb, b, ldb, n, k));
+    gpuptr<T> gpu_c(c, size(0, ldc, n, sizeof(*c)));
 
 
     call_kernel(

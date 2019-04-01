@@ -26,6 +26,7 @@ typedef void *runtime_init_info_t;
  * but the results have not been synchronized.
  */
 #define call_kernel(expr) {\
+    extern bool b2c_must_synchronize;\
     obj_tracker_internal_enter();\
     expr;\
     obj_tracker_internal_leave();\
