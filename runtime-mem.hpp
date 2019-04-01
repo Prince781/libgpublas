@@ -4,11 +4,16 @@
 #include "lib/obj_tracker.h"
 #include <assert.h>
 #include <type_traits>
+#include <iostream>
+
+#if USE_OPENCL
+extern cl_command_queue opencl_cmd_queue;
+#endif
 
 /**
  * 
  */
-template <typename T>
+template <class T>
 class gpuptr {
 private:
     T *host_ptr;
@@ -57,7 +62,7 @@ public:
             this->gpu_ptr = host_ptr;
 #else
             // create a buffer that is backed by SVM
-            this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE, size, host_ptr, &err);
+            this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE, size, (void *)host_ptr, &err);
             if (runtime_is_error(err)) {
                 writef(STDERR_FILENO, "blas2cuda: failed to create a buffer backed by %p: %s\n",
                         host_ptr, runtime_error_string(err));
@@ -70,7 +75,7 @@ public:
 #if USE_CUDA
             err = runtime_malloc((void **)&this->gpu_ptr, size);
 #else
-            this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size, host_ptr, &err);
+            this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size, (void *)host_ptr, &err);
 #endif
 
             if (runtime_is_error(err)) {
@@ -100,13 +105,14 @@ public:
     }
 
     // if the type is const, do nothing
-    template <class U = T>
-    typename std::enable_if<std::is_same<U, const T>::value, runtime_error_t>::type cleanup_managed() { return RUNTIME_ERROR_SUCCESS; }
+    template <class U, std::enable_if_t<std::is_same<U, const U>::value, int> = 0>
+    void cleanup_managed() { }
 
     // if the type is non-const
-    template <class U = T>
-    typename std::enable_if<!std::is_same<U, const T>::value, runtime_error_t>::type cleanup_managed() {
+    template <class U, std::enable_if_t<!std::is_same<U, const U>::value, int> = 0>
+    void cleanup_managed() {
         runtime_error_t err;
+
         // copy the GPU buffer back to host
         if (this->grabbed) {
 #if USE_CUDA
@@ -127,23 +133,19 @@ public:
 #else
         err = clReleaseMemObject(this->gpu_ptr);
 #endif
-        return err;
+        if (runtime_is_error(err)) {
+            writef(STDERR_FILENO, "blas2cuda: failed to free GPU buffer %p: %s\n",
+                    this->gpu_ptr, runtime_error_string(err));
+            abort();
+        }
     }
 
     ~gpuptr() {
-        runtime_error_t err;
-#if USE_OPENCL
-        extern cl_command_queue opencl_cmd_queue;
-#endif
+        runtime_error_t err = RUNTIME_ERROR_SUCCESS;
 
         obj_tracker_internal_enter();
-
         if (!this->o_info) {
-            if ((err = this->cleanup_managed()) != RUNTIME_ERROR_SUCCESS) {
-                writef(STDERR_FILENO, "blas2cuda: failed to free GPU buffer %p: %s\n",
-                        this->gpu_ptr, runtime_error_string(err));
-                abort();
-            }
+            this->cleanup_managed<T>();
         } else
             // this is a managed object, so all we have to do is map it again
             err = runtime_svm_map((void *)this->host_ptr, this->o_info->size);
