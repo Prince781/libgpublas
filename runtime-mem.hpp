@@ -106,11 +106,11 @@ public:
 
     // if the type is const, do nothing
     template <class U, std::enable_if_t<std::is_same<U, const U>::value, int> = 0>
-    void cleanup_managed() { }
+    void cleanup_unmanaged() { }
 
     // if the type is non-const
     template <class U, std::enable_if_t<!std::is_same<U, const U>::value, int> = 0>
-    void cleanup_managed() {
+    void cleanup_unmanaged() {
         runtime_error_t err;
 
         // copy the GPU buffer back to host
@@ -126,18 +126,6 @@ public:
                 abort();
             }
         }
-
-        // free the temporary GPU buffer
-#if USE_CUDA
-        err = runtime_free(this->gpu_ptr);
-#else
-        err = clReleaseMemObject(this->gpu_ptr);
-#endif
-        if (runtime_is_error(err)) {
-            writef(STDERR_FILENO, "blas2cuda: failed to free GPU buffer %p: %s\n",
-                    this->gpu_ptr, runtime_error_string(err));
-            abort();
-        }
     }
 
     ~gpuptr() {
@@ -145,7 +133,18 @@ public:
 
         obj_tracker_internal_enter();
         if (!this->o_info) {
-            this->cleanup_managed<T>();
+            this->cleanup_unmanaged<T>();
+            // free the temporary GPU buffer
+#if USE_CUDA
+            err = runtime_free((void *) this->gpu_ptr);
+#else
+            err = clReleaseMemObject(this->gpu_ptr);
+#endif
+            if (runtime_is_error(err)) {
+                writef(STDERR_FILENO, "blas2cuda: failed to free GPU buffer %p: %s\n",
+                        this->gpu_ptr, runtime_error_string(err));
+                abort();
+            }
         } else
             // this is a managed object, so all we have to do is map it again
             err = runtime_svm_map((void *)this->host_ptr, this->o_info->size);
