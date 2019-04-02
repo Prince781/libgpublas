@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <CL/cl.h>
+#include <string.h>
 
 #include "clext.h"
 #include "util.h"
@@ -20,6 +21,22 @@ static void print_mat(const char *name, float *m, int len) {
         else if (i <= mx/2 || i >= len-mx/2) printf("%8.2f, ", m[i]);
         else if (i == mx/2+1) printf("   ...   ");
     }
+}
+
+static const char *svm_caps_tostr(cl_device_svm_capabilities caps) {
+    static char buf[1024];
+
+    buf[0] = 0;
+    if (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER)
+        strcat(buf, "coarse grain");
+    if (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)
+        strcat(buf, ", fine grain");
+    if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)
+        strcat(buf, " (system)");
+    if (caps & CL_DEVICE_SVM_ATOMICS)
+        strcat(buf, ", atomics");
+
+    return buf;
 }
 
 int main(int argc, char *argv[]) {
@@ -61,9 +78,14 @@ int main(int argc, char *argv[]) {
 
     for (cl_uint i = 0; i < deviceIdCount; ++i) {
         char device_name[1024];
+        cl_device_svm_capabilities caps;
+        const char *caps_str;
 
         clGetDeviceInfo(deviceIds[i], CL_DEVICE_NAME, sizeof device_name, device_name, NULL);
+        clGetDeviceInfo(deviceIds[i], CL_DEVICE_SVM_CAPABILITIES, sizeof caps, &caps, NULL);
+        caps_str = svm_caps_tostr(caps);
         printf("Device [%u] = %s\n", i, device_name);
+        printf("  SVM capabilities: %s\n", caps_str);
     }
 
     // create an OpenCL context
