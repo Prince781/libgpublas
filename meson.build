@@ -14,7 +14,9 @@ c_args = [
   '-Werror', 
   '-Wno-unused-parameter',
   '-Winit-self',
-  '-O3',
+  '-O0',
+  '-g',
+  '-ggdb3',
 ]
 
 sources = files(
@@ -106,17 +108,19 @@ if not get_option('opencl') and (libcublas_dep.found() or libcuda_dep.found() or
 else
   #use OpenCL
   libcl_dep = dependency('OpenCL')
-  libclblast_dep = dependency('clblast')
-  gpu_libs = [libclblast_dep, libcl_dep]
+  libclblas_dep = dependency('clBLAS')
+  clblas_inc_dir = include_directories(libclblas_dep.get_pkgconfig_variable('includedir') + '/clBLAS') # hack
+  gpu_libs = [libclblas_dep, libcl_dep]
   clext_h = custom_target('clext.h',
                           output: 'clext.h',
                           command: [find_program('./clext.py'), libcl_dep.get_pkgconfig_variable('includedir') + '/CL/'])
 
-  clblast_ext_h = custom_target('clblast_ext.h',
-                                input: files(libclblast_dep.get_pkgconfig_variable('includedir') + '/clblast_c.h'),
-                                output: 'clblast_ext.h',
-                                command: [find_program('./clblast_ext.py'), '@INPUT@'])
-  gpu_srcs += [clext_h, clblast_ext_h]
+  clblas_ext_h = custom_target('clblas_ext.h',
+                                input: files(libclblas_dep.get_pkgconfig_variable('includedir') + '/clBLAS/clBLAS.h'),
+                                output: 'clblas_ext.h',
+                                command: [find_program('./clblas_ext.py'), '@INPUT@'])
+  gpu_srcs += [clext_h, clblas_ext_h]
+  gpu_inc = [clblas_inc_dir]
   c_args += '-DUSE_OPENCL'
 endif
 

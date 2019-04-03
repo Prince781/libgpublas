@@ -9,7 +9,7 @@ runtime_blas_error_t runtime_blas_init(void) {
 #if USE_CUDA
     return cublasCreate(&b2c_cublas_handle);
 #else
-    return CL_SUCCESS;
+    return clblasSetup();
 #endif
 }
 
@@ -17,6 +17,7 @@ runtime_blas_error_t runtime_blas_fini(void) {
 #if USE_CUDA
     return cublasDestroy(b2c_cublas_handle);
 #else
+    clblasTeardown();
     return CL_SUCCESS;
 #endif
 }

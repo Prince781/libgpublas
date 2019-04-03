@@ -61,7 +61,7 @@ typedef struct _runtime_init_info {
     expr;\
     obj_tracker_internal_leave();\
     if (b2c_must_synchronize)\
-        clFinish(opencl_cmd_queue);\
+        writef(STDOUT_FILENO, "called kernel, ...\n");\
 } while (0)
 
 #else

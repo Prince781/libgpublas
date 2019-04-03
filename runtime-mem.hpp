@@ -33,8 +33,10 @@ public:
 #if USE_OPENCL
         extern cl_context opencl_ctx;
 #endif
+        objtracker_guard guard;
 
-        obj_tracker_internal_enter();
+        if (size == 0)
+            return;
 
         if (!host_ptr) {
             // host_ptr is NULL, so create a brand new buffer
@@ -100,8 +102,6 @@ public:
 //
             b2c_misses++;
         }
-
-        obj_tracker_internal_leave();
     }
 
     // if the type is const, do nothing
@@ -130,8 +130,8 @@ public:
 
     ~gpuptr() {
         runtime_error_t err = RUNTIME_ERROR_SUCCESS;
+        objtracker_guard guard;
 
-        obj_tracker_internal_enter();
         if (!this->o_info) {
             this->cleanup_unmanaged<T>();
             // free the temporary GPU buffer
@@ -154,8 +154,6 @@ public:
                     this->host_ptr, runtime_error_name(err));
             abort();
         }
-
-        obj_tracker_internal_leave();
     }
 
 #if USE_CUDA

@@ -75,16 +75,17 @@ struct opencl_platform *runtime_get_platforms(cl_int *err_in, cl_uint *nplatform
                             sizeof platforms[p].devices[d].type, 
                             &platforms[p].devices[d].type, 
                             NULL)) != CL_SUCCESS)
-                goto end;
+                continue;
+
+            writef(STDOUT_FILENO, "  Device [%u] = %s (%s)\n", d, platforms[p].devices[d].name, clDeviceTypeGetString(platforms[p].devices[d].type));
+            writef(STDOUT_FILENO, " SVM capabilities:\n");
 
             if ((*err_in = clGetDeviceInfo(device_ids[d], CL_DEVICE_SVM_CAPABILITIES, 
                             sizeof platforms[p].devices[d].svm_capabilities, 
                             &platforms[p].devices[d].svm_capabilities, 
                             NULL)) != CL_SUCCESS)
-                    goto end;
+                continue;
 
-            writef(STDOUT_FILENO, "  Device [%u] = %s (%s)\n", d, platforms[p].devices[d].name, clDeviceTypeGetString(platforms[p].devices[d].type));
-            writef(STDOUT_FILENO, " SVM capabilities:\n");
             writef(STDOUT_FILENO, "    Course-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER ? "yes" : "no");
             writef(STDOUT_FILENO, "    Fine-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_BUFFER ? "yes" : "no");
             writef(STDOUT_FILENO, "    Fine-grained system?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM ? "yes" : "no");

@@ -4,6 +4,7 @@
 #include "../common.h"
 #include "../cblas.h"
 #include "../blas.h"
+#define CONVERSIONS_WARN 1
 #include "../conversions.h"
 #include "level3.h"
 #include "../runtime-blas.h"
@@ -26,14 +27,11 @@ using gemm_t = cublasStatus_t (*)(cublasHandle_t,
             const T *,
             T *, int);
 #else
-using gemm_t = CLBlastStatusCode (*)(const CLBlastLayout layout, const CLBlastTranspose a_transpose, const CLBlastTranspose b_transpose,
-                               const size_t m, const size_t n, const size_t k,
-                               const T alpha,
-                               const cl_mem a_buffer, const size_t a_offset, const size_t a_ld,
-                               const cl_mem b_buffer, const size_t b_offset, const size_t b_ld,
-                               const T beta,
-                               cl_mem c_buffer, const size_t c_offset, const size_t c_ld,
-                               cl_command_queue* queue, cl_event* event);
+using gemm_t = clblasStatus (*)(clblasOrder order, clblasTranspose transA, clblasTranspose transB,
+                size_t M, size_t N, size_t K, T alpha, const cl_mem A, size_t offA, size_t lda,
+                const cl_mem B, size_t offB, size_t ldb, T beta, cl_mem C, size_t offC, size_t ldc,
+                cl_uint numCommandQueues, cl_command_queue* commandQueues, cl_uint numEventsInWaitList,
+                const cl_event* eventWaitList, cl_event* events);
 #endif
 
 template <typename T>
@@ -75,21 +73,66 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
                 &beta,
                 gpu_c, ldc)
 #else
-        gemm_func(CLBlastLayoutColMajor, clb(transa), clb(transb),
+        gemm_func(clblasColumnMajor, clb(transa), clb(transb),
             m, n, k,
             alpha,
             gpu_a, 0, lda,
             gpu_b, 0, ldb,
             beta,
             gpu_c, 0, ldc,
-            &opencl_cmd_queue, NULL)
+            1, &opencl_cmd_queue, 0, NULL, NULL)
 #endif
     );
 }
 
 // Fortran wrappers
 
+#define gemm_check() \
+do {\
+    bool nota = *transa == 'N';\
+    bool notb = *transb == 'N';\
+    int info = 0;\
+\
+    int nrowa = nota ? *m : *k;\
+    int nrowb = notb ? *k : *n;\
+\
+    if (!nota && *transa != 'C' && *transa != 'T')\
+        info = 1;\
+    else if (!notb && *transb != 'C' && *transb != 'T')\
+        info = 2;\
+    else if (*m < 0)\
+        info = 3;\
+    else if (*n < 0)\
+        info = 4;\
+    else if (*k < 0)\
+        info = 5;\
+    else if (*lda < std::max(1,nrowa))\
+        info = 8;\
+    else if (*ldb < std::max(1,nrowb))\
+        info = 10;\
+    else if (*ldc < std::max(1,*m))\
+        info = 13;\
+\
+    if (info != 0)\
+        return;\
+\
+    if (*m == 0 || *n == 0 || ((*alpha == 0 || *k == 0) && *beta == 1))\
+        return;\
+\
+    if (*alpha == 0) {\
+        if (*beta == 0) {\
+            memset(c, 0, (*m) * (*n) * sizeof *c);\
+        } else {\
+            for (int j=0; j<*n; ++j)\
+                for (int i=0; i<*m; ++i)\
+                    c[j*(*m) + i] *= *beta;\
+        }\
+        return;\
+    }\
+} while (0)
+
 F77_gemm(s, float) {
+    gemm_check();
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,
@@ -101,12 +144,13 @@ F77_gemm(s, float) {
 #if USE_CUDA
             &cublasSgemm
 #else
-            &CLBlastSgemm
+            &clblasSgemm
 #endif
             );
 }
 
 F77_gemm(d, double) {
+    gemm_check();
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,
@@ -118,7 +162,7 @@ F77_gemm(d, double) {
 #if USE_CUDA
             &cublasDgemm
 #else
-            &CLBlastDgemm
+            &clblasDgemm
 #endif
             );
 }

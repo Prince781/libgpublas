@@ -194,5 +194,10 @@ void internal_free(void *ptr);
 
 #ifdef __cplusplus
 };
+
+struct objtracker_guard {
+    objtracker_guard() { obj_tracker_internal_enter(); }
+    ~objtracker_guard() { obj_tracker_internal_leave(); }
+};
 #endif
 

@@ -45,11 +45,11 @@ static inline const char *runtime_blas_error_msg(runtime_blas_error_t error) {
 #elif USE_OPENCL
 #include <CL/cl.h>
 #include "clext.h"
-#include <clblast_c.h>
-#include "clblast_ext.h"
+#include <clBLAS.h>
+#include "clblas_ext.h"
 #include <string.h>
 
-typedef CLBlastStatusCode runtime_blas_error_t;
+typedef clblasStatus runtime_blas_error_t;
 
 #define RUNTIME_BLAS_ERROR_SUCCESS CL_SUCCESS
 
@@ -57,7 +57,7 @@ static inline const char *runtime_blas_error_msg(runtime_blas_error_t error) {
     const char *cl_errmsg = clGetErrorString(error);
 
     if (strcmp(cl_errmsg, "CL_UNKNOWN_ERROR") != 0)
-        return CLBlastGetErrorString(error);
+        return clblasGetErrorString(error);
     else
         return cl_errmsg;
 }

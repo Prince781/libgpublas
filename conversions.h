@@ -170,16 +170,16 @@ using geam_t = cublasStatus_t (*)(cublasHandle_t,
             T *, int);
 
 #elif USE_OPENCL
-#include <clblast_c.h>
+#include <clBLAS.h>
 
-static inline CLBlastTranspose clb(CBLAS_TRANSPOSE trans) {
+static inline clblasTranspose clb(CBLAS_TRANSPOSE trans) {
     switch (trans) {
         case CblasNoTrans:
-            return CLBlastTransposeNo;
+            return clblasNoTrans;
         case CblasTrans:
-            return CLBlastTransposeYes;
+            return clblasTrans;
         case CblasConjTrans:
-            return CLBlastTransposeConjugate;
+            return clblasConjTrans;
         default:
             fprintf(stderr, "Invalid value for CBLAS_TRANSPOSE: %d\n", trans);
             abort();
@@ -187,12 +187,12 @@ static inline CLBlastTranspose clb(CBLAS_TRANSPOSE trans) {
     }
 }
 
-static inline CLBlastTriangle clb(CBLAS_UPLO uplo) {
+static inline clblasUplo clb(CBLAS_UPLO uplo) {
     switch (uplo) {
         case CblasUpper:
-            return CLBlastTriangleUpper;
+            return clblasUpper;
         case CblasLower:
-            return CLBlastTriangleLower;
+            return clblasLower;
         default:
             fprintf(stderr, "Invalid value for CBLAS_UPLO: %d\n", uplo);
             abort();
@@ -200,12 +200,12 @@ static inline CLBlastTriangle clb(CBLAS_UPLO uplo) {
     }
 }
 
-static inline CLBlastDiagonal clb(CBLAS_DIAG diag) {
+static inline clblasDiag clb(CBLAS_DIAG diag) {
     switch (diag) {
         case CblasNonUnit:
-            return CLBlastDiagonalNonUnit;
+            return clblasNonUnit;
         case CblasUnit:
-            return CLBlastDiagonalUnit;
+            return clblasUnit;
         default:
             fprintf(stderr, "Invalid value for CBLAS_DIAG: %d\n", diag);
             abort();
@@ -213,12 +213,12 @@ static inline CLBlastDiagonal clb(CBLAS_DIAG diag) {
     }
 }
 
-static inline CLBlastSide clb(CBLAS_SIDE side) {
+static inline clblasSide clb(CBLAS_SIDE side) {
     switch (side) {
         case CblasLeft:
-            return CLBlastSideLeft;
+            return clblasLeft;
         case CblasRight:
-            return CLBlastSideRight;
+            return clblasRight;
         default:
             fprintf(stderr, "Invalid value for CBLAS_SIDE: %d\n", side);
             abort();
