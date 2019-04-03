@@ -125,7 +125,7 @@ def main():
     write_lines.append('/*\n')
     write_lines.append(' * print device type\n')
     write_lines.append(' */\n')
-    write_lines.append('static inline const char *clDeviceTypeGetString(int device_type) {\n')
+    write_lines.append('static inline const char *clDeviceTypeGetString(long device_type) {\n')
     write_lines.append('\tswitch (device_type) {\n')
     write_lines += device_type_get_string_lines
     write_lines.append('\t\tdefault: return "CL_DEVICE_TYPE_UNKNOWN";\n') 

@@ -31,7 +31,7 @@ extern "C" {
 #endif
 
 static inline size_t size(size_t amt, size_t n, size_t stride, size_t sz) {
-    return (((amt) + (n) * abs((long long int) stride)) * (sz));
+    return (((amt) + (n) * abs((int) stride)) * (sz));
 }
 
 static inline int get_lda(CBLAS_LAYOUT layout, int rows, int cols) {
