@@ -27,6 +27,17 @@ private:
 public:
     const struct objinfo *o_info;
 
+#if USE_OPENCL
+    // if the type is const
+    template <class U, std::enable_if_t<std::is_same<U, const U>::value, int> = 0>
+    cl_mem_flags get_mem_flags() { return CL_MEM_READ_ONLY; }
+
+    // if the type is non-const
+    template <class U, std::enable_if_t<!std::is_same<U, const U>::value, int> = 0>
+    cl_mem_flags get_mem_flags() { return CL_MEM_READ_WRITE; }
+
+#endif
+
     gpuptr(T *host_ptr, size_t size) : host_ptr(host_ptr), size(size), gpu_ptr(0), grabbed(false) {
         runtime_error_t err;
         extern size_t b2c_hits, b2c_misses;
@@ -43,7 +54,7 @@ public:
 #if USE_CUDA
             err = runtime_malloc((void **)&this->gpu_ptr, size);
 #else
-            this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE, size, NULL, &err);
+            this->gpu_ptr = clCreateBuffer(opencl_ctx, this->get_mem_flags<T>(), size, NULL, &err);
 #endif
 
             if (runtime_is_error(err)) {
@@ -64,7 +75,7 @@ public:
             this->gpu_ptr = host_ptr;
 #else
             // create a buffer that is backed by SVM
-            this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE, size, (void *)host_ptr, &err);
+            this->gpu_ptr = clCreateBuffer(opencl_ctx, this->get_mem_flags<T>() | CL_MEM_USE_HOST_PTR, size, (void *)host_ptr, &err);
             if (runtime_is_error(err)) {
                 writef(STDERR_FILENO, "blas2cuda: failed to create a buffer backed by %p: %s\n",
                         host_ptr, runtime_error_string(err));
@@ -77,7 +88,7 @@ public:
 #if USE_CUDA
             err = runtime_malloc((void **)&this->gpu_ptr, size);
 #else
-            this->gpu_ptr = clCreateBuffer(opencl_ctx, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size, (void *)host_ptr, &err);
+            this->gpu_ptr = clCreateBuffer(opencl_ctx, this->get_mem_flags<T>() | CL_MEM_COPY_HOST_PTR, size, (void *)host_ptr, &err);
 #endif
 
             if (runtime_is_error(err)) {

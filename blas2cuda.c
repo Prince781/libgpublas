@@ -188,7 +188,6 @@ void blas2cuda_init(void)
         inside = true;
         tid = syscall(SYS_gettid);
         writef(STDOUT_FILENO, "blas2cuda: initializing on thread %d\n", tid);
-        writef(STDOUT_FILENO, "blas2cuda: initializing cuBLAS...\n");
         rerr = runtime_init(init_info);
         if (runtime_is_error(rerr)) {
             writef(STDERR_FILENO, "blas2cuda: failed to initialize runtime\n");
