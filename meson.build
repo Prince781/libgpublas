@@ -109,18 +109,16 @@ else
   #use OpenCL
   libcl_dep = dependency('OpenCL')
   libclblas_dep = dependency('clBLAS')
-  clblas_inc_dir = include_directories(libclblas_dep.get_pkgconfig_variable('includedir') + '/clBLAS') # hack
   gpu_libs = [libclblas_dep, libcl_dep]
   clext_h = custom_target('clext.h',
                           output: 'clext.h',
                           command: [find_program('./clext.py'), libcl_dep.get_pkgconfig_variable('includedir') + '/CL/'])
 
   clblas_ext_h = custom_target('clblas_ext.h',
-                                input: files(libclblas_dep.get_pkgconfig_variable('includedir') + '/clBLAS/clBLAS.h'),
+                                input: files(libclblas_dep.get_pkgconfig_variable('includedir') + '/clBLAS.h'),
                                 output: 'clblas_ext.h',
                                 command: [find_program('./clblas_ext.py'), '@INPUT@'])
   gpu_srcs += [clext_h, clblas_ext_h]
-  gpu_inc = [clblas_inc_dir]
   c_args += '-DUSE_OPENCL'
 endif
 
