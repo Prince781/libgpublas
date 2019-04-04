@@ -15,6 +15,8 @@ TODO
   - [ ] cp2k
   - [ ] mpb
   - [ ] meep
-- [ ] implement OpenCL backend
+- [x] implement OpenCL backend
   - [x] abstract away CUDA/OpenCL runtimes
-  - [ ] abstract away cublas/clblast BLAS runtimes
+  - [x] abstract away cublas/clblast BLAS runtimes
+- [ ] pass all netlib tests for level 3
+  - [ ] Intel i7 hang: look into what happens when kernel `cl_mem` buffers are null

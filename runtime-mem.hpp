@@ -46,8 +46,20 @@ public:
 #endif
         objtracker_guard guard;
 
-        if (size == 0)
+        if (size == 0) {
+            size_t dummy_size = 32 * sizeof *host_ptr;  /* just pick some arbitrary size */
+#if USE_CUDA
+            err = runtime_malloc((void **)&this->gpu_ptr, dummy_size);
+#elif USE_OPENCL
+            this->gpu_ptr = clCreateBuffer(opencl_ctx, this->get_mem_flags<T>(), dummy_size, NULL, &err);
+#endif
+            if (runtime_is_error(err)) {
+                writef(STDERR_FILENO, "blas2cuda: failed to allocate %zu B on device: %s\n",
+                        dummy_size, runtime_error_string(err));
+                abort();
+            }
             return;
+        }
 
         if (!host_ptr) {
             // host_ptr is NULL, so create a brand new buffer

@@ -35,13 +35,11 @@ using gemm_t = clblasStatus (*)(clblasOrder order, clblasTranspose transA, clbla
 #endif
 
 template <typename T>
-static inline int compute_size(const CBLAS_LAYOUT Layout, const CBLAS_TRANSPOSE transa,
+static inline int compute_size(const CBLAS_TRANSPOSE transa,
         const T *a, const int lda, const int dim1, const int dim2)
 {
-    if ((Layout == CblasColMajor && transa == CblasNoTrans)
-            || (Layout == CblasRowMajor && (transa == CblasTrans || transa == CblasConjTrans))) {
-        return size(0, lda, dim1, sizeof(*a));
-    }
+    if (transa == CblasNoTrans)
+        return size(0, lda, dim1, sizeof *a);
 
     return size(0, lda, dim2, sizeof(*a));
 }
@@ -57,8 +55,8 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
         T *c, const int ldc,
         gemm_t<T> gemm_func)
 {
-    gpuptr<const T> gpu_a(a, compute_size(CblasColMajor, transa, a, lda, k, m));
-    gpuptr<const T> gpu_b(b, compute_size(CblasColMajor, transb, b, ldb, n, k));
+    gpuptr<const T> gpu_a(a, compute_size(transa, a, lda, k, m));
+    gpuptr<const T> gpu_b(b, compute_size(transb, b, ldb, n, k));
     gpuptr<T> gpu_c(c, size(0, ldc, n, sizeof(*c)));
 
 
