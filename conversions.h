@@ -189,11 +189,11 @@ static inline double _Complex* cmplx_ptr(double _Complex *dptr) {
 }
 
 static inline FloatComplex cu(float _Complex f) {
-    return *(FloatComplex *)&f;
+    return floatComplex(crealf(f), cimagf(f));
 }
 
 static inline DoubleComplex cu(double _Complex d) {
-    return *(DoubleComplex *)&d;
+    return doubleComplex(creal(d), cimag(d));
 }
 
 static inline clblasTranspose clb(CBLAS_TRANSPOSE trans) {

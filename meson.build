@@ -14,7 +14,7 @@ c_args = [
   '-Werror', 
   '-Wno-unused-parameter',
   '-Winit-self',
-  '-O0',
+  get_option('optflags'),
   '-g',
   '-ggdb3',
 ]
