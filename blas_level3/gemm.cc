@@ -86,16 +86,16 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
 
 #define gemm_check() \
 do {\
-    bool nota = *transa == 'N';\
-    bool notb = *transb == 'N';\
+    bool nota = runtime_blas_lsame(transa, "N");\
+    bool notb = runtime_blas_lsame(transb, "N");\
     int info = 0;\
 \
     int nrowa = nota ? *m : *k;\
     int nrowb = notb ? *k : *n;\
 \
-    if (!nota && *transa != 'C' && *transa != 'T')\
+    if (!nota && !runtime_blas_lsame(transa, "C") && !runtime_blas_lsame(transa, "T"))\
         info = 1;\
-    else if (!notb && *transb != 'C' && *transb != 'T')\
+    else if (!notb && !runtime_blas_lsame(transb, "C") && !runtime_blas_lsame(transb, "T"))\
         info = 2;\
     else if (*m < 0)\
         info = 3;\
