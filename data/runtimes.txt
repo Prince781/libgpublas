@@ -15,3 +15,4 @@ nwchem
 pspw:
 C6          496.6s          1114.7s         Mar-23-2019
 Carbene     54.2s           108.1s          Mar-24-2019
+Carbene     51.7s           52.2s           Apr-05-2019
