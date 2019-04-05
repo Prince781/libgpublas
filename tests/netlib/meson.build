@@ -4,6 +4,8 @@ project('netlib-tests', 'fortran',
 exe_prefixes = [
   'sblat3',
   'dblat3',
+  'cblat3',
+  'zblat3',
 ]
 
 cc = meson.get_compiler('fortran')
@@ -16,16 +18,17 @@ blas_libs = {
 
 incdir = include_directories('.')
 
-sh = find_program('sh')
+sh = find_program('./test.py')
+b2c = files('../../build/libblas2cuda.so')
 
 foreach prefix : exe_prefixes
   foreach suffix, dep : blas_libs
     if dep.found()
       exe = executable(prefix + '-' + suffix, [prefix + '.f'], include_directories: incdir, 
         dependencies: [dep], c_args: ['-O0', '-g', '-ggdb3'])
-      test(prefix + '-' + 'correctness', sh, 
-        env: ['LD_PRELOAD=../../../build/libblas2cuda.so'],
-        args: ['-c', './' + prefix + '-' + suffix, '<../input.' + prefix])
+      if suffix == 'blas'
+        test(prefix + '-' + 'correctness', sh, args: [prefix, exe, files('input.'+prefix), b2c, '--nointeractive'])
+      endif
     endif
   endforeach
 endforeach

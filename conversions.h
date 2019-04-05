@@ -172,6 +172,14 @@ using geam_t = cublasStatus_t (*)(cublasHandle_t,
 #elif USE_OPENCL
 #include <clBLAS.h>
 
+static inline FloatComplex cu(float _Complex f) {
+    return *(FloatComplex *)&f;
+}
+
+static inline DoubleComplex cu(double _Complex d) {
+    return *(DoubleComplex *)&d;
+}
+
 static inline clblasTranspose clb(CBLAS_TRANSPOSE trans) {
     switch (trans) {
         case CblasNoTrans:
@@ -228,21 +236,6 @@ static inline clblasSide clb(CBLAS_SIDE side) {
 
 #endif // elif USE_OPENCL 
 
-class scalar {
-private:
-    double _Complex value;
-public:
-    scalar(double i, double j = 0.0) : value(i + I * j) {}
-
-    operator float() const { return creal(value); }
-    operator double() const { return creal(value); }
-    operator float _Complex() const { return ((float) creal(value)) + I * ((float) cimag(value)); }
-    operator double _Complex() const { return value; }
-#if USE_CUDA
-    operator cuComplex() const { return cu((float _Complex) *this); }
-    operator cuDoubleComplex() const { return cu((double _Complex) *this); }
-#endif
-};
 
 #endif // __cplusplus
 

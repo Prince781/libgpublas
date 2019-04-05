@@ -15,20 +15,20 @@ extern cublasHandle_t b2c_cublas_handle;
 extern cl_command_queue opencl_cmd_queue;
 #endif
 
-template <typename T>
+template <typename T, typename S>
 #if USE_CUDA
 using gemm_t = cublasStatus_t (*)(cublasHandle_t,
             cublasOperation_t transa, cublasOperation_t transb,
             int, int, int,
-            const T *,
+            const S *,
             const T *, int,
             const T *, int,
-            const T *,
+            const S *,
             T *, int);
 #else
 using gemm_t = clblasStatus (*)(clblasOrder order, clblasTranspose transA, clblasTranspose transB,
-                size_t M, size_t N, size_t K, T alpha, const cl_mem A, size_t offA, size_t lda,
-                const cl_mem B, size_t offB, size_t ldb, T beta, cl_mem C, size_t offC, size_t ldc,
+                size_t M, size_t N, size_t K, S alpha, const cl_mem A, size_t offA, size_t lda,
+                const cl_mem B, size_t offB, size_t ldb, S beta, cl_mem C, size_t offC, size_t ldc,
                 cl_uint numCommandQueues, cl_command_queue* commandQueues, cl_uint numEventsInWaitList,
                 const cl_event* eventWaitList, cl_event* events);
 #endif
@@ -43,16 +43,16 @@ static inline int compute_size(const CBLAS_TRANSPOSE transa,
     return size(0, lda, dim2, sizeof(*a));
 }
 
-template <typename T>
+template <typename T, typename S>
 void _b2c_gemm(const CBLAS_TRANSPOSE transa,
         const CBLAS_TRANSPOSE transb,
         const int m, const int n, const int k,
-        const T alpha,
+        const S alpha,
         const T *a, const int lda,
         const T *b, const int ldb,
-        const T beta,
+        const S beta,
         T *c, const int ldc,
-        gemm_t<T> gemm_func)
+        gemm_t<T,S> gemm_func)
 {
     gpuptr<const T> gpu_a(a, compute_size(transa, a, lda, k, m));
     gpuptr<const T> gpu_b(b, compute_size(transb, b, ldb, n, k));
@@ -64,10 +64,10 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
         gemm_func(b2c_cublas_handle,
                 cu(transa), cu(transb),
                 m, n, k,
-                &alpha,
+                alpha,
                 gpu_a, lda,
                 gpu_b, ldb,
-                &beta,
+                beta,
                 gpu_c, ldc)
 #else
         gemm_func(clblasColumnMajor, clb(transa), clb(transb),
@@ -162,28 +162,38 @@ F77_gemm(d, double) {
             );
 }
 
-/*
 F77_gemm(c, float _Complex) {
+    gemm_check();
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,
             cu(*alpha),
-            (cuComplex *)a, *lda,
-            (cuComplex *)b, *ldb,
+            a, *lda,
+            b, *ldb,
             cu(*beta),
-            (cuComplex *)c, *ldc,
-            &cublasCgemm);
+            c, *ldc,
+#if USE_CUDA
+            &cublasCgemm
+#else
+            &clblasCgemm
+#endif
+            );
 }
 
 F77_gemm(z, double _Complex) {
+    gemm_check();
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,
             cu(*alpha),
-            (cuDoubleComplex *)a, *lda,
-            (cuDoubleComplex *)b, *ldb,
+            a, *lda,
+            b, *ldb,
             cu(*beta),
-            (cuDoubleComplex *)c, *ldc,
-            &cublasZgemm);
+            c, *ldc,
+#if USE_CUDA
+            &cublasZgemm
+#else
+            &clblasZgemm
+#endif
+            );
 }
-*/
