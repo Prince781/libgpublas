@@ -156,7 +156,8 @@ public:
         objtracker_guard guard;
 
         if (!this->o_info) {
-            this->cleanup_unmanaged<T>();
+            if (this->size > 0)
+                this->cleanup_unmanaged<T>();
             // free the temporary GPU buffer
 #if USE_CUDA
             err = runtime_free((void *) this->gpu_ptr);

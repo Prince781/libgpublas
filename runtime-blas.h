@@ -74,6 +74,10 @@ runtime_blas_error_t runtime_blas_init(void);
 
 runtime_blas_error_t runtime_blas_fini(void);
 
+void runtime_blas_xerbla(const char *routine, int arg);
+
+const char *func_name_to_f77(const char *func_name);
+
 #ifdef __cplusplus
 };
 #endif

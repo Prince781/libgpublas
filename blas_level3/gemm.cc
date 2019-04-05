@@ -4,7 +4,6 @@
 #include "../common.h"
 #include "../cblas.h"
 #include "../blas.h"
-#define CONVERSIONS_WARN 1
 #include "../conversions.h"
 #include "level3.h"
 #include "../runtime-blas.h"
@@ -111,20 +110,18 @@ do {\
     else if (*ldc < std::max(1,*m))\
         info = 13;\
 \
-    if (info != 0)\
+    if (info != 0){ \
+        runtime_blas_xerbla(func_name_to_f77(__func__), info);\
         return;\
+    }\
 \
     if (*m == 0 || *n == 0 || ((*alpha == 0 || *k == 0) && *beta == 1))\
         return;\
 \
-    if (*alpha == 0) {\
-        if (*beta == 0) {\
-            memset(c, 0, (*m) * (*n) * sizeof *c);\
-        } else {\
-            for (int j=0; j<*n; ++j)\
-                for (int i=0; i<*m; ++i)\
-                    c[j*(*m) + i] *= *beta;\
-        }\
+    if (*alpha == 0 || *k == 0) {\
+        for (int j=1; j<=*n; ++j)\
+            for (int i=1; i<=*m; ++i)\
+                c[IDX2F(i,j,*ldc)] *= *beta;\
         return;\
     }\
 } while (0)

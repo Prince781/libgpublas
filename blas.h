@@ -283,6 +283,8 @@ void prefix##trsm_(char *side, char *uplo,          \
         T *a, int *lda,                             \
         T *b, int *ldb)
 
+void _b2c_xerbla(const char *routine, int arg_pos);
+
 #ifdef __cplusplus
 };
 #endif

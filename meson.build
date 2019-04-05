@@ -88,6 +88,7 @@ cuda_lib_dirs = [cudadir + '/lib64', cudadir + '/lib64/stubs']
 ## dependencies
 libpthread_dep = cc.find_library('pthread')
 libdl_dep = cc.find_library('dl')
+libblas_dep = dependency('blas')  # for xerbla
 
 gpu_libs = []
 gpu_inc = []
@@ -131,6 +132,7 @@ library('blas2cuda', gpu_srcs + sources + blas_level1_sources +
   link_args: '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry',
   dependencies: [
     libobjtracker_dep,
+    libblas_dep,
   ] + gpu_libs,
   include_directories: [root_inc, lib_inc] + gpu_inc,
   install: true,
