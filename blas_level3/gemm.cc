@@ -64,10 +64,10 @@ void _b2c_gemm(const CBLAS_TRANSPOSE transa,
         gemm_func(b2c_cublas_handle,
                 cu(transa), cu(transb),
                 m, n, k,
-                alpha,
+                &alpha,
                 gpu_a, lda,
                 gpu_b, ldb,
-                beta,
+                &beta,
                 gpu_c, ldc)
 #else
         gemm_func(clblasColumnMajor, clb(transa), clb(transb),
@@ -168,10 +168,10 @@ F77_gemm(c, float _Complex) {
             c_trans(*transb),
             *m, *n, *k,
             cu(*alpha),
-            a, *lda,
-            b, *ldb,
+            cmplx_ptr(a), *lda,
+            cmplx_ptr(b), *ldb,
             cu(*beta),
-            c, *ldc,
+            cmplx_ptr(c), *ldc,
 #if USE_CUDA
             &cublasCgemm
 #else
@@ -186,10 +186,10 @@ F77_gemm(z, double _Complex) {
             c_trans(*transb),
             *m, *n, *k,
             cu(*alpha),
-            a, *lda,
-            b, *ldb,
+            cmplx_ptr(a), *lda,
+            cmplx_ptr(b), *ldb,
             cu(*beta),
-            c, *ldc,
+            cmplx_ptr(c), *ldc,
 #if USE_CUDA
             &cublasZgemm
 #else

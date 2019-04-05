@@ -89,6 +89,14 @@ static inline CBLAS_DIAG c_diag(char c) {
 #if USE_CUDA
 #include <cublas_api.h>
 
+static inline cuComplex* cmplx_ptr(float _Complex *fptr) {
+    return (cuComplex*) fptr;
+}
+
+static inline cuDoubleComplex* cmplx_ptr(double _Complex *dptr) {
+    return (cuDoubleComplex*) dptr;
+}
+
 static inline cuComplex cu(float _Complex f) {
     return (cuComplex) { .x = crealf(f), .y = cimagf(f) };
 }
@@ -171,6 +179,14 @@ using geam_t = cublasStatus_t (*)(cublasHandle_t,
 
 #elif USE_OPENCL
 #include <clBLAS.h>
+
+static inline float _Complex* cmplx_ptr(float _Complex *fptr) {
+    return fptr;
+}
+
+static inline double _Complex* cmplx_ptr(double _Complex *dptr) {
+    return dptr;
+}
 
 static inline FloatComplex cu(float _Complex f) {
     return *(FloatComplex *)&f;
