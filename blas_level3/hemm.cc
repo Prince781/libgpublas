@@ -69,7 +69,7 @@ void _b2c_hemm(const CBLAS_SIDE side,
 
     call_kernel(
 #if USE_CUDA
-        hemm_func(b2c_handle,
+        hemm_func(b2c_cublas_handle,
                 cu(side), cu(uplo),
                 m, n,
                 &alpha,
