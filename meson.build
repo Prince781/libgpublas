@@ -1,4 +1,4 @@
-project('gpublas', 'c', 'cpp',
+project('gpublas', 'c', 'cpp', 'fortran',
     default_options: ['c_std=gnu11', 'cpp_std=gnu++17'],
     version: '0.1',
     license: 'GPL3+',
@@ -125,7 +125,7 @@ endif
 
 subdir('lib')
 
-library('blas2cuda', gpu_srcs + sources + blas_level1_sources +
+libgpublas = library('blas2cuda', gpu_srcs + sources + blas_level1_sources +
     blas_level2_sources + blas_level3_sources,
   c_args: c_args,
   cpp_args: c_args,
@@ -137,3 +137,5 @@ library('blas2cuda', gpu_srcs + sources + blas_level1_sources +
   include_directories: [root_inc, lib_inc] + gpu_inc,
   install: true,
 )
+
+subdir('tests/netlib')
