@@ -28,7 +28,7 @@ if __name__ == '__main__':
         except:
             os._exit(126)
         try:
-            grep = subprocess.run(['grep', '-Ei', '(illegal|[*]+)', f'{args.test.upper()}.SUMM'])
+            grep = subprocess.run(['grep', '-Ei', '(illegal|[*]{2,})', f'{args.test.upper()}.SUMM'])
             if not grep.returncode:
                 with open(f'{args.test.upper()}.SUMM', 'r') as f:
                     sys.stderr.writelines(f.readlines())

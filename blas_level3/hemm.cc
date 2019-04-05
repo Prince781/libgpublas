@@ -50,21 +50,9 @@ void _b2c_hemm(const CBLAS_SIDE side,
         T *c, const int ldc,
         hemm_t<S> hemm_func)
 {
-    int rows_a, cols_a,
-        rows_b, cols_b,
-        rows_c, cols_c;
-
-    cols_a = lda;
-    rows_a = (side == CblasLeft) ? m : n;
-    gpuptr<const T> gpu_a(a, size(0, rows_a, cols_a, sizeof(*a)));
-
-    cols_b = ldb;
-    rows_b = (side == CblasLeft) ? m : n;
-    gpuptr<const T> gpu_b(b, size(0, rows_b, cols_b, sizeof(*b)));
-
-    cols_c = m;
-    rows_c = n;
-    gpuptr<T> gpu_c(c, size(0, rows_c, cols_c, sizeof(*c)));
+    gpuptr<const T> gpu_a(a, size(0, lda, side == CblasLeft ? m : n, sizeof(*a)));
+    gpuptr<const T> gpu_b(b, size(0, ldb, n, sizeof(*b)));
+    gpuptr<T> gpu_c(c, size(0, ldc, n, sizeof(*c)));
 
 
     call_kernel(
