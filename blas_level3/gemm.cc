@@ -111,7 +111,7 @@ do {\
         info = 13;\
 \
     if (info != 0){ \
-        runtime_blas_xerbla(func_name_to_f77(__func__), info);\
+        runtime_blas_xerbla(__func__, info);\
         return;\
     }\
 \

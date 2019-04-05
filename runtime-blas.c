@@ -29,7 +29,7 @@ runtime_blas_error_t runtime_blas_fini(void) {
 
 void runtime_blas_xerbla(const char *routine, int arg) {
     extern void xerbla_(const char *, int *);
-    xerbla_(routine, (int[]){arg});
+    xerbla_(func_name_to_f77(routine), (int[]){arg});
 }
 
 const char *func_name_to_f77(const char *func_name) {
@@ -45,4 +45,10 @@ const char *func_name_to_f77(const char *func_name) {
     }
 
     return tbuf;
+}
+
+
+int runtime_blas_lsame(const char *side_p, const char *ch_p) {
+    extern int lsame_(const char *cha, const char *chb);
+    return lsame_(side_p, ch_p);
 }

@@ -223,6 +223,10 @@ void prefix##hemm_(char *side, char *uplo,          \
         T *beta,                                    \
         T *c, int *ldc)
 
+F77_hemm(c, float _Complex);
+F77_hemm(z, double _Complex);
+
+
 #define F77_herk(prefix, S, T)                      \
 void prefix##herk_(char *uplo, char *trans,         \
         int *n, int *k,                             \
