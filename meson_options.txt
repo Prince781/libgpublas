@@ -1,3 +1,4 @@
 option('CUDA', type: 'string', value: '/opt/cuda', description: 'Path to CUDA libraries and headers')
 option('opencl', type: 'boolean', value: false, description: 'Use OpenCL even if CUDA is present')
 option('optflags', type: 'string', value: '-O3', description: 'Optimization flags')
+option('blas_opt', type: 'boolean', value: true, description: 'Optimize when to use GPU for BLAS calls.')

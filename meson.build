@@ -123,6 +123,10 @@ else
   c_args += '-DUSE_OPENCL'
 endif
 
+if not get_option('blas_opt')
+  c_args += '-DUSE_GPU_ALWAYS'
+endif
+
 subdir('lib')
 
 libgpublas = library('blas2cuda', gpu_srcs + sources + blas_level1_sources +

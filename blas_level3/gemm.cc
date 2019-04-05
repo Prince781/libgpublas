@@ -126,6 +126,7 @@ do {\
     }\
 } while (0)
 
+#ifndef USE_GPU_ALWAYS
 #define gemm_perf_check(fname)\
 do {\
     typeof(fname) *f = (typeof(fname) *) runtime_blas_func(__func__);\
@@ -134,7 +135,10 @@ do {\
         (*f)(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);\
         return;\
     }\
-} while (0)\
+} while (0)
+#else
+#define gemm_perf_check(fname) ;
+#endif
 
 F77_gemm(s, float) {
     gemm_check();
