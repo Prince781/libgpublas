@@ -130,8 +130,10 @@ do {\
 do {\
     typeof(fname) *f = (typeof(fname) *) runtime_blas_func(__func__);\
 \
-    if (*m == 0 || *n == 0 || *k == 0 || *lda < 512 || *ldb < 512 || *ldc < 512)\
+    if (*m == 0 || *n == 0 || *k == 0 || *lda < 512 || *ldb < 512 || *ldc < 512){\
         (*f)(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);\
+        return;\
+    }\
 } while (0)\
 
 F77_gemm(s, float) {
