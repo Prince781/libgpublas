@@ -80,6 +80,8 @@ const char *func_name_to_f77(const char *func_name);
 
 int runtime_blas_lsame(const char *side_p, const char *ch_p);
 
+void *runtime_blas_func(const char *name);
+
 #ifdef __cplusplus
 };
 #endif

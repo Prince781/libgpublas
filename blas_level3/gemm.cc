@@ -126,8 +126,17 @@ do {\
     }\
 } while (0)
 
+#define gemm_perf_check(fname)\
+do {\
+    typeof(fname) *f = (typeof(fname) *) runtime_blas_func(__func__);\
+\
+    if (*m == 0 || *n == 0 || *k == 0 || *lda < 512 || *ldb < 512 || *ldc < 512)\
+        (*f)(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);\
+} while (0)\
+
 F77_gemm(s, float) {
     gemm_check();
+    gemm_perf_check(sgemm_);
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,
@@ -146,6 +155,7 @@ F77_gemm(s, float) {
 
 F77_gemm(d, double) {
     gemm_check();
+    gemm_perf_check(dgemm_);
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,
@@ -164,6 +174,7 @@ F77_gemm(d, double) {
 
 F77_gemm(c, float _Complex) {
     gemm_check();
+    gemm_perf_check(cgemm_);
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,
@@ -182,6 +193,7 @@ F77_gemm(c, float _Complex) {
 
 F77_gemm(z, double _Complex) {
     gemm_check();
+    gemm_perf_check(zgemm_);
     _b2c_gemm(c_trans(*transa),
             c_trans(*transb),
             *m, *n, *k,

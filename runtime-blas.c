@@ -1,9 +1,13 @@
+#define _GNU_SOURCE
 #include "runtime-blas.h"
 #include <stdbool.h>
 #include "common.h"
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#include <dlfcn.h>
 
 
 #if USE_CUDA
@@ -51,4 +55,15 @@ const char *func_name_to_f77(const char *func_name) {
 int runtime_blas_lsame(const char *side_p, const char *ch_p) {
     extern int lsame_(const char *cha, const char *chb);
     return lsame_(side_p, ch_p);
+}
+
+void *runtime_blas_func(const char *name) {
+    void *fptr = dlsym(RTLD_NEXT, name);
+
+    if (fptr == NULL) {
+        writef(STDERR_FILENO, "blas2cuda: failed to lookup '%s': %s\n", name, dlerror());
+        abort();
+    }
+
+    return fptr;
 }
