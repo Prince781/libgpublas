@@ -16,11 +16,16 @@ blas_libs = {
 
 incdir = include_directories('.')
 
+sh = find_program('sh')
+
 foreach prefix : exe_prefixes
   foreach suffix, dep : blas_libs
     if dep.found()
-      executable(prefix + '-' + suffix, [prefix + '.f'], include_directories: incdir, 
+      exe = executable(prefix + '-' + suffix, [prefix + '.f'], include_directories: incdir, 
         dependencies: [dep], c_args: ['-O0', '-g', '-ggdb3'])
+      test(prefix + '-' + 'correctness', sh, 
+        env: ['LD_PRELOAD=../../../build/libblas2cuda.so'],
+        args: ['-c', './' + prefix + '-' + suffix, '<../input.' + prefix])
     endif
   endforeach
 endforeach
