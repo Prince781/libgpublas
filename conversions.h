@@ -196,6 +196,14 @@ static inline DoubleComplex cu(double _Complex d) {
     return doubleComplex(creal(d), cimag(d));
 }
 
+static inline cl_float2 cu2(float _Complex f) {
+    return (cl_float2) { .s = {crealf(f), cimagf(f)} };
+}
+
+static inline cl_double2 cu2(double _Complex d) {
+    return (cl_double2) { .s = {creal(d), cimag(d)} };
+}
+
 static inline clblasTranspose clb(CBLAS_TRANSPOSE trans) {
     switch (trans) {
         case CblasNoTrans:

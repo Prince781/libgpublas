@@ -97,7 +97,9 @@ do {\
     int nrowa = runtime_blas_lsame(side, "L") ? *m : *n;\
     int upper = runtime_blas_lsame(uplo, "U");\
     int info = 0;\
-    if (!upper && !runtime_blas_lsame(uplo, "L"))\
+    if (!runtime_blas_lsame(side, "L") and !runtime_blas_lsame(side, "R"))\
+        info = 1;\
+    else if (!upper && !runtime_blas_lsame(uplo, "L"))\
         info = 2;\
     else if (*m < 0)\
         info = 3;\
@@ -135,14 +137,14 @@ F77_hemm(c, float _Complex) {
 #if USE_CUDA
             cu(*alpha),
 #else
-            *(cl_float2 *)alpha,
+            cu2(*alpha),
 #endif
             cmplx_ptr(a), *lda,
             cmplx_ptr(b), *ldb,
 #if USE_CUDA
             cu(*beta),
 #else
-            *(cl_float2 *)beta,
+            cu2(*beta),
 #endif
             cmplx_ptr(c), *ldc,
 #if USE_CUDA
@@ -160,14 +162,14 @@ F77_hemm(z, double _Complex) {
 #if USE_CUDA
             cu(*alpha),
 #else
-            *(cl_double2 *)alpha,
+            cu2(*alpha),
 #endif
             cmplx_ptr(a), *lda,
             cmplx_ptr(b), *ldb,
 #if USE_CUDA
             cu(*beta),
 #else
-            *(cl_double2 *)beta,
+            cu2(*beta),
 #endif
             cmplx_ptr(c), *ldc,
 #if USE_CUDA
