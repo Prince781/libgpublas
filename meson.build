@@ -98,8 +98,8 @@ gpu_srcs = []
 
 if not get_option('opencl')
   libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs, required: false)
-  libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs, dependencies: libcudart_dep, required: false)
-  libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs, dependencies: libcuda_dep, required: false)
+  libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs, required: false)
+  libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs, required: false)
 endif
 
 if not get_option('opencl') and (libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found())
