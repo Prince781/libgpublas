@@ -24,7 +24,7 @@ if __name__ == '__main__':
     subprocess.run(['rm', '-f', f'{args.test.upper()}.SUMM'], check=True)
     if args.nointeractive:
         try:
-            subprocess.run(['sh', '-c', f'env LD_PRELOAD={args.gpublas} {args.binary} <{args.input}'], check=True)
+            p = subprocess.run(['sh', '-c', f'env LD_PRELOAD={args.gpublas} {args.binary} <{args.input}'], check=True)
         except:
             os._exit(126)
         try:
@@ -40,6 +40,8 @@ if __name__ == '__main__':
         try:
             subprocess.run(['gdb', args.binary, '-ex', f'set exec-wrapper env LD_PRELOAD={args.gpublas}', '-ex', f'run <{args.input}'], check=True)
             subprocess.run(['edit', f'{args.test.upper()}.SUMM'], check=True)
+        except KeyboardInterrupt:
+            pass
         except:
             os._exit(126)
     print(f'Done testing {args.test}')

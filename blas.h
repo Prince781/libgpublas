@@ -235,6 +235,10 @@ void prefix##herk_(char *uplo, char *trans,         \
         S *beta,                                    \
         T *c, int *ldc)
 
+F77_herk(c, float, float _Complex);
+F77_herk(z, double, double _Complex);
+
+
 #define F77_her2k(prefix, S, T)                     \
 void prefix##her2k_(char *uplo, char *trans,        \
         int *n, int *k,                             \

@@ -38,7 +38,7 @@ public:
 
 #endif
 
-    gpuptr(T *host_ptr, size_t size) : host_ptr(host_ptr), size(size), gpu_ptr(0), grabbed(false) {
+    gpuptr(T *host_ptr, size_t size) : host_ptr(host_ptr), size(size), gpu_ptr(0), grabbed(false), o_info(0) {
         runtime_error_t err;
         extern size_t b2c_hits, b2c_misses;
 #if USE_OPENCL
