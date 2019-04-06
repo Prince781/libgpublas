@@ -19,6 +19,8 @@ c_args = [
   '-ggdb3',
 ]
 
+link_args = '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry'
+
 sources = files(
     'blas2cuda.c',
     'entry.c',
@@ -106,6 +108,7 @@ if not get_option('opencl') and (libcublas_dep.found() and libcuda_dep.found() a
   gpu_libs = [libcublas_dep, libcuda_dep, libcudart_dep]
   gpu_inc = [cuda_inc]
   c_args += '-DUSE_CUDA'
+  link_args += ',-rpath='+cudadir+'/lib64'
 else
   #use OpenCL
   libcl_dep = dependency('OpenCL')
@@ -133,7 +136,7 @@ libgpublas = library('blas2cuda', gpu_srcs + sources + blas_level1_sources +
     blas_level2_sources + blas_level3_sources,
   c_args: c_args,
   cpp_args: c_args,
-  link_args: '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry',
+  link_args: link_args,
   dependencies: [
     libobjtracker_dep,
     libblas_dep,
