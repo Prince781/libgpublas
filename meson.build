@@ -90,7 +90,11 @@ cuda_lib_dirs = [cudadir + '/lib64', cudadir + '/lib64/stubs']
 ## dependencies
 libpthread_dep = cc.find_library('pthread')
 libdl_dep = cc.find_library('dl')
-libblas_dep = dependency('blas')  # for xerbla
+libblas_dep = dependency('blas', required: false)
+
+if not libblas_dep.found()
+    libblas_dep = cc.find_library('blas')
+endif
 
 gpu_libs = []
 gpu_inc = []
