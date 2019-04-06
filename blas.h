@@ -244,6 +244,9 @@ void prefix##her2k_(char *uplo, char *trans,        \
         S *beta,                                    \
         T *c, int *ldc)
 
+F77_her2k(c, float, float _Complex);
+F77_her2k(z, double, double _Complex);
+
 #define F77_symm(prefix, T)                         \
 void prefix##symm_(char *side, char *uplo,          \
         int *m, int *n,                             \

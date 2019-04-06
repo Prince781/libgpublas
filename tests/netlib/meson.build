@@ -14,5 +14,7 @@ sh = find_program('./test.py')
 foreach prefix : exe_prefixes
   exe = executable(prefix + '-blas', [prefix + '.f'], include_directories: incdir, 
     dependencies: [libblas_dep], c_args: ['-O0', '-g', '-ggdb3'])
-  test(prefix + '-' + 'correctness', sh, args: [prefix, exe, files('input.'+prefix), libgpublas, '--nointeractive'])
+  test(prefix + '-' + 'correctness', sh, 
+    args: [prefix, exe, files('input.'+prefix), libgpublas, '--nointeractive'],
+    timeout: 300)
 endforeach

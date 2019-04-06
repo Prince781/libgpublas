@@ -75,7 +75,7 @@ blas_level2_sources = files(
 blas_level3_sources = files(
     'blas_level3/gemm.cc',
     'blas_level3/hemm.cc',
-    #    'blas_level3/her2k.cc',
+    'blas_level3/her2k.cc',
     #    'blas_level3/herk.cc',
     #    'blas_level3/symm.cc',
     #    'blas_level3/syr2k.cc',
