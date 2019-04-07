@@ -17,7 +17,7 @@ extern cl_command_queue opencl_cmd_queue;
 
 template <typename T, typename S>
 #if USE_CUDA
-using symm_t = cublasStatus_t symm_func(cublasHandle_t,
+using symm_t = cublasStatus_t (cublasHandle_t,
             cublasSideMode_t,
             cublasFillMode_t,
             int, int,
