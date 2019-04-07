@@ -144,7 +144,6 @@ F77_herk(c, float, float _Complex) {
             );
 }
 
-/*
 F77_herk(z, double, double _Complex) {
     herk_check();
     _b2c_herk(c_uplo(*uplo), c_trans(*trans),
@@ -160,4 +159,3 @@ F77_herk(z, double, double _Complex) {
 #endif
             );
 }
-*/

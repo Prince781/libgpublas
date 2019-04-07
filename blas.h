@@ -260,6 +260,12 @@ void prefix##symm_(char *side, char *uplo,          \
         T *beta,                                    \
         T *c, int *ldc)
 
+F77_symm(s, float);
+F77_symm(d, double);
+F77_symm(c, float _Complex);
+F77_symm(z, double _Complex);
+
+
 #define F77_syrk(prefix, T)                         \
 void prefix##syrk_(char *uplo, char *trans,         \
         int *n, int *k,                             \
