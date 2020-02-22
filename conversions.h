@@ -113,6 +113,9 @@ static inline cuDoubleComplex cu(double r, double i) {
     return (cuDoubleComplex) { .x = r, .y = i };
 }
 
+static inline cuComplex cu2(float _Complex f) { return cu(f); }
+static inline cuDoubleComplex cu2(double _Complex d) { return cu(d); }
+
 static inline cublasOperation_t cu(CBLAS_TRANSPOSE trans) {
     switch (trans) {
         case CblasNoTrans:

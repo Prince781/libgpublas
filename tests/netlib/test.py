@@ -12,6 +12,7 @@ if __name__ == '__main__':
     parser.add_argument('input', help='input file to test binary')
     parser.add_argument('gpublas', help='location of libgpublas')
     parser.add_argument('--nointeractive', action='store_true')
+    parser.add_argument('--valgrind', action='store_true')
 
     args = parser.parse_args()
     args.input = os.path.abspath(args.input)
@@ -38,11 +39,24 @@ if __name__ == '__main__':
             os._exit(126)
     else:
         try:
-            subprocess.run(['gdb', args.binary, '-ex', f'set exec-wrapper env LD_PRELOAD={args.gpublas}', '-ex', f'run <{args.input}'], check=True)
+            proc = None
+            if args.valgrind:
+                proc = subprocess.Popen(f'valgrind --vgdb=yes --vgdb-error=0 {args.binary} <{args.input} &>/dev/null', shell=True)
+                try:
+                    proc.wait(3)
+                except:
+                    pass
+                subprocess.run(['gdb', args.binary, '-ex', 'set non-stop off', '-ex', 'target remote | vgdb'], check=True)
+                proc.wait()
+            else:
+                subprocess.run(['gdb', args.binary, '-ex', f'set exec-wrapper env LD_PRELOAD={args.gpublas}', '-ex', f'run <{args.input}'], check=True)
             subprocess.run(['edit', f'{args.test.upper()}.SUMM'], check=True)
         except KeyboardInterrupt:
-            pass
+            if proc:
+                proc.kill()
         except:
+            if proc:
+                proc.kill()
             os._exit(126)
     print(f'Done testing {args.test}')
     os._exit(retval)

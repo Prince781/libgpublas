@@ -1,25 +1,28 @@
-project('gpublas', 'c', 'cpp', 'fortran',
+project('libgpublas', 'c', 'cpp', 'fortran',
     default_options: ['c_std=gnu11', 'cpp_std=gnu++17'],
     version: '0.1',
     license: 'GPL3+',
-    meson_version: '>= 0.42.0')
+    meson_version: '>= 0.43.0')
 
 cc = meson.get_compiler('c')
 root_inc = include_directories('.')
 
-c_args = [
+optflags = get_option('optflags')
+
+c_args = cc.get_supported_arguments([
   '-Wall', 
   '-Wextra',
   '-Wformat=2',
   '-Werror', 
   '-Wno-unused-parameter',
-  '-Winit-self',
-  get_option('optflags'),
+  '-Wnull-dereference',
+  '-D_GLIBCXX_ASSERTIONS',
+  optflags,
   '-g',
   '-ggdb3',
-]
+])
 
-link_args = '-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry'
+link_args = ['-Wl,-init,blas2cuda_init,-fini,blas2cuda_fini,-eentry']
 
 sources = files(
     'blas2cuda.c',
@@ -78,11 +81,15 @@ blas_level3_sources = files(
     'blas_level3/her2k.cc',
     'blas_level3/herk.cc',
     'blas_level3/symm.cc',
-    #    'blas_level3/syr2k.cc',
-    #    'blas_level3/syrk.cc',
-    #    'blas_level3/trmm.cc',
-    #    'blas_level3/trsm.cc',
+    'blas_level3/syr2k.cc',
+    'blas_level3/syrk.cc',
+    # TODO: cannot enable until https://github.com/clMathLibraries/clBLAS/issues/341 is resolved
+    # 'blas_level3/trmm.cc',
+    'blas_level3/trsm.cc',
 )
+
+runtime = ''
+prefix = get_option('prefix')
 
 cudadir = get_option('CUDA')
 cuda_lib_dirs = [cudadir + '/lib64', cudadir + '/lib64/stubs']
@@ -100,19 +107,21 @@ gpu_libs = []
 gpu_inc = []
 gpu_srcs = []
 
-if not get_option('opencl')
-  libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs, required: false)
-  libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs, required: false)
-  libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs, required: false)
+# select the supported runtime
+if get_option('runtime') == 'auto' or get_option('backend') == 'cuda'
+  libcudart_dep = cc.find_library('cudart', dirs: cuda_lib_dirs, required: get_option('backend') == 'cuda')
+  libcuda_dep = cc.find_library('cuda', dirs: cuda_lib_dirs, required: get_option('backend') == 'cuda')
+  libcublas_dep = cc.find_library('cublas', dirs: cuda_lib_dirs, required: get_option('backend') == 'cuda')
 endif
 
-if not get_option('opencl') and (libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found())
+if get_option('runtime') != 'opencl' and (libcublas_dep.found() and libcuda_dep.found() and libcudart_dep.found())
   # use CUDA
   cuda_inc = include_directories(cudadir + '/include')
   gpu_libs = [libcublas_dep, libcuda_dep, libcudart_dep]
   gpu_inc = [cuda_inc]
   c_args += '-DUSE_CUDA'
   link_args += ',-rpath='+cudadir+'/lib64'
+  runtime = 'CUDA'
 else
   #use OpenCL
   libcl_dep = dependency('OpenCL')
@@ -128,6 +137,7 @@ else
                                 command: [find_program('./clblas_ext.py'), '@INPUT@'])
   gpu_srcs += [clext_h, clblas_ext_h]
   c_args += '-DUSE_OPENCL'
+  runtime = 'OpenCL'
 endif
 
 if not get_option('blas_opt')
@@ -150,3 +160,19 @@ libgpublas = library('blas2cuda', gpu_srcs + sources + blas_level1_sources +
 )
 
 subdir('tests/netlib')
+
+output = [
+  '',
+  '',
+  '   libgpublas ' + meson.project_version(),
+  '  ===============',
+  '',
+  '    Prefix....................... ' + prefix,
+  '    Runtime...................... ' + runtime,
+  '    C/C++ flags.................. ' + ' '.join(c_args),
+  '',
+  '  Now type \'ninja -C ' + meson.build_root() + '\' to build ' + meson.project_name(),
+  '',
+  '',
+]
+message('\n'.join(output))

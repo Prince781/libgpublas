@@ -5,6 +5,7 @@
 #include "level3.h"
 #include "../blas2cuda.h"
 #include "../runtime-blas.h"
+#include "../runtime-mem.hpp"
 
 #if USE_CUDA
 extern cublasHandle_t b2c_cublas_handle;
@@ -12,106 +13,201 @@ extern cublasHandle_t b2c_cublas_handle;
 extern cl_command_queue opencl_cmd_queue;
 #endif
 
+template <typename S, typename T>
+#if USE_CUDA
+using trsm_t = cublasStatus_t (*)(cublasHandle_t,
+                                  cublasSideMode_t, cublasFillMode_t,
+                                  cublasOperation_t, cublasDiagType_t,
+                                  int, int,
+                                  const S *,
+                                  const T *, int,
+                                  T *, int);
+#else
+using trsm_t = clblasStatus (*)(clblasOrder order, clblasSide side,
+                                clblasUplo uplo, clblasTranspose transA,
+                                clblasDiag diag, size_t M, size_t N,
+                                S alpha, 
+                                const cl_mem A, size_t offA, size_t lda,
+                                cl_mem B, size_t offB, size_t ldb,
+                                cl_uint numCommandQueues,
+                                cl_command_queue *commandQueues,
+                                cl_uint numEventsInWaitList,
+                                const cl_event *eventWaitList,
+                                cl_event *events);
+#endif
 
-template <typename T>
+
+template <typename S, typename T>
 void _b2c_trsm(const CBLAS_SIDE side,
         const CBLAS_UPLO uplo,
         const CBLAS_TRANSPOSE transa,
         const CBLAS_DIAG diag,
         const int m, const int n,
-        const T alpha,
+        const S alpha,
         const T *a, const int lda,
         T *b, const int ldb,
-        cublasStatus_t trsm_func(cublasHandle_t,
-            cublasSideMode_t, cublasFillMode_t,
-            cublasOperation_t, cublasDiagType_t,
-            int, int,
-            const T *,
-            const T *, int,
-            T *, int))
+        trsm_t<S,T> trsm_func)
 {
-    const T *gpu_a;
-    T *gpu_b;
-    int rows_a, cols_a,
-        rows_b, cols_b;
-    int size_a, size_b;
-    cublasSideMode_t cside = cu(side);
-    cublasFillMode_t cuplo = cu(uplo);
-    cublasOperation_t ctransa = cu(transa);
-    cublasDiagType_t cdiag = cu(diag);
-    const struct objinfo *a_info, *b_info;
-
-    cols_a = lda;
-    rows_a = (side == CblasLeft) ? m : n;
-    size_a = size(0, rows_a, cols_a, sizeof(*a));
-
-    cols_b = ldb;
-    rows_b = (side == CblasLeft) ? m : n;
-    size_b = size(0, rows_b, cols_b, sizeof(*b));
-
-    gpu_a = (T *) b2c_place_on_gpu((void *) a, size_a, &a_info, NULL);
-    gpu_b = (T *) b2c_place_on_gpu((void *) b, size_b, &b_info, 
-            (void *) gpu_a, &a_info,
-            NULL);
-
+    gpuptr<const T> gpu_a(a, size(0, lda, side == CblasLeft ? m : n, sizeof *a));
+    gpuptr<T> gpu_b(b, size(0, ldb, n, sizeof *b));
     call_kernel(
+#if USE_CUDA
         trsm_func(b2c_handle,
-                cside, cuplo,
-                ctransa, cdiag,
+                cu(side), cu(uplo),
+                cu(transa), cu(diag),
                 m, n,
                 &alpha,
                 gpu_a, lda,
                 gpu_b, ldb)
+#else
+        trsm_func(clblasColumnMajor,
+                  clb(side), clb(uplo),
+                  clb(transa), clb(diag),
+                  m, n,
+                  alpha,
+                  gpu_a, 0, lda,
+                  gpu_b, 0, ldb,
+                  1, &opencl_cmd_queue, 0, NULL, NULL)
+#endif
     );
+}
 
+
+template <typename T>
+bool trsm_check(const char *func_name,
+                char *side, char *uplo,
+                char *transa, char *diag,
+                int *m, int *n,
+                T *alpha,
+                T *a, int *lda,
+                T *b, int *ldb) {
+    int lside = runtime_blas_lsame(side, "L");
+    int nrowa;
+    int upper = runtime_blas_lsame(uplo, "U");
+    int info;
+
+    if (lside)
+        nrowa = *m;
+    else
+        nrowa = *n;
     
-    runtime_fatal_errmsg(cudaGetLastError(), __func__);
+    info = 0;
 
-    if (!b_info) {
-        b2c_copy_from_gpu(b, gpu_b, size_b);
+    if (!lside && !runtime_blas_lsame(side, "R"))
+        info = 1;
+    else if (!upper && !runtime_blas_lsame(uplo, "L"))
+        info = 2;
+    else if (!runtime_blas_lsame(transa, "N") &&
+             !runtime_blas_lsame(transa, "T") &&
+             !runtime_blas_lsame(transa, "C"))
+        info = 3;
+    else if (!runtime_blas_lsame(diag, "U") && !runtime_blas_lsame(diag, "N"))
+        info = 4;
+    else if (*m < 0)
+        info = 5;
+    else if (*n < 0)
+        info = 6;
+    else if (*lda < std::max(1, nrowa))
+        info = 9;
+    else if (*ldb < std::max(1, *m))
+        info = 11;
+    
+    if (info != 0) {
+        runtime_blas_xerbla(func_name, info);
+        return false;
     }
 
-    b2c_cleanup_gpu_ptr((void *) gpu_a, a_info);
-    b2c_cleanup_gpu_ptr((void *) gpu_b, b_info);
+    // quick return if possible
+    if (*m == 0 || *n == 0)
+        return false;
+    
+    // and when alpha == 0
+    if (*alpha == 0) {
+        for (int j=1; j<=*n; j++)
+            for (int i=1; i<=*m; i++)
+                b[IDX2F(i,j, *ldb)] = 0;
+    }
+
+    return true;
 }
 
 F77_trsm(s, float) {
+    if (!trsm_check(__func__,
+                    side, uplo, transa, diag,
+                    m, n, alpha,
+                    a, lda, b, ldb))
+        return;
     _b2c_trsm(c_side(*side), c_uplo(*uplo),
             c_trans(*transa), c_diag(*diag),
             *m, *n, 
             *alpha,
             a, *lda,
             b, *ldb,
-            &cublasStrsm);
+#if USE_CUDA
+            &cublasStrsm
+#else
+            &clblasStrsm
+#endif
+    );
 }
 
 F77_trsm(d, double) {
+    if (!trsm_check(__func__,
+                    side, uplo, transa, diag,
+                    m, n, alpha,
+                    a, lda, b, ldb))
+        return;
     _b2c_trsm(c_side(*side), c_uplo(*uplo),
             c_trans(*transa), c_diag(*diag),
             *m, *n, 
             *alpha,
             a, *lda,
             b, *ldb,
-            &cublasDtrsm);
+#if USE_CUDA
+            &cublasDtrsm
+#else
+            &clblasDtrsm
+#endif
+    );
 }
 
 
 F77_trsm(c, float _Complex) {
+    if (!trsm_check(__func__,
+                    side, uplo, transa, diag,
+                    m, n, alpha,
+                    a, lda, b, ldb))
+        return;
     _b2c_trsm(c_side(*side), c_uplo(*uplo),
             c_trans(*transa), c_diag(*diag),
             *m, *n, 
             cu(*alpha),
-            (cuComplex *)a, *lda,
-            (cuComplex *)b, *ldb,
-            &cublasCtrsm);
+            cmplx_ptr(a), *lda,
+            cmplx_ptr(b), *ldb,
+#if USE_CUDA
+            &cublasCtrsm
+#else
+            &clblasCtrsm
+#endif
+    );
 }
 
 F77_trsm(z, double _Complex) {
+    if (!trsm_check(__func__,
+                    side, uplo, transa, diag,
+                    m, n, alpha,
+                    a, lda, b, ldb))
+        return;
     _b2c_trsm(c_side(*side), c_uplo(*uplo),
             c_trans(*transa), c_diag(*diag),
             *m, *n, 
             cu(*alpha),
-            (cuDoubleComplex *)a, *lda,
-            (cuDoubleComplex *)b, *ldb,
-            &cublasZtrsm);
+            cmplx_ptr(a), *lda,
+            cmplx_ptr(b), *ldb,
+#if USE_CUDA
+            &cublasZtrsm
+#else
+            &clblasZtrsm
+#endif
+    );
 }

@@ -265,7 +265,6 @@ F77_symm(d, double);
 F77_symm(c, float _Complex);
 F77_symm(z, double _Complex);
 
-
 #define F77_syrk(prefix, T)                         \
 void prefix##syrk_(char *uplo, char *trans,         \
         int *n, int *k,                             \
@@ -283,6 +282,10 @@ void prefix##syr2k_(char *uplo, char *trans,        \
         T *beta,                                    \
         T *c, int *ldc)
 
+F77_syr2k(s, float);
+F77_syr2k(d, double);
+F77_syr2k(c, float _Complex);
+F77_syr2k(z, double _Complex);
 
 #define F77_trmm(prefix, T)                         \
 void prefix##trmm_(char *side,                      \
@@ -292,6 +295,11 @@ void prefix##trmm_(char *side,                      \
         T *a, int *lda,                             \
         T *b, int *ldb)
 
+F77_trmm(s, float);
+F77_trmm(d, double);
+F77_trmm(c, float _Complex);
+F77_trmm(z, double _Complex);
+
 #define F77_trsm(prefix, T)                         \
 void prefix##trsm_(char *side, char *uplo,          \
         char *transa, char *diag,                   \
@@ -299,6 +307,11 @@ void prefix##trsm_(char *side, char *uplo,          \
         T *alpha,                                   \
         T *a, int *lda,                             \
         T *b, int *ldb)
+
+F77_trsm(s, float);
+F77_trsm(d, double);
+F77_trsm(c, float _Complex);
+F77_trsm(z, double _Complex);
 
 void _b2c_xerbla(const char *routine, int arg_pos);
 

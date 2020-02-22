@@ -63,7 +63,7 @@ static inline const char *runtime_blas_error_msg(runtime_blas_error_t error) {
 }
 
 #else
-#error "Only CUDA and OpenCL are supported"
+#error "Only CUDA and OpenCL are supported. Define either USE_OPENCL or USE_CUDA"
 #endif
 
 #ifdef __cplusplus

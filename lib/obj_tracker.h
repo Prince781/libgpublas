@@ -195,6 +195,9 @@ void internal_free(void *ptr);
 #ifdef __cplusplus
 };
 
+/**
+ * RAII for the object tracker
+ */
 struct objtracker_guard {
     objtracker_guard() { obj_tracker_internal_enter(); }
     ~objtracker_guard() { obj_tracker_internal_leave(); }

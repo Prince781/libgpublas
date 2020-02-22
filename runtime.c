@@ -14,6 +14,7 @@ struct opencl_device {
     char *name;
     cl_device_type type;
     cl_device_svm_capabilities svm_capabilities;
+    bool is_valid;
 };
 
 struct opencl_platform {
@@ -21,6 +22,7 @@ struct opencl_platform {
     char *name;
     cl_uint num_devices;
     struct opencl_device *devices;
+    bool is_valid;
 };
 
 struct opencl_platform *opencl_platforms;
@@ -39,58 +41,67 @@ struct opencl_platform *runtime_get_platforms(cl_int *err_in, cl_uint *nplatform
     if ((*err_in = clGetPlatformIDs(num_platforms, platform_ids, NULL)) != CL_SUCCESS)
         goto end;
 
+    // get platform info
     for (cl_uint p = 0; p < num_platforms; p++) {
+        struct opencl_platform *const curr_platform = &platforms[p];
         size_t platform_name_sz;
-        platforms[p].id = platform_ids[p];
 
-        if ((*err_in = clGetDeviceIDs(platforms[p].id, CL_DEVICE_TYPE_ALL, 0, NULL, &platforms[p].num_devices)) != CL_SUCCESS)
-            goto end;
-        platforms[p].devices = calloc(platforms[p].num_devices, sizeof *platforms[p].devices);
-        device_ids = realloc(device_ids, platforms[p].num_devices * sizeof *device_ids);
-        if ((*err_in = clGetDeviceIDs(platforms[p].id, CL_DEVICE_TYPE_ALL, platforms[p].num_devices, device_ids, NULL)) != CL_SUCCESS)
-            goto end;
+        curr_platform->id = platform_ids[p];
 
-        if ((*err_in = clGetPlatformInfo(platforms[p].id, CL_PLATFORM_NAME, 0, NULL, &platform_name_sz)) != CL_SUCCESS)
+        if ((*err_in = clGetDeviceIDs(curr_platform->id, CL_DEVICE_TYPE_ALL, 0, NULL, &curr_platform->num_devices)) != CL_SUCCESS)
             goto end;
-        platforms[p].name = calloc(1, platform_name_sz);
-        if ((*err_in = clGetPlatformInfo(platforms[p].id, CL_PLATFORM_NAME, platform_name_sz, platforms[p].name, NULL)) != CL_SUCCESS)
-            goto end;
-        writef(STDOUT_FILENO, "Platform [%u] = %s\n", p, platforms[p].name);
+        curr_platform->devices = calloc(curr_platform->num_devices, sizeof *curr_platform->devices);
+        device_ids = realloc(device_ids, curr_platform->num_devices * sizeof *device_ids);
+        if ((*err_in = clGetDeviceIDs(curr_platform->id, CL_DEVICE_TYPE_ALL, curr_platform->num_devices, device_ids, NULL)) != CL_SUCCESS)
+            continue;
 
-        for (cl_uint d = 0; d < platforms[p].num_devices; ++d) {
+        if ((*err_in = clGetPlatformInfo(curr_platform->id, CL_PLATFORM_NAME, 0, NULL, &platform_name_sz)) != CL_SUCCESS)
+            continue;
+        curr_platform->name = calloc(1, platform_name_sz);
+        if ((*err_in = clGetPlatformInfo(curr_platform->id, CL_PLATFORM_NAME, platform_name_sz, curr_platform->name, NULL)) != CL_SUCCESS)
+            continue;
+        writef(STDOUT_FILENO, "Platform [%u] = %s\n", p, curr_platform->name);
+
+        // get device info
+        for (cl_uint d = 0; d < curr_platform->num_devices; ++d) {
+            struct opencl_device *const curr_device = &curr_platform->devices[d];
             size_t device_name_sz;
 
-            platforms[p].devices[d].id = device_ids[d];
+            curr_device->id = device_ids[d];
 
             if ((*err_in = clGetDeviceInfo(device_ids[d], CL_DEVICE_NAME, 0, NULL, &device_name_sz)) != CL_SUCCESS)
-                goto end;
-            platforms[p].devices[d].name = calloc(1, device_name_sz);
+                continue;
+            curr_device->name = calloc(1, device_name_sz);
             if ((*err_in = clGetDeviceInfo(device_ids[d], CL_DEVICE_NAME, 
                             device_name_sz, 
-                            platforms[p].devices[d].name, 
+                            curr_device->name, 
                             NULL)) != CL_SUCCESS)
-                goto end;
+                continue;
 
             if ((*err_in = clGetDeviceInfo(device_ids[d], CL_DEVICE_TYPE, 
-                            sizeof platforms[p].devices[d].type, 
-                            &platforms[p].devices[d].type, 
+                            sizeof curr_device->type, 
+                            &curr_device->type, 
                             NULL)) != CL_SUCCESS)
                 continue;
 
-            writef(STDOUT_FILENO, "  Device [%u] = %s (%s)\n", d, platforms[p].devices[d].name, clDeviceTypeGetString(platforms[p].devices[d].type));
-            writef(STDOUT_FILENO, " SVM capabilities:\n");
+            writef(STDOUT_FILENO, "  Device [%u] = %s (%s)\n", d, curr_device->name, clDeviceTypeGetString(curr_device->type));
+            writef(STDOUT_FILENO, "   SVM capabilities:\n");
 
             if ((*err_in = clGetDeviceInfo(device_ids[d], CL_DEVICE_SVM_CAPABILITIES, 
-                            sizeof platforms[p].devices[d].svm_capabilities, 
-                            &platforms[p].devices[d].svm_capabilities, 
+                            sizeof curr_device->svm_capabilities, 
+                            &curr_device->svm_capabilities, 
                             NULL)) != CL_SUCCESS)
                 continue;
+            
+            curr_device->is_valid = true;
 
-            writef(STDOUT_FILENO, "    Course-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER ? "yes" : "no");
-            writef(STDOUT_FILENO, "    Fine-grained buffer?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_BUFFER ? "yes" : "no");
-            writef(STDOUT_FILENO, "    Fine-grained system?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM ? "yes" : "no");
-            writef(STDOUT_FILENO, "    Atomics?: %s\n", platforms[p].devices[d].svm_capabilities & CL_DEVICE_SVM_ATOMICS ? "yes" : "no");
+            writef(STDOUT_FILENO, "    Course-grained buffer?: %s\n", curr_device->svm_capabilities & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER ? "yes" : "no");
+            writef(STDOUT_FILENO, "    Fine-grained buffer?: %s\n", curr_device->svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_BUFFER ? "yes" : "no");
+            writef(STDOUT_FILENO, "    Fine-grained system?: %s\n", curr_device->svm_capabilities & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM ? "yes" : "no");
+            writef(STDOUT_FILENO, "    Atomics?: %s\n", curr_device->svm_capabilities & CL_DEVICE_SVM_ATOMICS ? "yes" : "no");
         }
+
+        curr_platform->is_valid = true;
     }
 
 end:
@@ -104,44 +115,78 @@ end:
 }
 
 void opencl_platform_cleanup(struct opencl_platform platform) {
-    for (cl_uint d = 0; d < platform.num_devices; d++)
+    for (cl_uint d = 0; platform.devices && d < platform.num_devices; d++)
         free(platform.devices[d].name);
     free(platform.devices);
     free(platform.name);
 }
 
-#endif
+#endif /* USE_OPENCL */
 
 runtime_error_t runtime_init(runtime_init_info_t info) {
 #if USE_CUDA
     return cudaSuccess;
 #else
     runtime_error_t err;
+    bool have_platform = false;
     opencl_platforms = runtime_get_platforms(&err, &num_platforms);
 
-    if (runtime_is_error(err)) {
-        writef(STDERR_FILENO, "blas2cuda: %s: failed to get OpenCL runtimes - %s\n", __func__, runtime_error_string(err));
+    for (cl_uint p = 0; p < num_platforms; ++p)
+        if (opencl_platforms[p].is_valid) {
+            have_platform = true;
+            break;
+        }
+
+    if (!have_platform) {
+        writef(STDERR_FILENO, "blas2cuda: %s: failed to get OpenCL platforms - %s\n", __func__, runtime_error_string(err));
         abort();
     }
 
     // create a context for a platform and device
-    opencl_ctx = clCreateContext(
-            (cl_context_properties[]){
-                CL_CONTEXT_PLATFORM,
-                (cl_context_properties) opencl_platforms[info.platform].id,
-                0
-            }, 1,
-            &opencl_platforms[info.platform].devices[info.device].id, NULL,
-            NULL, &err);
+    struct opencl_platform *selected_platform = NULL;
+    struct opencl_device *selected_device = NULL;
+    for (cl_uint p = 0; p < num_platforms && !selected_device; p++) {
+        struct opencl_platform *const curr_platform = &opencl_platforms[p];
+        if (!curr_platform->is_valid)
+            continue;
+        for (cl_uint d = 0; d < curr_platform->num_devices && !selected_device; d++) {
+            struct opencl_device *const curr_device = &curr_platform->devices[d];
+            if (!curr_device->is_valid)
+                continue;
+            opencl_ctx = clCreateContext(
+                    (cl_context_properties[]){
+                        CL_CONTEXT_PLATFORM,
+                        (cl_context_properties) curr_platform->id,
+                        0
+                    }, 1,
+                    &curr_device->id, NULL,
+                    NULL, &err);
+            if (runtime_is_error(err))
+                return err;
+            // we will break now that opencl_ctx has been initialized
+            selected_device = curr_device;
+            selected_platform = curr_platform;
+            if (p != info.platform)
+                writef(STDERR_FILENO, "blas2cuda: %s: WARNING: could not select platform #%d (%s)\n", __func__, info.platform, curr_platform->name);
+            if (d != info.device)
+                writef(STDERR_FILENO, "blas2cuda: %s: WARNING: could not select device #%d (%s)\n", __func__, info.device, curr_device->name);
+        }
+    }
 
-    if (runtime_is_error(err))
+    if (!selected_device) {
+        writef(STDERR_FILENO, "blas2cuda: %s: FATAL: could not select a device\n", __func__);
         return err;
+    }
 
     // create a command queue for the device
     opencl_cmd_queue = clCreateCommandQueueWithProperties(
-            opencl_ctx, opencl_platforms[info.platform].devices[info.device].id,
+            opencl_ctx, selected_device->id,
             (cl_queue_properties[]) { 0 },
             &err);
+    
+    if (!runtime_is_error(err))
+        writef(STDOUT_FILENO, "blas2cuda: %s: selected %s [%s]\n", 
+               __func__, selected_platform->name, selected_device->name);
 
     return err;
 #endif

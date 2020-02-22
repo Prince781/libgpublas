@@ -54,7 +54,6 @@ void _b2c_hemm(const CBLAS_SIDE side,
     gpuptr<const T> gpu_b(b, size(0, ldb, n, sizeof(*b)));
     gpuptr<T> gpu_c(c, size(0, ldc, n, sizeof(*c)));
 
-
     call_kernel(
 #if USE_CUDA
         hemm_func(b2c_cublas_handle,
@@ -122,48 +121,32 @@ F77_hemm(c, float _Complex) {
     hemm_check();
     _b2c_hemm(c_side(*side), c_uplo(*uplo),
             *m, *n, 
-#if USE_CUDA
             cu(*alpha),
-#else
-            cu2(*alpha),
-#endif
             cmplx_ptr(a), *lda,
             cmplx_ptr(b), *ldb,
-#if USE_CUDA
             cu(*beta),
-#else
-            cu2(*beta),
-#endif
             cmplx_ptr(c), *ldc,
 #if USE_CUDA
             &cublasChemm
 #else
             &clblasChemm
 #endif
-            );
+    );
 }
 
 F77_hemm(z, double _Complex) {
     hemm_check();
     _b2c_hemm(c_side(*side), c_uplo(*uplo),
             *m, *n, 
-#if USE_CUDA
             cu(*alpha),
-#else
-            cu2(*alpha),
-#endif
             cmplx_ptr(a), *lda,
             cmplx_ptr(b), *ldb,
-#if USE_CUDA
             cu(*beta),
-#else
-            cu2(*beta),
-#endif
             cmplx_ptr(c), *ldc,
 #if USE_CUDA
             &cublasZhemm
 #else
             &clblasZhemm
 #endif
-            );
+    );
 }
